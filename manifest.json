@@ -2,7 +2,7 @@
   "name": "PycLibreta",
   "short_name": "PycLibreta",
   "description": "Gestión de partes, ruta y mantenimiento",
-  "start_url": "./app.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
