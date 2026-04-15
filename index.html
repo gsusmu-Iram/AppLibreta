@@ -3538,7 +3538,9 @@ function preprocesar(txt) {
   return txt
     .replace(/([A-Za-zÀ-ú])(INC\d)/g,   '$1 $2')
     .replace(/([A-Za-zÀ-ú])(WO\d)/g,    '$1 $2')
-    .replace(/([A-Za-zÀ-ú])(TASK\d)/gi, '$1 $2');
+    .replace(/([A-Za-zÀ-ú])(TASK\d)/gi, '$1 $2')
+    // Separar sufijo .SEG/.PCI/.INST pegado a la dirección: ".SEG)COLON" → ".SEG) COLON"
+    .replace(/(\.[A-Z]{2,4}\))([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
 }
 
 /* ================================================================
@@ -3594,8 +3596,10 @@ function extraerAviso(t) {
   }
   const n16  = t.match(/\b(16\d{7})\b/);   if (n16)  return { aviso:n16[1],          tipo:'NUM'  };
   const al   = t.match(/AL_(M|ATC)\d+/i);  if (al)   return { aviso:al[0].toUpperCase(), tipo:'AL' };
-  // BBVA: (43000302118.SEG) — número entre paréntesis con sufijo .SEG/.PCI/.INST
-  const bbva = t.match(/\((\d{10,12})\.[A-Z]+\)/i); if (bbva) return { aviso:bbva[1], tipo:'NUM' };
+  // BBVA abonado: (43000302118.SEG) — solo usarlo si no hay otro aviso, y marcarlo como NUM_ABONADO
+  // para que la descripción no lo use como ancla
+  const bbva = t.match(/\((\d{10,12})\.[A-Z]+\)/i);
+  if (bbva) return { aviso: bbva[1], tipo: 'ABONADO' };
   return { aviso:'', tipo:'NONE' };
 }
 
@@ -3650,8 +3654,10 @@ function extraerDireccion(bloque) {
   const m3 = bloque.match(/((?:Ctra\.|Carretera|Autovia|CAMINO)[^\n\-]+?)\s*-\s*([A-ZÀ-Úa-zà-ú][^-\n]{2,25})\s*-\s*(?:Valencia|VALENCIA)/i);
   if (m3) return { direccion:m3[1].trim(), localidad:clean(m3[2]) };
 
-  // Fallback con CP para formatos sin prefijo (AQUAE)
-  const m4 = bloque.match(/([A-ZÁÉÍÓÚÑ\d][^-\n]{5,40}?\d[\w\s]*)\s*-\s*(\d{5})\s*-\s*([^-\n]{3,25}?)\s*-\s*(?:VALENCIA|CUENCA|ALBACETE)/i);
+  // Fallback con CP para formatos sin prefijo (AQUAE, BBVA)
+  // Primero limpiar posible prefijo tipo "BBVA (43000302098.SEG) " o ".SEG) "
+  const bloqueLimpio = bloque.replace(/\([^\)]+\.[A-Z]{2,4}\)\s*/gi, '');
+  const m4 = bloqueLimpio.match(/([A-ZÁÉÍÓÚÑ\d][^-\n]{5,40}?\d[\w\s]*)\s*-\s*(\d{5})\s*-\s*([^-\n]{3,25}?)\s*-\s*(?:VALENCIA|CUENCA|ALBACETE)/i);
   if (m4) return { direccion:m4[1].trim(), localidad:clean(m4[3]) };
 
   return { direccion:'', localidad:'' };
@@ -3663,8 +3669,8 @@ function extraerDireccion(bloque) {
 function extraerDescripcion(texto, aviso) {
   let desc = '';
 
-  // Ancla 1: después del INC/WO/TASK (no para AL_M)
-  if (aviso.aviso && aviso.tipo !== 'NONE' && aviso.tipo !== 'AL') {
+  // Ancla 1: después del INC/WO/TASK (no para AL_M ni ABONADO)
+  if (aviso.aviso && aviso.tipo !== 'NONE' && aviso.tipo !== 'AL' && aviso.tipo !== 'ABONADO') {
     const idx = texto.indexOf(aviso.aviso);
     if (idx !== -1) {
       let r = texto.slice(idx + aviso.aviso.length).trim();
@@ -3676,8 +3682,11 @@ function extraerDescripcion(texto, aviso) {
     }
   }
 
-  // Ancla 2: NOTAS:
-  if (!desc) { const m=texto.match(/NOTAS?:\s*(.+)/i); if(m) desc=m[1].trim(); }
+  // Ancla 2: NOTAS: — prioritaria para BBVA instalaciones
+  if (!desc || aviso.tipo === 'ABONADO') {
+    const m = texto.match(/NOTAS?:\s*(.+)/i);
+    if (m) desc = m[1].trim();
+  }
 
   // Ancla 3: texto tras la provincia — ANTES de mantenimientos
   // Cubre CAMPSA, AQUAE, BBVA Minglanilla y cualquier texto libre al final
@@ -4303,7 +4312,7 @@ function renderizar() {
       for (const p of items) {
         const c2=getCfg(p.clienteNorm);
         const isRuta=!!p.enRuta;
-        const avisoVis=(p.aviso&&p.avisoTipo!=='OT_INT')?p.aviso:'';
+        const avisoVis=(p.aviso&&p.avisoTipo!=='OT_INT'&&p.avisoTipo!=='ABONADO')?p.aviso:'';
         const fechaVis=p.fechaEjecucion||p.fecha;
         const dias=p.dias||diasDesde(p.fecha);
         delay+=40;
@@ -4316,7 +4325,7 @@ function renderizar() {
         const bRuta   =isRuta          ?'<span class="badge-ruta">EN RUTA</span>':'';
         const bUrgente=p.urgente&&!isRuta?`<span class="badge-urgente">🚨 URGENTE${p.horasUrgencia?' '+p.horasUrgencia+'H':''}</span>`:'';
         const bAntiguo=dias>7&&!isRuta  ?`<span class="badge-antiguo">${dias}d</span>`:'';
-        const bFijado =p.horaFijada&&!isRuta?`<span class="badge-fijado">📌 ${p.horaFijada}${p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''}</span>`:'';
+        const bFijado =p.horaFijada&&!isRuta?`<span class="badge-fijado">FIJADO ${p.horaFijada}${p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''}</span>`:'';
 
         html+=`
         <div class="aviso-wrap" style="animation-delay:${delay}ms" data-id="${p.id}">
