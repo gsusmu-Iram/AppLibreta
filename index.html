@@ -1275,32 +1275,6 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .mto-scroll::-webkit-scrollbar{width:3px}
 .mto-scroll::-webkit-scrollbar-thumb{background:var(--ink-xl);border-radius:4px}
 
-/* ── MTO BBVA — pantalla nueva ── */
-
-/* ── Modal PDF fotos ── */
-.pdf-overlay{position:fixed;inset:0;background:rgba(15,24,41,.6);z-index:200;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .3s}
-.pdf-overlay.open{opacity:1;pointer-events:all}
-.pdf-sheet{background:var(--paper);border-radius:24px 24px 0 0;width:100%;max-width:480px;margin:0 auto;padding:20px 16px 40px;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;gap:12px;max-height:90vh;overflow-y:auto}
-.pdf-sheet.open{transform:translateY(0)}
-.pdf-sheet-hdr{display:flex;align-items:center;justify-content:space-between}
-.pdf-sheet-title{font-size:17px;font-weight:900;color:var(--navy)}
-.pdf-sheet-close{font-size:20px;color:var(--ink-xl);cursor:pointer;padding:4px 8px}
-
-.pdf-fotos-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.pdf-foto-thumb{aspect-ratio:3/4;border-radius:8px;background:var(--paper-warm);border:1px solid rgba(26,39,68,.1);overflow:hidden;position:relative}
-.pdf-foto-thumb img{width:100%;height:100%;object-fit:cover}
-.pdf-foto-del{position:absolute;top:4px;right:4px;background:rgba(220,38,38,.85);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-
-.pdf-add-btn{aspect-ratio:3/4;border-radius:8px;background:var(--paper-warm);border:2px dashed rgba(26,39,68,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .2s}
-.pdf-add-btn:hover{border-color:var(--orange)}
-.pdf-add-icon{font-size:28px}
-.pdf-add-txt{font-family:var(--font-mono);font-size:8px;color:var(--ink-xl);letter-spacing:.06em;text-transform:uppercase}
-
-.pdf-actions{display:flex;gap:8px;margin-top:4px}
-.pdf-btn-cancel{flex:1;background:var(--paper-warm);border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-pill);padding:12px;font-family:var(--font-ui);font-size:13px;font-weight:700;color:var(--ink-mid);cursor:pointer}
-.pdf-btn-gen{flex:2;background:var(--navy);color:white;border:none;border-radius:var(--r-pill);padding:12px;font-family:var(--font-ui);font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
-.pdf-btn-gen:disabled{opacity:.5;cursor:not-allowed}
-
 /* ── STATS ── */
 .stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .stat-box{background:white;border-radius:var(--r-md);border:1px solid rgba(26,39,68,.08);padding:9px 6px;text-align:center;box-shadow:0 1px 4px rgba(26,39,68,.05)}
@@ -1319,19 +1293,15 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .busq-clear.visible{display:block}
 
 /* ── FILTROS ── */
-.fil-row{display:flex;gap:7px;align-items:center;flex-shrink:0;padding:0 12px}
-.fil-row.fil-row-top{padding-top:8px;padding-bottom:6px}
-.fil-row.fil-row-bot{padding-bottom:10px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.fil-row.fil-row-bot::-webkit-scrollbar{display:none}
-.fil-btn{flex-shrink:0;border-radius:var(--r-pill);padding:9px 16px;font-size:12px;font-weight:700;font-family:var(--font-ui);border:1.5px solid rgba(26,39,68,.15);background:white;color:var(--ink-mid);cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;transition:all .15s;height:36px;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.fil-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fil-btn{border-radius:var(--r-pill);padding:6px 13px;font-size:10px;font-weight:700;border:1.5px solid rgba(26,39,68,.15);background:white;color:var(--ink-mid);cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;transition:all .15s}
 .fil-btn.act{background:var(--navy);color:white;border-color:var(--navy)}
-.fil-btn.fil-pdf{background:var(--navy);color:white;border-color:var(--navy)}
-.fil-btn.fil-more{padding:9px 13px;font-size:18px;font-weight:900;letter-spacing:0}
+.fil-btn.pend{color:var(--warn);border-color:rgba(217,119,6,.3);background:var(--warn-bg)}
 .fil-zona{display:flex;align-items:center;gap:4px;padding-right:9px;font-size:10px}
 .fil-zona select{border:none;background:none;font-family:var(--font-ui);font-size:10px;font-weight:700;color:var(--ink-mid);outline:none;cursor:pointer;padding:0 2px 0 0}
 
 /* Select compacto de cliente — integrado en fila de filtros */
-.fil-sel{border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-pill);background:white;padding:0 26px 0 14px;font-family:var(--font-ui);font-size:12px;font-weight:700;color:var(--ink-mid);outline:none;cursor:pointer;-webkit-appearance:none;flex-shrink:0;height:36px}
+.fil-sel{border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-pill);background:white;padding:6px 10px 6px 13px;font-family:var(--font-ui);font-size:10px;font-weight:700;color:var(--ink-mid);outline:none;cursor:pointer;-webkit-appearance:none;flex-shrink:0}
 .fil-sel:focus{border-color:var(--orange)}
 .fil-sel-wrap{position:relative;display:flex;align-items:center;flex-shrink:0}
 .fil-sel-wrap::after{content:'▾';position:absolute;right:9px;font-size:9px;color:var(--ink-xl);pointer-events:none}
@@ -1645,6 +1615,14 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .rb-cli{background:rgba(26,39,68,.08);color:var(--ink-mid)}
 .rb-hor{background:var(--warn-bg);color:var(--warn)}
 .rb-fes{background:var(--error-bg);color:var(--error)}
+.rb-equ{background:var(--ok-bg);color:var(--ok)}
+
+/* Indicador de campo que coincidió */
+.res-hint{font-family:var(--font-mono);font-size:8px;color:var(--orange-deep);letter-spacing:.04em;margin-top:2px;opacity:.8}
+
+/* Visitas secundarias en historial agrupado */
+.his-sub-card{border-left:3px solid rgba(22,163,74,.25);border-radius:0 var(--r-md) var(--r-md) 0;margin-left:14px;background:var(--paper-warm)}
+.his-grp-card{border-left:3px solid rgba(22,163,74,.5)}
 .res-sub{font-size:11px;color:var(--ink-mid);line-height:1.4}
 .res-meta{font-family:var(--font-mono);font-size:9px;color:var(--ink-xl);margin-top:1px}
 mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--orange-deep);font-weight:900;font-style:normal}
@@ -1653,6 +1631,35 @@ mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--
 .no-results{text-align:center;padding:32px 20px;display:flex;flex-direction:column;align-items:center;gap:8px}
 .no-results-ico{font-size:36px;opacity:.3}
 .no-results-txt{font-size:13px;color:var(--ink-xl);font-style:italic}
+
+/* ── FILTER CHIPS (Buscador) ── */
+.search-filter-bar{padding:6px 13px 4px;display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;background:var(--paper);border-bottom:1px solid rgba(26,39,68,.06)}
+.search-filter-bar::-webkit-scrollbar{display:none}
+.sf-chip{flex-shrink:0;padding:5px 11px;border-radius:var(--r-pill);font-family:var(--font-mono);font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1.5px solid rgba(26,39,68,.12);background:white;color:var(--ink-mid);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:4px}
+.sf-chip:hover{border-color:rgba(249,115,22,.35);color:var(--orange)}
+.sf-chip.act{background:var(--orange);color:white;border-color:var(--orange-deep);box-shadow:0 2px 8px rgba(249,115,22,.3)}
+.sf-chip .sf-n{background:rgba(255,255,255,.28);border-radius:6px;padding:0 5px;font-size:8px;line-height:1.6}
+.sf-chip:not(.act) .sf-n{background:rgba(26,39,68,.07);color:var(--ink-mid)}
+
+/* ── SEARCH STATS BAR ── */
+.search-stats-bar{display:flex;align-items:center;justify-content:space-between;padding:4px 13px 2px;flex-shrink:0}
+.ss-count{font-family:var(--font-mono);font-size:9px;color:var(--ink-xl);letter-spacing:.04em}
+.ss-count strong{color:var(--navy);font-weight:800}
+.ss-clear-all{font-family:var(--font-mono);font-size:9px;color:var(--orange);cursor:pointer;background:none;border:none;padding:2px;letter-spacing:.04em;-webkit-tap-highlight-color:transparent}
+
+/* ── ACTION BUTTONS IN RESULT CARDS ── */
+.res-actions{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.res-act{background:none;border:1px solid rgba(26,39,68,.12);border-radius:var(--r-pill);padding:3px 9px;font-family:var(--font-mono);font-size:8.5px;font-weight:700;color:var(--ink-mid);cursor:pointer;display:inline-flex;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent;transition:all .15s;letter-spacing:.04em}
+.res-act:hover{background:var(--paper-warm)}
+.res-act:active{transform:scale(.95)}
+.res-act.copy:hover{border-color:rgba(22,163,74,.35);color:var(--ok)}
+.res-act.call:hover{border-color:rgba(2,132,199,.35);color:var(--cyan)}
+.res-act.nav:hover{border-color:rgba(249,115,22,.35);color:var(--orange)}
+.res-act.copied{background:var(--ok-bg);border-color:rgba(22,163,74,.35);color:var(--ok)}
+
+/* Ver más — botón de expansión de clientes */
+.ver-mas-btn{width:100%;background:none;border:1.5px dashed rgba(26,39,68,.15);border-radius:var(--r-md);padding:9px;font-family:var(--font-mono);font-size:9.5px;font-weight:700;color:var(--orange);cursor:pointer;letter-spacing:.04em;margin-top:4px;-webkit-tap-highlight-color:transparent;transition:all .15s}
+.ver-mas-btn:hover{background:rgba(249,115,22,.06);border-color:rgba(249,115,22,.3)}
 
 /* ============================================
    PANTALLA CIERRE — Resumen del día
@@ -2499,16 +2506,16 @@ body { font-size: 14px; }
       <button class="busq-clear" id="busq-clear" onclick="limpiarBusq()">✕</button>
     </div>
 
-    <!-- Fila 1: Todos · PDF · ⋮ -->
-    <div class="fil-row fil-row-top">
-      <button class="fil-btn act" id="fil-todos" onclick="setFiltro('todos')">Todos</button>
-      <button class="fil-btn fil-pdf" onclick="abrirPdfFotos()">📷 PDF</button>
-      <button class="fil-btn fil-more" id="mto-more-btn" onclick="toggleMtoMenu()">⋮</button>
+    <!-- Acciones -->
+    <div class="mto-acciones">
+      <button class="btn-nueva-ofi" onclick="abrirNuevaOficina()">➕ Nueva oficina</button>
+      <button class="btn-reset" onclick="resetearAno()">🗑️ Resetear año</button>
     </div>
 
-    <!-- Fila 2: Pendientes · Zona · Cliente -->
-    <div class="fil-row fil-row-bot">
-      <button class="fil-btn" id="fil-pend" onclick="setFiltro('pend')">Pendientes</button>
+    <!-- Filtros: estado + zona + cliente -->
+    <div class="fil-row">
+      <button class="fil-btn act" id="fil-todos" onclick="setFiltro('todos')">Todos</button>
+      <button class="fil-btn pend" id="fil-pend" onclick="setFiltro('pend')">⚠ Pendientes</button>
       <div class="fil-sel-wrap">
         <select class="fil-sel" id="fil-zona-sel" onchange="setZona(this.value)">
           <option value="todas">Zona: Todas</option>
@@ -2520,28 +2527,9 @@ body { font-size: 14px; }
           <option value="bbva">BBVA</option>
           <option value="abanca">ABANCA</option>
           <option value="caj">CAJAMAR</option>
-          <option value="repsol">Repsol</option>
           <option value="otros">Otros</option>
         </select>
       </div>
-    </div>
-
-    <!-- Menú acciones ocasionales -->
-    <div id="mto-ctx-overlay" onclick="closeMtoMenu()" style="display:none;position:fixed;inset:0;z-index:299"></div>
-    <div id="mto-ctx-menu" style="display:none;position:fixed;right:14px;z-index:300;
-      background:var(--paper);border-radius:var(--r);border:1px solid rgba(26,39,68,.1);
-      box-shadow:0 8px 28px rgba(26,39,68,.18);overflow:hidden;min-width:190px">
-      <button onclick="closeMtoMenu();abrirNuevaOficina()" style="width:100%;padding:13px 16px;
-        background:none;border:none;border-bottom:1px solid rgba(26,39,68,.07);
-        font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--navy);
-        text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px">
-        ➕ <span>Nueva oficina</span>
-      </button>
-      <button onclick="closeMtoMenu();resetearAno()" style="width:100%;padding:13px 16px;
-        background:none;border:none;font-family:var(--font-ui);font-size:13px;font-weight:600;
-        color:var(--error);text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px">
-        🗑️ <span>Resetear año</span>
-      </button>
     </div>
 
 
@@ -2550,28 +2538,6 @@ body { font-size: 14px; }
     <div id="mto-lista"></div>
 
   </div><!-- /mto-scroll -->
-
-  <!-- ── Modal PDF Fotos ── -->
-  <div class="pdf-overlay" id="pdf-overlay" onclick="if(event.target===this)cerrarPdfFotos()">
-    <div class="pdf-sheet" id="pdf-sheet">
-      <div class="pdf-sheet-hdr">
-        <div class="pdf-sheet-title">📷 PDF Fotos</div>
-        <div class="pdf-sheet-close" onclick="cerrarPdfFotos()">✕</div>
-      </div>
-      <div style="font-family:var(--font-hand);font-size:12px;color:var(--ink-mid)">Añade las fotos — una por página en el PDF</div>
-      <div class="pdf-fotos-grid" id="pdf-fotos-grid">
-        <div class="pdf-add-btn" onclick="document.getElementById('pdf-input').click()">
-          <div class="pdf-add-icon">📷</div>
-          <div class="pdf-add-txt">Añadir foto</div>
-        </div>
-      </div>
-      <input type="file" id="pdf-input" accept="image/*" capture="environment" multiple style="display:none" onchange="pdfAnadirFotos(this)">
-      <div class="pdf-actions">
-        <button class="pdf-btn-cancel" onclick="cerrarPdfFotos()">Cancelar</button>
-        <button class="pdf-btn-gen" id="pdf-btn-gen" onclick="pdfGenerar()" disabled>⬇️ Generar PDF</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Tab Bar -->
   
@@ -2701,6 +2667,17 @@ body { font-size: 14px; }
           </div>
         </div>
 
+        <!-- FILTRO POR TIPO — visible solo cuando hay query activo -->
+        <div class="search-filter-bar" id="search-filter-bar" style="display:none">
+          <div class="sf-chip act" id="sf-todos"    onclick="selFiltro('todos')">🔎 Todos <span class="sf-n" id="sfn-todos">—</span></div>
+          <div class="sf-chip"    id="sf-cli"     onclick="selFiltro('cli')">🏢 Clientes <span class="sf-n" id="sfn-cli">0</span></div>
+          <div class="sf-chip"    id="sf-his"     onclick="selFiltro('his')">📋 Historial <span class="sf-n" id="sfn-his">0</span></div>
+          <div class="sf-chip"    id="sf-inf"     onclick="selFiltro('inf')">🔧 Info <span class="sf-n" id="sfn-inf">0</span></div>
+          <div class="sf-chip"    id="sf-equ"     onclick="selFiltro('equ')">🖥️ Equipos <span class="sf-n" id="sfn-equ">0</span></div>
+          <div class="sf-chip"    id="sf-hor"     onclick="selFiltro('hor')">⏰ Horarios <span class="sf-n" id="sfn-hor">0</span></div>
+          <div class="sf-chip"    id="sf-fes"     onclick="selFiltro('fes')">📅 Festivos <span class="sf-n" id="sfn-fes">0</span></div>
+        </div>
+
         <!-- CONTENIDO: estado vacío O resultados (nunca se toca la barra) -->
         <div class="buscar-content" id="buscar-content">
 
@@ -2717,6 +2694,10 @@ body { font-size: 14px; }
               <div class="qs-btn" onclick="mostrarFestivos()">
                 <span class="qs-ico">📅</span>
                 <span class="qs-lbl" style="color:var(--error)">Festivos</span>
+              </div>
+              <div class="qs-btn" onclick="mostrarTodosClientes()">
+                <span class="qs-ico">🏢</span>
+                <span class="qs-lbl" style="color:var(--navy)">Clientes</span>
               </div>
               <div class="qs-btn" onclick="cargarFestivosCV()" id="btn-cargar-festivos" style="display:none">
                 <span class="qs-ico">⬇️</span>
@@ -3140,12 +3121,6 @@ body { font-size: 14px; }
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="cerrarFinalizar()">Cancelar</button>
-      <button id="btn-gps-guardar" onclick="btnGuardarGPS()"
-        style="background:rgba(22,163,74,.1);color:var(--ok);border:1.5px solid rgba(22,163,74,.3);
-               border-radius:var(--r-pill);padding:12px;font-family:var(--font-ui);font-size:12px;
-               font-weight:700;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">
-        📍 GPS
-      </button>
       <button class="btn-guardar" id="btn-guardar" onclick="guardarFinalizar()">→ Guardar</button>
     </div>
   </div>
@@ -3262,6 +3237,8 @@ body { font-size: 14px; }
         <span class="dprog-txt" id="dprog-excel-txt"></span>
       </div>
     </div>
+
+    <div class="dsep"></div>
 
     <!-- ── JSON BACKUP ── -->
     <div>
@@ -3526,7 +3503,7 @@ function irA(modulo) {
       const _td=document.getElementById('tareas-view-dots');
       if(_td) _td.classList.add('vis');
       if(!_tareasIniciado){tareasInit();_tareasIniciado=true;}
-      else{tareasIrVista('eventos');renderTareas();renderNotas();renderCalendario();renderEventos();tareasFixAltura();}
+      else{tareasIrVista('notas');renderTareas();renderNotas();renderCalendario();renderEventos();tareasFixAltura();}
     }
     if (modulo === 'analisis') { renderizar(); }
   } catch(e) { console.log('PycLibreta irA error [' + modulo + ']:', e.message, e.stack); }
@@ -3613,9 +3590,7 @@ function preprocesar(txt) {
   return txt
     .replace(/([A-Za-zÀ-ú])(INC\d)/g,   '$1 $2')
     .replace(/([A-Za-zÀ-ú])(WO\d)/g,    '$1 $2')
-    .replace(/([A-Za-zÀ-ú])(TASK\d)/gi, '$1 $2')
-    // Separar sufijo .SEG/.PCI/.INST pegado a la dirección: ".SEG)COLON" → ".SEG) COLON"
-    .replace(/(\.[A-Z]{2,4}\))([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
+    .replace(/([A-Za-zÀ-ú])(TASK\d)/gi, '$1 $2');
 }
 
 /* ================================================================
@@ -3671,10 +3646,8 @@ function extraerAviso(t) {
   }
   const n16  = t.match(/\b(16\d{7})\b/);   if (n16)  return { aviso:n16[1],          tipo:'NUM'  };
   const al   = t.match(/AL_(M|ATC)\d+/i);  if (al)   return { aviso:al[0].toUpperCase(), tipo:'AL' };
-  // BBVA abonado: (43000302118.SEG) — solo usarlo si no hay otro aviso, y marcarlo como NUM_ABONADO
-  // para que la descripción no lo use como ancla
-  const bbva = t.match(/\((\d{10,12})\.[A-Z]+\)/i);
-  if (bbva) return { aviso: bbva[1], tipo: 'ABONADO' };
+  // BBVA: (43000302118.SEG) — número entre paréntesis con sufijo .SEG/.PCI/.INST
+  const bbva = t.match(/\((\d{10,12})\.[A-Z]+\)/i); if (bbva) return { aviso:bbva[1], tipo:'NUM' };
   return { aviso:'', tipo:'NONE' };
 }
 
@@ -3729,17 +3702,8 @@ function extraerDireccion(bloque) {
   const m3 = bloque.match(/((?:Ctra\.|Carretera|Autovia|CAMINO)[^\n\-]+?)\s*-\s*([A-ZÀ-Úa-zà-ú][^-\n]{2,25})\s*-\s*(?:Valencia|VALENCIA)/i);
   if (m3) return { direccion:m3[1].trim(), localidad:clean(m3[2]) };
 
-  // Fallback con CP para formatos sin prefijo (AQUAE, BBVA, CR Torrent)
-  // Formato: "E2024 SEDE NOMBRE (66045)AVDA. AL VEDAT, 3 - 46900 - LOCALIDAD - PROV"
-  // Intentar anclar desde justo después del código entre paréntesis
-  const mAncla = bloque.match(/\(\d{4,6}\)\s*([A-ZÁÉÍÓÚÑ][^-\n]{3,40}?\d[\w\s]*)\s*-\s*(\d{5})\s*-\s*([^-\n]{3,25}?)\s*-\s*(?:VALENCIA|CUENCA|ALBACETE)/i);
-  if (mAncla) return { direccion: mAncla[1].trim(), localidad: clean(mAncla[3]) };
-
-  // Limpiar prefijos tipo "(43000302098.SEG)" o "(66045)" y buscar con CP
-  const bloqueLimpio = bloque
-    .replace(/\([^\)]+\.[A-Z]{2,4}\)\s*/gi, '')
-    .replace(/\(\d{4,6}\)/g, '');
-  const m4 = bloqueLimpio.match(/([A-ZÁÉÍÓÚÑ\d][^-\n]{5,40}?\d[\w\s]*)\s*-\s*(\d{5})\s*-\s*([^-\n]{3,25}?)\s*-\s*(?:VALENCIA|CUENCA|ALBACETE)/i);
+  // Fallback con CP para formatos sin prefijo (AQUAE)
+  const m4 = bloque.match(/([A-ZÁÉÍÓÚÑ\d][^-\n]{5,40}?\d[\w\s]*)\s*-\s*(\d{5})\s*-\s*([^-\n]{3,25}?)\s*-\s*(?:VALENCIA|CUENCA|ALBACETE)/i);
   if (m4) return { direccion:m4[1].trim(), localidad:clean(m4[3]) };
 
   return { direccion:'', localidad:'' };
@@ -3751,8 +3715,8 @@ function extraerDireccion(bloque) {
 function extraerDescripcion(texto, aviso) {
   let desc = '';
 
-  // Ancla 1: después del INC/WO/TASK (no para AL_M ni ABONADO)
-  if (aviso.aviso && aviso.tipo !== 'NONE' && aviso.tipo !== 'AL' && aviso.tipo !== 'ABONADO') {
+  // Ancla 1: después del INC/WO/TASK (no para AL_M)
+  if (aviso.aviso && aviso.tipo !== 'NONE' && aviso.tipo !== 'AL') {
     const idx = texto.indexOf(aviso.aviso);
     if (idx !== -1) {
       let r = texto.slice(idx + aviso.aviso.length).trim();
@@ -3764,11 +3728,8 @@ function extraerDescripcion(texto, aviso) {
     }
   }
 
-  // Ancla 2: NOTAS: — prioritaria para BBVA instalaciones
-  if (!desc || aviso.tipo === 'ABONADO') {
-    const m = texto.match(/NOTAS?:\s*(.+)/i);
-    if (m) desc = m[1].trim();
-  }
+  // Ancla 2: NOTAS:
+  if (!desc) { const m=texto.match(/NOTAS?:\s*(.+)/i); if(m) desc=m[1].trim(); }
 
   // Ancla 3: texto tras la provincia — ANTES de mantenimientos
   // Cubre CAMPSA, AQUAE, BBVA Minglanilla y cualquier texto libre al final
@@ -4394,7 +4355,7 @@ function renderizar() {
       for (const p of items) {
         const c2=getCfg(p.clienteNorm);
         const isRuta=!!p.enRuta;
-        const avisoVis=(p.aviso&&p.avisoTipo!=='OT_INT'&&p.avisoTipo!=='ABONADO')?p.aviso:'';
+        const avisoVis=(p.aviso&&p.avisoTipo!=='OT_INT')?p.aviso:'';
         const fechaVis=p.fechaEjecucion||p.fecha;
         const dias=p.dias||diasDesde(p.fecha);
         delay+=40;
@@ -4407,7 +4368,7 @@ function renderizar() {
         const bRuta   =isRuta          ?'<span class="badge-ruta">EN RUTA</span>':'';
         const bUrgente=p.urgente&&!isRuta?`<span class="badge-urgente">🚨 URGENTE${p.horasUrgencia?' '+p.horasUrgencia+'H':''}</span>`:'';
         const bAntiguo=dias>7&&!isRuta  ?`<span class="badge-antiguo">${dias}d</span>`:'';
-        const bFijado =p.horaFijada&&!isRuta?`<span class="badge-fijado">FIJADO ${p.horaFijada}${p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''}</span>`:'';
+        const bFijado =p.horaFijada&&!isRuta?`<span class="badge-fijado">📌 ${p.horaFijada}${p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''}</span>`:'';
 
         html+=`
         <div class="aviso-wrap" style="animation-delay:${delay}ms" data-id="${p.id}">
@@ -4793,9 +4754,8 @@ function formatTiempo(km) {
 }
 
 /* ================================================================
-   GEOCODIFICACIÓN — Sistema combinado:
-   1. Coords exactas GPS (guardadas al finalizar parada)  → clave: codigo
-   2. Coords por localidad (Photon/Nominatim)             → clave: localidad
+   GEOCODIFICACIÓN — Photon (Komoot, OSM, sin rate limit, sin API key)
+   Consulta UNA vez por dirección+localidad y guarda en localStorage.
    ================================================================ */
 const K_COORDS = 'pyc_coords';
 
@@ -4803,96 +4763,94 @@ function cargarCoords() {
   return load(K_COORDS) || {};
 }
 
-// Clave por código (coords exactas GPS)
-function _claveExacta(parada) {
-  return parada.codigo ? String(parada.codigo).toLowerCase().trim() : null;
+function _claveCoords(parada) {
+  // Clave por dirección+localidad — más fiable que el código
+  const dir = (parada.direccion || '').toLowerCase().trim();
+  const loc = (parada.localidad || '').toLowerCase().trim();
+  if (dir && loc) return `${dir}|${loc}`;
+  // Fallback: código si existe
+  if (parada.codigo) return String(parada.codigo);
+  return parada.id;
 }
 
-// Clave por localidad (coords municipio)
-function _claveLoc(parada) {
-  return (parada.localidad || '').toLowerCase().trim() || null;
-}
+async function geocodificar(parada) {
+  if (parada.lat && parada.lng) return;
+  const clave  = _claveCoords(parada);
+  const coords = cargarCoords();
 
-// Obtener las mejores coords disponibles para una parada
-function _getCoordsParada(parada, coords) {
-  // 1. Coords exactas GPS por código
-  const cExacta = _claveExacta(parada);
-  if (cExacta && coords[cExacta]) return coords[cExacta];
-  // 2. Coords por localidad
-  const cLoc = _claveLoc(parada);
-  if (cLoc && coords[cLoc]) return coords[cLoc];
-  return null;
-}
+  if (coords[clave]) {
+    parada.lat = coords[clave].lat;
+    parada.lng = coords[clave].lng;
+    // Persistir en ruta también
+    const ps  = loadArr(K_RUTA);
+    const idx = ps.findIndex(x => x.id === parada.id);
+    if (idx !== -1 && !ps[idx].lat) { ps[idx].lat = parada.lat; ps[idx].lng = parada.lng; save(K_RUTA, ps); }
+    return;
+  }
 
-async function geocodificarLocalidad(localidad, coords) {
-  const clave = localidad.toLowerCase().trim();
-  if (coords[clave]) return coords[clave];
+  const dir = parada.direccion || '';
+  const loc = parada.localidad || '';
+  if (!dir && !loc) return;
 
-  const q = `${localidad}, Valencia, España`;
+  // Query principal: dirección + localidad
+  const q = [dir, loc, 'España'].filter(Boolean).join(', ');
+
   try {
-    // Photon
+    // Photon — sin rate limit, datos OSM
     const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=es`;
     const r   = await fetch(url, { headers: { 'Accept-Language': 'es' } });
-    if (r.ok) {
-      const data = await r.json();
-      if (data.features && data.features.length) {
-        const [lng, lat] = data.features[0].geometry.coordinates;
-        coords[clave] = { lat, lng };
-        save(K_COORDS, coords);
-        return { lat, lng };
-      }
-    }
-  } catch {}
+    if (!r.ok) throw new Error('photon ' + r.status);
+    const data = await r.json();
 
-  try {
-    // Nominatim fallback
-    const urlN = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=es`;
-    const rN   = await fetch(urlN, { headers: { 'Accept-Language': 'es' } });
-    if (rN.ok) {
-      const dN = await rN.json();
-      if (dN.length) {
-        const lat = parseFloat(dN[0].lat);
-        const lng = parseFloat(dN[0].lon);
-        coords[clave] = { lat, lng };
-        save(K_COORDS, coords);
-        return { lat, lng };
-      }
+    if (!data.features || !data.features.length) {
+      // Fallback: Nominatim con la misma query
+      try {
+        const urlN = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=es`;
+        const rN   = await fetch(urlN, { headers: { 'Accept-Language': 'es' } });
+        if (rN.ok) {
+          const dN = await rN.json();
+          if (dN.length) {
+            _guardarCoords(parada, clave, parseFloat(dN[0].lat), parseFloat(dN[0].lon), coords);
+          }
+        }
+      } catch {}
+      return;
     }
-  } catch {}
 
-  return null;
+    const [lng, lat] = data.features[0].geometry.coordinates;
+    _guardarCoords(parada, clave, lat, lng, coords);
+
+  } catch { /* sin internet — silencioso */ }
 }
 
-// Guardar coords exactas GPS (llamado desde modal Finalizar)
-function guardarCoordsGPS(parada) {
-  if (!gpsActual || !gpsActual.lat || !gpsActual.lng) return false;
-  if (!parada.codigo) return false;
-  const clave  = String(parada.codigo).toLowerCase().trim();
-  const coords = cargarCoords();
-  coords[clave] = { lat: gpsActual.lat, lng: gpsActual.lng, gps: true };
+function _guardarCoords(parada, clave, lat, lng, coords) {
+  parada.lat = lat;
+  parada.lng = lng;
+
+  // Caché coords
+  coords[clave] = { lat, lng };
   save(K_COORDS, coords);
-  return true;
+
+  // Actualizar en pyc_ruta_paradas
+  const ps  = loadArr(K_RUTA);
+  const idx = ps.findIndex(x => x.id === parada.id);
+  if (idx !== -1) { ps[idx].lat = lat; ps[idx].lng = lng; save(K_RUTA, ps); }
+
+  // Actualizar en pyc_equipos
+  const eq  = loadObj(K_EQUIPOS);
+  const cod = parada.codigo;
+  if (cod && eq[cod]) { eq[cod].lat = lat; eq[cod].lng = lng; save(K_EQUIPOS, eq); }
+
+  // Refrescar pins del mapa inmediatamente si está visible
+  if (vistaActual === 'mapa' && mapaL && typeof _renderMapaPins === 'function') {
+    try { _renderMapaPins(); } catch(e) {}
+  }
 }
 
 async function geocodificarPendientes() {
   const paradas = loadArr(K_RUTA).filter(p => p.estado === 'pendiente');
-  const coords  = cargarCoords();
-  // Obtener localidades únicas que aún no tengan coords
-  const locsPendientes = [...new Set(
-    paradas
-      .filter(p => {
-        const c = _getCoordsParada(p, coords);
-        return !c;
-      })
-      .map(p => p.localidad)
-      .filter(Boolean)
-  )];
-  for (const loc of locsPendientes) {
-    await geocodificarLocalidad(loc, coords);
-    // Refrescar pins tras cada geocodificación
-    if (vistaActual === 'mapa' && mapaL && typeof _renderMapaPins === 'function') {
-      try { _renderMapaPins(); } catch(e) {}
-    }
+  for (const p of paradas) {
+    if (!p.lat || !p.lng) await geocodificar(p);
   }
 }
 
@@ -5000,9 +4958,11 @@ function iniciarMapa() {
 }
 
 function _renderMapaPins() {
-  const pendientes = loadArr(K_RUTA).filter(p => p.estado === 'pendiente');
-  const coords     = cargarCoords();
-  const bounds     = [];
+  const paradas   = loadArr(K_RUTA).filter(p => p.estado !== 'completada');
+  const pendientes= loadArr(K_RUTA).filter(p => p.estado === 'pendiente');
+  const bounds    = [];
+  let sinCoords   = 0;
+  const routeCoords = []; // para polilínea en orden
 
   // ── Marcador GPS (posición actual) ──
   if (gpsActual && gpsActual.lat) {
@@ -5017,126 +4977,77 @@ function _renderMapaPins() {
       .addTo(mapaL)
       .bindPopup('<div style="font-family:system-ui;font-size:12px;font-weight:700;color:#1a2744">📍 Tu posición</div>', {maxWidth:160});
     bounds.push([gpsActual.lat, gpsActual.lng]);
+    // Añadir GPS como primer punto de la ruta si hay paradas pendientes
+    if (pendientes.length && pendientes[0].lat) routeCoords.push([gpsActual.lat, gpsActual.lng]);
   }
 
-  // ── Agrupar paradas ──
-  // Primero: paradas con coords exactas GPS (por código)
-  // Segundo: resto agrupadas por localidad
-  const exactas   = [];  // { parada, lat, lng, esExacta: true }
-  const porLoc    = {};  // { localidad: [paradas] }
-
-  pendientes.forEach(p => {
-    const cExacta = _claveExacta(p);
-    if (cExacta && coords[cExacta] && coords[cExacta].gps) {
-      exactas.push({ parada: p, lat: coords[cExacta].lat, lng: coords[cExacta].lng });
-    } else {
-      const loc = p.localidad || '—';
-      if (!porLoc[loc]) porLoc[loc] = [];
-      porLoc[loc].push(p);
-    }
-  });
-
-  const routeCoords = gpsActual?.lat ? [[gpsActual.lat, gpsActual.lng]] : [];
-
-  // ── Pins exactos GPS ──
-  exactas.forEach(({ parada: p, lat, lng }) => {
-    const col = getColor(p.clienteNorm || p.cliente || '');
-    const ic  = L.divIcon({
-      html: `<div style="background:${col};color:#fff;border-radius:50%;
-             width:32px;height:32px;display:flex;align-items:center;justify-content:center;
-             font-weight:900;font-size:12px;border:2.5px solid white;
-             box-shadow:0 2px 8px rgba(0,0,0,.35)">
-               <span style="font-size:9px">GPS</span>
-             </div>`,
-      className:'', iconSize:[32,32], iconAnchor:[16,16],
-    });
-    const marker = L.marker([lat, lng], { icon: ic }).addTo(mapaL);
-    marker.bindPopup(`
-      <div style="font-family:system-ui;min-width:160px">
-        <div style="font-family:monospace;font-size:8px;color:#16a34a;font-weight:700;margin-bottom:3px">📍 UBICACIÓN EXACTA</div>
-        <div style="font-weight:900;font-size:13px;color:#1a2744">${p.clienteReal||p.clienteNorm||p.cliente}</div>
-        <div style="font-size:10px;color:#5a6a8a;margin-top:2px">${p.codigo ? '· '+p.codigo : ''} ${p.localidad||''}</div>
-        <div style="font-size:11px;color:#2d3d5a;margin-top:3px">${p.direccion||'—'}</div>
-        <div style="display:flex;gap:6px;margin-top:8px">
-          <a href="https://waze.com/ul?ll=${lat},${lng}&navigate=yes" target="_blank"
-             style="background:#08ccd4;color:white;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;text-decoration:none;flex:1;text-align:center">👻 Waze</a>
-          <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank"
-             style="background:#1a73e8;color:white;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;text-decoration:none;flex:1;text-align:center">📍 Maps</a>
-        </div>
-      </div>`, {maxWidth:230});
-    bounds.push([lat, lng]);
-    routeCoords.push([lat, lng]);
-  });
-
-  // ── Pins por localidad ──
-  let sinCoords = 0;
-  Object.entries(porLoc).forEach(([loc, paradas]) => {
-    const cLoc = loc.toLowerCase().trim();
-    const c    = coords[cLoc];
-    if (!c) { sinCoords += paradas.length; return; }
-
-    const n      = paradas.length;
-    const colores = [...new Set(paradas.map(p => getColor(p.clienteNorm || p.cliente || '')))];
-    const col    = colores[0] || '#1a2744';
-    const sz     = n > 1 ? 38 : 30;
-
+  paradas.forEach((p, i) => {
+    if (!p.lat || !p.lng) { sinCoords++; return; }
+    const col      = getColor(p.cliente);
+    const esActiva = p.estado === 'pendiente' && loadArr(K_RUTA).filter(x=>x.estado==='pendiente')[0]?.id === p.id;
+    const num      = pendientes.findIndex(x => x.id === p.id) + 1;
+    // Pin numerado con color corporativo; la activa es más grande
+    const sz = esActiva ? 36 : 28;
     const ic = L.divIcon({
       html: `<div style="background:${col};color:#fff;border-radius:50%;
-             width:${sz}px;height:${sz}px;display:flex;align-items:center;justify-content:center;
-             font-weight:900;font-size:${n>9?13:15}px;border:2.5px solid white;
-             box-shadow:0 2px 10px rgba(0,0,0,.35)">
-               ${n}
+             width:${sz}px;height:${sz}px;display:flex;align-items:center;
+             justify-content:center;font-weight:900;font-size:${esActiva?15:12}px;
+             border:${esActiva?'3px':'2px'} solid white;
+             box-shadow:0 2px ${esActiva?'12':'6'}px rgba(0,0,0,${esActiva?'.45':'.3'});
+             ${esActiva?'animation:activa-pulse 2s ease infinite':''}">
+               ${num > 0 ? num : '✓'}
              </div>`,
       className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2],
     });
-
-    const listaParadas = paradas.map(p =>
-      `<div style="padding:4px 0;border-bottom:1px solid #f0f0f0;font-size:11px">
-        <span style="font-weight:700;color:#1a2744">${p.clienteReal||p.clienteNorm||p.cliente}</span>
-        ${p.codigo ? `<span style="color:#8896b3"> · ${p.codigo}</span>` : ''}
-        ${p.descripcion ? `<div style="color:#5a6a8a;font-size:10px;margin-top:1px">${p.descripcion.slice(0,50)}</div>` : ''}
-       </div>`
-    ).join('');
-
-    const marker = L.marker([c.lat, c.lng], { icon: ic }).addTo(mapaL);
+    const marker = L.marker([p.lat, p.lng], {icon:ic, zIndexOffset: esActiva ? 1000 : 0}).addTo(mapaL);
     marker.bindPopup(`
-      <div style="font-family:system-ui;min-width:180px;max-width:240px">
-        <div style="font-weight:900;font-size:13px;color:#1a2744;margin-bottom:6px">
-          📍 ${loc} <span style="color:#f97316">(${n})</span>
-        </div>
-        ${listaParadas}
+      <div style="font-family:system-ui;min-width:170px">
+        ${esActiva ? '<div style="font-family:monospace;font-size:8px;font-weight:700;color:#dc2626;letter-spacing:.08em;margin-bottom:4px">● PARADA ACTIVA</div>' : ''}
+        <div style="font-weight:900;font-size:13px;color:#1a2744">${p.clienteReal||p.cliente}</div>
+        <div style="font-size:10px;color:#5a6a8a;margin-top:2px">${p.codigo ? '· '+p.codigo : ''} ${p.localidad||''}</div>
+        <div style="font-size:11px;color:#2d3d5a;margin-top:3px;font-weight:600">${p.direccion||'—'}</div>
+        ${p.trabajo ? `<div style="font-size:10px;color:#5a6a8a;margin-top:3px;border-left:2px solid #f97316;padding-left:5px">${p.trabajo}</div>` : ''}
         <div style="display:flex;gap:6px;margin-top:8px">
-          <a href="https://waze.com/ul?q=${encodeURIComponent(loc+', Valencia')}&navigate=yes" target="_blank"
+          <a href="https://waze.com/ul?q=${encodeURIComponent((p.direccion||'')+' '+(p.localidad||''))}&navigate=yes"
+             target="_blank"
              style="background:#08ccd4;color:white;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;text-decoration:none;flex:1;text-align:center">👻 Waze</a>
-          <a href="https://maps.google.com/?q=${encodeURIComponent(loc+', Valencia')}" target="_blank"
+          <a href="https://maps.google.com/?q=${encodeURIComponent((p.direccion||'')+' '+(p.localidad||''))}"
+             target="_blank"
              style="background:#1a73e8;color:white;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;text-decoration:none;flex:1;text-align:center">📍 Maps</a>
         </div>
-      </div>`, {maxWidth:260});
-    bounds.push([c.lat, c.lng]);
-    routeCoords.push([c.lat, c.lng]);
+      </div>`, {maxWidth:230});
+    bounds.push([p.lat, p.lng]);
+    if (p.estado === 'pendiente') routeCoords.push([p.lat, p.lng]);
   });
 
-  // ── Polilínea ──
+  // ── Polilínea de ruta (GPS → paradas en orden) ──
   if (routeCoords.length > 1) {
-    L.polyline(routeCoords, { color:'#f97316', weight:3, opacity:.75 }).addTo(mapaL);
-    L.polyline(routeCoords, { color:'white',   weight:1, opacity:.5,  dashArray:'6,10' }).addTo(mapaL);
+    // Línea sólida naranja
+    L.polyline(routeCoords, {
+      color: '#f97316', weight: 3, opacity: 0.75,
+    }).addTo(mapaL);
+    // Línea punteada blanca encima para efecto de trazo animado
+    L.polyline(routeCoords, {
+      color: 'white', weight: 1, opacity: 0.5, dashArray: '6,10',
+    }).addTo(mapaL);
   }
 
-  // ── Ajustar vista ──
   if (bounds.length) {
-    mapaL.fitBounds(bounds, { padding:[44,44] });
+    mapaL.fitBounds(bounds, {padding:[44,44]});
   } else if (sinCoords > 0) {
-    mapaL.setView([39.47,-0.37], 10);
+    mapaL.setView([39.47, -0.37], 10);
+    setText('mapa-header', `Geocodificando ${sinCoords} parada${sinCoords!==1?'s':''}…`);
     setTimeout(() => { if (mapaL) _renderMapaPins(); }, 3000);
+    return;
   } else {
-    mapaL.setView([39.47,-0.37], 9);
+    mapaL.setView([39.47, -0.37], 9);
   }
 
-  const total    = pendientes.length;
-  const conPin   = total - sinCoords;
+  const pendCount = pendientes.length;
+  const conCoords = pendCount - sinCoords;
   const txt = sinCoords > 0
-    ? `${conPin}/${total} paradas · geocodificando…`
-    : `${total} parada${total!==1?'s':''} · ${Object.keys(porLoc).filter(l=>coords[l.toLowerCase().trim()]).length + exactas.length} zona${exactas.length+Object.keys(porLoc).length!==1?'s':''}`;
+    ? `${conCoords}/${pendCount} paradas · geocodificando…`
+    : `${pendCount} parada${pendCount!==1?'s':''} pendiente${pendCount!==1?'s':''}`;
   setText('mapa-header', txt);
 }
 
@@ -5545,19 +5456,6 @@ function abrirFinalizarPara(id) {
 
 function cerrarFinalizar() {
   document.getElementById('modal-fin').classList.remove('open');
-}
-
-function btnGuardarGPS() {
-  if (!paradaActual) return;
-  const ok = guardarCoordsGPS(paradaActual);
-  const btn = document.getElementById('btn-gps-guardar');
-  if (ok) {
-    if (btn) { btn.textContent = '✅ GPS'; btn.style.background = 'rgba(22,163,74,.2)'; }
-    tareasToast('📍 Ubicación GPS guardada para ' + (paradaActual.clienteReal || paradaActual.codigo));
-  } else {
-    if (btn) btn.textContent = '⚠️ Sin GPS';
-    tareasToast('⚠️ GPS no disponible o sin código de cliente');
-  }
 }
 
 function toggleFin() {
@@ -5999,8 +5897,6 @@ function datosClientesNuevos() {
   partes.forEach(p => {
     const cod = String(p.codigo || '').trim();
     if (!cod) return;
-    // Ignorar códigos alfanuméricos tipo E2024 — son identificadores de sistema, no códigos de cliente
-    if (/^[A-Z]\d+$/i.test(cod)) return;
     const nombre = String(p.clienteReal || p.clienteNorm || '');
     if (ESPORADICOS_RE.test(nombre)) return;
     // Comprobar si alguna variante o sufijo del código del parte ya está en Excel
@@ -6232,7 +6128,7 @@ function datosExportarExcel() {
     datosProg('excel', 93, 'Exportando Coordenadas…');
     const coordsObj  = cargarCoords();
     const coordsRows = Object.entries(coordsObj).map(([clave, c]) => ({
-      CLAVE: clave, LAT: c.lat, LNG: c.lng, TIPO: c.gps ? 'GPS' : 'Localidad'
+      CLAVE: clave, LAT: c.lat, LNG: c.lng
     }));
     if (coordsRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(coordsRows), 'Coordenadas');
 
@@ -6474,11 +6370,7 @@ function datosImportarExcel(input) {
             rows.forEach(r => {
               const clave = String(r['CLAVE']);
               if (!existing[clave]) {
-                existing[clave] = {
-                  lat: parseFloat(r['LAT']),
-                  lng: parseFloat(r['LNG']),
-                  ...(r['TIPO'] === 'GPS' ? { gps: true } : {})
-                };
+                existing[clave] = { lat: parseFloat(r['LAT']), lng: parseFloat(r['LNG']) };
               }
             });
             save(K_COORDS, existing);
@@ -6741,25 +6633,8 @@ function popularZonas() {
 function setFiltro(f) {
   mtoFiltro = f;
   document.getElementById('fil-todos').className = 'fil-btn' + (f==='todos'?' act':'');
-  document.getElementById('fil-pend').className  = 'fil-btn' + (f==='pend'?' act':'');
+  document.getElementById('fil-pend').className  = 'fil-btn pend' + (f==='pend'?' act':'');
   renderMTO();
-}
-function toggleMtoMenu() {
-  const menu = document.getElementById('mto-ctx-menu');
-  const overlay = document.getElementById('mto-ctx-overlay');
-  const btn = document.getElementById('mto-more-btn');
-  const open = menu.style.display === 'none';
-  menu.style.display = open ? 'block' : 'none';
-  overlay.style.display = open ? 'block' : 'none';
-  if (open) {
-    // Posicionar bajo el botón ⋮
-    const r = btn.getBoundingClientRect();
-    menu.style.top = (r.bottom + 6) + 'px';
-  }
-}
-function closeMtoMenu() {
-  document.getElementById('mto-ctx-menu').style.display = 'none';
-  document.getElementById('mto-ctx-overlay').style.display = 'none';
 }
 function setZona(z) { mtoZona = z; renderMTO(); }
 function setCliente(c) {
@@ -6796,27 +6671,8 @@ function renderMTO() {
     return;
   }
 
-  // Añadir oficinas nuevas detectadas en análisis (no están en K_EXCEL aún)
-  const nuevos = typeof datosClientesNuevos === 'function' ? datosClientesNuevos() : [];
-  const codsExcel = new Set(clientes.map(c => String(c.CODIGO||c.codigo||'').trim().toLowerCase()));
-  const clientesMas = [...clientes];
-  nuevos.forEach(p => {
-    const cod = String(p.codigo||'').trim().toLowerCase();
-    if (cod && !codsExcel.has(cod)) {
-      clientesMas.push({
-        CLIENTE: p.clienteReal || p.clienteNorm || p.cliente || '',
-        CODIGO: p.codigo || '',
-        MUNICIPIO: p.localidad || '',
-        DIRECCION: p.direccion || '',
-        ZONA: p._zona || inferirZona(p.localidad) || '',
-        OBSERVACIONES: '[Nuevo — pendiente de exportar]',
-        INT:'', Q1:'', Q2:'', Q3:'', Q4:'',
-      });
-    }
-  });
-
   // Filtrar clientes
-  const filtrados = clientesMas.filter(c => {
+  const filtrados = clientes.filter(c => {
     const cli = c.CLIENTE || c.cliente || '';
     const cod = c.CODIGO  || c.codigo  || '';
     const mun = c.MUNICIPIO || c.municipio || '';
@@ -6826,11 +6682,9 @@ function renderMTO() {
     if (mtoZona !== 'todas' && zona !== mtoZona) return false;
 
     // Filtro cliente
-    if (mtoCliente === 'bbva'   && !cli.toUpperCase().includes('BBVA')) return false;
-    if (mtoCliente === 'abanca' && !cli.toUpperCase().includes('ABANCA')) return false;
-    if (mtoCliente === 'caj'    && !/CAJAMAR|CAJA\s*RURAL|RURALCAJA|CAIXA/.test(cli.toUpperCase())) return false;
-    if (mtoCliente === 'otros'  && (esBanco(cli) || esRepsol(cli))) return false;
-    if (mtoCliente === 'repsol' && !esRepsol(cli)) return false;
+    if (mtoCliente === 'bbva'   && !esBanco(cli))  return false;
+    if (mtoCliente === 'caj'    && !/CAJAMAR|CAJA\s*RURAL|RURALCAJA|CAIXA/.test((cli).toUpperCase())) return false;
+    if (mtoCliente === 'otros'  && esBanco(cli))   return false;
 
     // Buscador
     if (mtoBusq) {
@@ -6856,7 +6710,7 @@ function renderMTO() {
   });
 
   // Stats — reflejan zona+cliente seleccionados (no filtro pend)
-  const stats = calcularStatsFiltradas(clientesMas, mtoMan);
+  const stats = calcularStatsFiltradas(clientes, mtoMan);
   setText('stat-total',  stats.total);
   setText('stat-hechas', stats.hechas);
   setText('stat-pend',   stats.pend);
@@ -6864,7 +6718,7 @@ function renderMTO() {
   // Badge tab MTO — usa global para no perder info
   const badge = document.getElementById('mto-badge');
   if (badge) {
-    const pendOficinas = clientesMas.filter(c => {
+    const pendOficinas = clientes.filter(c => {
       const key = mtoKey(c); const man = mtoMan[key]||{};
       return getMtoTipos(c.CLIENTE||c.cliente||'').some(t => { const ex=getExcelDate(c,t); return !man[t]&&!ex; });
     }).length;
@@ -7195,9 +7049,8 @@ function calcularStatsFiltradas(clientes, mtoMan) {
     const cliName = (c.CLIENTE || c.cliente || '').toUpperCase();
     if (mtoCliente === 'bbva'    && !cliName.includes('BBVA')) return false;
     if (mtoCliente === 'abanca'  && !cliName.includes('ABANCA')) return false;
-    if (mtoCliente === 'caj'     && !/CAJAMAR|CAJA\s*RURAL|RURALCAJA|CAIXA/.test(cliName)) return false;
-    if (mtoCliente === 'otros'   && (esBanco(cli) || esRepsol(cli))) return false;
-    if (mtoCliente === 'repsol'  && !esRepsol(cli)) return false;
+    if (mtoCliente === 'caj'     && !/CAJAMAR|CAJA\s*RURAL|RURALCAJA|CAIXA/.test(c)) return false;
+    if (mtoCliente === 'otros' && esBanco(cli)) return false;
     if (mtoBusq) {
       const cod = c.CODIGO || c.codigo || '';
       const mun = c.MUNICIPIO || c.municipio || '';
@@ -7207,16 +7060,18 @@ function calcularStatsFiltradas(clientes, mtoMan) {
     return true;
   });
 
-  let hechasOf = 0, pendOf = 0;
+  let hechas = 0, pend = 0;
   base.forEach(c => {
     const key  = mtoKey(c);
     const man  = mtoMan[key] || {};
     const tipos = getMtoTipos(c.CLIENTE || c.cliente || '');
-    const todaHecha = tipos.every(t => { const ex = getExcelDate(c, t); return !!(man[t] || ex); });
-    if (todaHecha) hechasOf++; else pendOf++;
+    tipos.forEach(t => {
+      const ex = getExcelDate(c, t);
+      if (man[t] || ex) hechas++; else pend++;
+    });
   });
 
-  return { total: base.length, hechas: hechasOf, pend: pendOf };
+  return { total: base.length, hechas, pend };
 }
 
 /* ================================================================
@@ -7403,6 +7258,11 @@ let buscarVista = 'buscar';
 let tipoSeleccionado = '';
 let etiquetasSeleccionadas = new Set();
 let searchQuery = '';
+let filtroActivo = 'todos';   // 'todos' | 'cli' | 'his' | 'inf' | 'hor' | 'fes' | 'equ'
+let _ultimosResultados = {}; // cache para cambiar filtro sin re-buscar
+let _cliExpandido = false;   // controla "Ver más" en clientes
+let _hisExpandidos = new Set(); // grupos de historial expandidos
+const CLI_PAGE = 10;         // resultados de clientes visibles por defecto
 
 /* ================================================================
    INIT
@@ -7421,6 +7281,19 @@ function buscarInit() {
   // Swipe solo se inicializa UNA vez
   if (!_buscarIniciado) {
     initBuscarSwipe();
+
+    // Enter key — ejecutar búsqueda inmediata sin esperar debounce
+    const inp = document.getElementById('search-hero-input');
+    if (inp) {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          clearTimeout(searchTimer);
+          if (searchQuery.length >= 2) ejecutarBusqueda(searchQuery);
+          inp.blur(); // cerrar teclado en móvil
+        }
+      });
+    }
+
     _buscarIniciado = true;
   }
 }
@@ -7440,9 +7313,15 @@ function buscarIrVista(v) {
     if (el) el.classList.toggle('act', i === map[v]);
   });
 
-  // Badge handled by index.html header
-
   if (v === 'cierre') renderCierre();
+
+  // Auto-focus en la barra de búsqueda al entrar en la vista Buscar
+  if (v === 'buscar') {
+    setTimeout(() => {
+      const inp = document.getElementById('search-hero-input');
+      if (inp && !inp.value) inp.focus();
+    }, 350);
+  }
 }
 
 function initBuscarSwipe() {
@@ -7734,27 +7613,48 @@ function onSearchInput(val) {
 
   clearTimeout(searchTimer);
   if (!searchQuery) {
+    ocultarFiltros();
     mostrarEstadoVacio();
     return;
   }
-  // Mínimo 3 caracteres
-  if (searchQuery.length < 3) {
+  // Mínimo 2 caracteres
+  if (searchQuery.length < 2) {
+    ocultarFiltros();
     document.getElementById('buscar-empty').classList.add('hidden');
     const res = document.getElementById('buscar-results');
     res.classList.add('vis');
-    res.innerHTML = `<div class="no-results"><div class="no-results-ico" style="font-size:28px;opacity:.3">⌨️</div><div class="no-results-txt">Escribe al menos 3 letras</div></div>`;
+    res.innerHTML = `<div class="no-results"><div class="no-results-ico" style="font-size:28px;opacity:.3">⌨️</div><div class="no-results-txt">Escribe al menos 2 letras</div></div>`;
     return;
   }
-  searchTimer = setTimeout(() => ejecutarBusqueda(searchQuery), 280);
+  searchTimer = setTimeout(() => ejecutarBusqueda(searchQuery), 220);
 }
 
 function clearSearch() {
   searchQuery = '';
+  filtroActivo = 'todos';
+  _ultimosResultados = {};
   const inp = document.getElementById('search-hero-input');
   if (inp) inp.value = '';
   const clearBtn = document.getElementById('search-hero-clear');
   if (clearBtn) clearBtn.classList.remove('vis');
+  ocultarFiltros();
   mostrarEstadoVacio();
+}
+
+function ocultarFiltros() {
+  const fb = document.getElementById('search-filter-bar');
+  if (fb) fb.style.display = 'none';
+}
+
+function selFiltro(tipo) {
+  filtroActivo = tipo;
+  // Actualizar chips activos
+  ['todos','cli','his','inf','hor','fes'].forEach(k => {
+    const el = document.getElementById('sf-' + k);
+    if (el) el.classList.toggle('act', k === tipo);
+  });
+  // Re-renderizar con cache
+  renderResultadosFiltrados();
 }
 
 function mostrarEstadoVacio() {
@@ -7763,147 +7663,393 @@ function mostrarEstadoVacio() {
 }
 
 function ejecutarBusqueda(q) {
-  const clientes = loadArr(K_EXCEL_B);
-  const historial= loadArr(K_HIST_B);
-  const infoTec  = loadArr(K_INFO_TEC);
-  const horarios = loadArr(K_HORARIOS_B);
+  const clientes  = loadArr(K_EXCEL_B);
+  const historial = loadArr(K_HIST_B);
+  const infoTec   = loadArr(K_INFO_TEC);
+  const equiposArr= Object.values(loadObj(K_EQUIPOS));
 
   const qLow = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const nrm  = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const match= s => nrm(s).includes(qLow);
-  
-  // Para clientes: dirección y observaciones solo si query ≥ 5 chars
-  // Evita ruido: "sp" en España/Gaspar/Crespo cuando buscas SP el cliente
-  const matchCli = c => {
-    if (match(c.CLIENTE) || match(c.CODIGO) || match(c.MUNICIPIO)) return true;
-    if (q.length >= 5) {
-      if (match(c.DIRECCION) || match(c.OBSERVACIONES)) return true;
-    }
-    return false;
+  const match = s => nrm(s).includes(qLow);
+
+  // Fuzzy bigram — sin dependencias externas, funciona offline
+  const fuzzy = s => {
+    const h = nrm(s), n = qLow;
+    if (h.includes(n) || n.length < 4) return false;
+    const bg = str => { const b=new Set(); for(let i=0;i<str.length-1;i++) b.add(str[i]+str[i+1]); return b; };
+    const nb=bg(n), hb=bg(h); let ok=0;
+    nb.forEach(b => { if(hb.has(b)) ok++; });
+    return nb.size>0 && ok/nb.size >= 0.62;
   };
-  
-  // hl: escapa HTML primero, luego resalta con normalización de acentos
+
+  // Indicador del campo que coincidió (solo cuando no es el campo principal)
+  const hintCli = c => {
+    if (match(c.CLIENTE)||match(c.CODIGO)||match(c.MUNICIPIO)) return '';
+    if (match(c.CENTRAL)||match(c['MOD. CENTRAL'])) return 'Central';
+    if (match(c.DIRECCION)) return 'Dirección';
+    if (match(c.OBSERVACIONES)) return 'Observaciones';
+    return '';
+  };
+  const hintHis = h => {
+    if (match(h.CLIENTE)) return '';
+    if (match(h['CENTRAL INTRUSIÓN'])||match(h['MODELO CENTRAL'])) return 'Central intrusión';
+    if (match(h.GRABADOR)) return 'Grabador';
+    if (match(h['COMUNICACIÓN'])) return 'Comunicación';
+    if (match(h['CENTRAL INCENDIO'])) return 'Central incendio';
+    if (match(h['CONTROL ACCESO'])) return 'Control acceso';
+    if (match(h.OT)) return 'OT';
+    if (match(h.SISTEMA)) return 'Sistema';
+    return '';
+  };
+  const hintEqu = e => {
+    if (match(e.CLIENTE)||match(e.CÓDIGO)) return '';
+    if (match(e.central)) return 'Central intrusión';
+    if (match(e.grabador)) return 'Grabador';
+    if (match(e.com)) return 'Comunicación';
+    if (match(e.incendio)) return 'Central incendio';
+    if (match(e.acceso)) return 'Control acceso';
+    if (match(e.modelo)) return 'Modelo';
+    return '';
+  };
+
+  // Resaltado con normalización de acentos
   const hlNrm = q.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const hlRe  = new RegExp(hlNrm.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
   const hl = s => {
     const safe = escH(String(s||''));
     const safeNrm = safe.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    let result = ''; let i = 0;
+    let result='', i=0;
     safeNrm.replace(hlRe, (m, offset) => {
-      result += safe.slice(i, offset) + '<mark>' + safe.slice(offset, offset + m.length) + '</mark>';
-      i = offset + m.length;
+      result += safe.slice(i,offset) + '<mark>' + safe.slice(offset,offset+m.length) + '</mark>';
+      i = offset+m.length;
     });
     return result + safe.slice(i);
   };
 
-  // Usar Fuse.js si está disponible, sino match simple
-  let resultsCli = [], resultsHis = [], resultsInf = [], resultsHor = [];
+  // CLIENTES — exact + fuzzy + puntuación de relevancia
+  // Fuzzy solo para nombres (no códigos) y solo cuando la query no es numérica
+  const esNumerico = /^[\d\s\-./]+$/.test(q.trim());
+  const matchCli = c => {
+    if (match(c.CLIENTE)||match(c.CODIGO)||match(c.MUNICIPIO)) return true;
+    if (q.length>=4) {
+      if (match(c.DIRECCION)||match(c.OBSERVACIONES)||match(c.CENTRAL)||match(c['MOD. CENTRAL'])) return true;
+      if (!esNumerico && fuzzy(c.CLIENTE)) return true;
+    }
+    return false;
+  };
+  const scoreCli = c => {
+    const nc=nrm(c.CLIENTE||''), nd=nrm(c.CODIGO||'');
+    if (nc===qLow||nd===qLow) return 100;
+    if (nc.startsWith(qLow)) return 80;
+    if (nd.startsWith(qLow)) return 70;
+    if (nc.includes(qLow))   return 50;
+    if (nd.includes(qLow))   return 40;
+    if (nrm(c.MUNICIPIO||'').includes(qLow)) return 20;
+    return 10;
+  };
+  _cliExpandido = false;
+  const resultsCli = clientes.filter(c => matchCli(c))
+    .map(c => ({...c, _score: scoreCli(c)}))
+    .sort((a,b) => b._score - a._score)
+    .slice(0,100)
+    .map(c => ({
+      tipo:'cli', codigo:c.CODIGO||'', central:c.CENTRAL||'', zona:c.ZONA||'',
+      hint: hintCli(c),
+      title:   `${c.CLIENTE||'—'} · ${c.CODIGO||'—'}`,
+      sub:     `${c.MUNICIPIO||'—'}${c.DIRECCION?' · '+c.DIRECCION:''}`,
+      meta:    [c.CENTRAL?'⚙️ '+c.CENTRAL:'',c.ZONA?'Zona '+c.ZONA:''].filter(Boolean).join('  '),
+      titleHL: `${hl(c.CLIENTE||'')} · ${hl(c.CODIGO||'')}`,
+      subHL:   `${hl(c.MUNICIPIO||'')}${c.DIRECCION?' · '+hl(c.DIRECCION):''}`,
+    }));
 
-  // CLIENTES
-  resultsCli = clientes.filter(c => matchCli(c)).slice(0, 100).map(c => ({
-    tipo:'cli',
-    title: `${c.CLIENTE||'—'} · ${c.CODIGO||'—'}`,
-    sub:   `${c.MUNICIPIO||'—'}${c.DIRECCION?' · '+c.DIRECCION:''}`,
-    meta:  `Zona ${c.ZONA||'—'}`,
-    titleHL: `${hl(c.CLIENTE||'')} · ${hl(c.CODIGO||'')}`,
-    subHL: `${hl(c.MUNICIPIO||'')}${c.DIRECCION?' · '+hl(c.DIRECCION):''}`,
-  }));
-
-  // HISTORIAL
-  resultsHis = historial.filter(h =>
-    match(h.CLIENTE) || match(h.SISTEMA) || match(h.TRABAJO) || match(h.LOCALIDAD) || match(h.OT) || match(h.KEY)
-  ).slice(0, 20).map(h => ({
-    tipo:'his',
-    title: `${h.CLIENTE||'—'} · ${h.SISTEMA||'—'} · ${h.LOCALIDAD||'—'}`,
-    sub:   `${h.FECHA||'—'} — ${(h.TRABAJO||'').slice(0,80)}`,
-    meta:  h.OT || '',
+  // HISTORIAL — incluye campos de equipo, se agrupa por cliente en render
+  _hisExpandidos = new Set(); // resetear expansiones al nueva búsqueda
+  const resultsHis = historial.filter(h =>
+    match(h.CLIENTE)||match(h.SISTEMA)||match(h.TRABAJO)||match(h.LOCALIDAD)||
+    match(h.OT)||match(h.KEY)||
+    match(h['CENTRAL INTRUSIÓN'])||match(h['MODELO CENTRAL'])||
+    match(h.GRABADOR)||match(h['COMUNICACIÓN'])||
+    match(h['CENTRAL INCENDIO'])||match(h['CONTROL ACCESO'])
+  ).map(h => ({
+    tipo:'his', ot:h.OT||'', cliente:h.CLIENTE||'—',
+    fecha:h.FECHA||'—', trabajo:h.TRABAJO||'', sistema:h.SISTEMA||'',
+    localidad:h.LOCALIDAD||'', estado:h.ESTADO||'',
+    hint: hintHis(h),
+    equipo: [h['CENTRAL INTRUSIÓN'],h.GRABADOR,h['COMUNICACIÓN'],h['CENTRAL INCENDIO'],h['CONTROL ACCESO']].filter(Boolean).join(' · '),
+    title:   `${h.CLIENTE||'—'} · ${h.SISTEMA||'—'} · ${h.LOCALIDAD||'—'}`,
+    sub:     `${h.FECHA||'—'} — ${(h.TRABAJO||'').slice(0,90)}`,
+    meta:    h.OT||'',
     titleHL: `${hl(h.CLIENTE||'')} · ${hl(h.SISTEMA||'')} · ${hl(h.LOCALIDAD||'')}`,
-    subHL: `${h.FECHA||'—'} — ${hl((h.TRABAJO||'').slice(0,80))}`,
+    subHL:   `${h.FECHA||'—'} — ${hl((h.TRABAJO||'').slice(0,90))}`,
   }));
 
   // INFO TÉCNICA
-  resultsInf = infoTec.filter(i =>
-    match(i.entidad) || match(i.codigo) || match(i.detalle) || match(i.sistema) ||
-    match(i.tipoDato) || (i.etiquetas||[]).some(t => match(t))
-  ).slice(0, 10).map(i => ({
-    tipo:'inf',
-    id:    i.id,
-    title: `${i.entidad||'—'}${i.codigo?' · '+i.codigo:''}${i.poblacion?' · '+i.poblacion:''}`,
-    sub:   (i.detalle||'').slice(0,100),
-    meta:  (i.etiquetas||[]).join(' ') || i.tipoDato || '',
+  const resultsInf = infoTec.filter(i =>
+    match(i.entidad)||match(i.codigo)||match(i.detalle)||match(i.sistema)||
+    match(i.tipoDato)||(i.etiquetas||[]).some(t=>match(t))
+  ).slice(0,10).map(i => ({
+    tipo:'inf', id:i.id, detalle:i.detalle||'',
+    hint: (match(i.entidad)||match(i.codigo)) ? '' : (i.tipoDato||''),
+    title:   `${i.entidad||'—'}${i.codigo?' · '+i.codigo:''}${i.poblacion?' · '+i.poblacion:''}`,
+    sub:     (i.detalle||'').slice(0,100),
+    meta:    (i.etiquetas||[]).join(' ')||i.tipoDato||'',
     titleHL: `${hl(i.entidad||'')}${i.codigo?' · '+hl(i.codigo):''}`,
-    subHL: hl((i.detalle||'').slice(0,100)),
+    subHL:   hl((i.detalle||'').slice(0,100)),
   }));
 
-  // HORARIOS — vienen de la columna HORARIO de cada cliente en K_EXCEL_B
-  const cliConHorario = clientes.filter(c => c.HORARIO && c.HORARIO.trim());
-  resultsHor = cliConHorario.filter(c =>
-    match(c.CODIGO) || match(c.CLIENTE) || match(c.MUNICIPIO) || match(c.HORARIO)
-  ).slice(0, 6).map(c => ({
-    tipo:'hor',
-    title: `${c.CLIENTE||'—'} · ${c.CODIGO||'—'}`,
-    sub:   c.HORARIO,
-    meta:  c.MUNICIPIO || '',
+  // HORARIOS
+  const cliConHorario = clientes.filter(c => c.HORARIO&&c.HORARIO.trim());
+  const resultsHor = cliConHorario.filter(c =>
+    match(c.CODIGO)||match(c.CLIENTE)||match(c.MUNICIPIO)||match(c.HORARIO)
+  ).slice(0,8).map(c => ({
+    tipo:'hor', codigo:c.CODIGO||'', horario:c.HORARIO||'',
+    title:   `${c.CLIENTE||'—'} · ${c.CODIGO||'—'}`,
+    sub:     c.HORARIO, meta:c.MUNICIPIO||'',
     titleHL: `${hl(c.CLIENTE||'')} · ${hl(c.CODIGO||'')}`,
-    subHL: hl(c.HORARIO || ''),
+    subHL:   hl(c.HORARIO||''),
   }));
 
-  // FESTIVOS — campos reales: Fecha, Descripción/Descripcion, Municipio, Tipo
+  // EQUIPOS (pyc_equipos — objeto indexado por código)
+  const resultsEqu = equiposArr.filter(e =>
+    match(e.CLIENTE)||match(String(e.CÓDIGO||e.codigo||''))||match(e.MUNICIPIO)||
+    match(e.central)||match(e.grabador)||match(e.com)||
+    match(e.incendio)||match(e.acceso)||match(e.modelo)
+  ).slice(0,15).map(e => {
+    const cod    = String(e.CÓDIGO||e.codigo||'');
+    const sistem = [e.central,e.grabador,e.com,e.incendio,e.acceso,e.modelo].filter(Boolean);
+    return {
+      tipo:'equ', codigo:cod, hint: hintEqu(e),
+      title:   `${e.CLIENTE||'—'} · ${cod||'—'}`,
+      sub:     sistem.join(' · ')||'Sin datos de equipo',
+      meta:    e.MUNICIPIO||'',
+      titleHL: `${hl(e.CLIENTE||'')} · ${hl(cod)}`,
+      subHL:   hl(sistem.join(' · ')||''),
+    };
+  });
+
+  // FESTIVOS
   const festivos = loadArr(K_FESTIVOS_B);
   const resultsFes = festivos.filter(f =>
-    match(f.Descripción||f.Descripcion) || match(f.Municipio) || match(f.Tipo) || match(f.Fecha)
+    match(f.Descripción||f.Descripcion)||match(f.Municipio)||match(f.Tipo)||match(f.Fecha)
   );
 
-  // Renderizar
-  const total = resultsCli.length + resultsHis.length + resultsInf.length + resultsHor.length + resultsFes.length;
+  // Guardar cache y renderizar
+  _ultimosResultados = { resultsCli, resultsHis, resultsInf, resultsHor, resultsEqu, resultsFes, q, hl };
+
+  const total = resultsCli.length + resultsHis.length + resultsInf.length +
+                resultsHor.length + resultsEqu.length + resultsFes.length;
+
   document.getElementById('buscar-empty').classList.add('hidden');
   const res = document.getElementById('buscar-results');
   res.classList.add('vis');
 
   if (total === 0) {
+    ocultarFiltros();
     res.innerHTML = `<div class="no-results"><div class="no-results-ico">🔍</div><div class="no-results-txt">Sin resultados para "${escH(q)}"</div></div>`;
     return;
   }
 
-  // Guardar en recientes solo si hay resultados
   guardarReciente(q);
+  actualizarChipsFiltro(resultsCli.length, resultsHis.length, resultsInf.length,
+                        resultsHor.length, resultsFes.length, resultsEqu.length, total);
+  renderResultadosFiltrados();
+}
 
-  const badgeMap = { cli:'🏢 CLIENTE', his:'📋 HISTORIAL', inf:'🔧 INFO', hor:'⏰ HORARIO' };
-  const classMap = { cli:'rb-cli', his:'rb-his', inf:'rb-inf', hor:'rb-hor' };
-  let html = '';
+function actualizarChipsFiltro(nCli, nHis, nInf, nHor, nFes, nEqu, total) {
+  const fb = document.getElementById('search-filter-bar');
+  if (fb) fb.style.display = 'flex';
+  const set = (id, n) => { const el = document.getElementById(id); if(el) el.textContent = n; };
+  set('sfn-todos', total);
+  set('sfn-cli',   nCli);
+  set('sfn-his',   nHis);
+  set('sfn-inf',   nInf);
+  set('sfn-hor',   nHor);
+  set('sfn-fes',   nFes);
+  set('sfn-equ',   nEqu);
+  const pairs = [['sf-cli',nCli],['sf-his',nHis],['sf-inf',nInf],['sf-hor',nHor],['sf-fes',nFes],['sf-equ',nEqu]];
+  pairs.forEach(([id, n]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = n > 0 ? '' : 'none';
+  });
+  const counts = { todos:total, cli:nCli, his:nHis, inf:nInf, hor:nHor, fes:nFes, equ:nEqu };
+  if (!counts[filtroActivo]) selFiltro('todos');
+}
 
-  const renderGrupo = (arr, ico, label) => {
+function renderResultadosFiltrados() {
+  const { resultsCli, resultsHis, resultsInf, resultsHor, resultsEqu, resultsFes, q, hl } = _ultimosResultados;
+  if (!resultsCli) return;
+
+  const res = document.getElementById('buscar-results');
+  res.classList.add('vis');
+  document.getElementById('buscar-empty').classList.add('hidden');
+
+  // Indicador del campo que coincidió
+  const hintHtml = hint => hint ? `<div class="res-hint">↳ ${escH(hint)}</div>` : '';
+
+  // Botones de acción por tipo
+  const actBtns = r => {
+    let btns = '';
+    if (r.tipo === 'cli') {
+      if (r.codigo)  btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
+      if (r.central) btns += `<span class="res-act" style="cursor:default;pointer-events:none">⚙️ ${escH(r.central)}</span>`;
+    }
+    if (r.tipo === 'his') {
+      if (r.ot) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.ot)}',this)">📋 ${escH(r.ot)}</button>`;
+    }
+    if (r.tipo === 'inf') {
+      btns += `<button class="res-act nav" onclick="abrirInfoTecPage(${r.id})">🔍 Ver</button>`;
+      if (r.detalle) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.detalle)},this)">📋 Copiar</button>`;
+    }
+    if (r.tipo === 'hor') {
+      if (r.horario) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.horario)},this)">📋 Copiar horario</button>`;
+    }
+    if (r.tipo === 'equ') {
+      if (r.codigo) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
+    }
+    return btns ? `<div class="res-actions">${btns}</div>` : '';
+  };
+
+  const badgeMap = { cli:'CLIENTE', inf:'INFO', hor:'HORARIO', equ:'EQUIPO' };
+  const classMap = { cli:'rb-cli', inf:'rb-inf', hor:'rb-hor', equ:'rb-equ' };
+
+  // Render genérico (clientes, info, horarios, equipos)
+  const renderGrupo = (arr, ico, label, tipo) => {
     if (!arr.length) return '';
-    let g = `<div class="grp">`;
+    const esCli = tipo === 'cli';
+    const visible = esCli && !_cliExpandido ? arr.slice(0, CLI_PAGE) : arr;
+    const ocultos = esCli && !_cliExpandido ? arr.length - CLI_PAGE : 0;
+    let g = `<div class="grp" id="grp-${tipo}">`;
     g += `<div class="grp-hdr"><span class="grp-ico">${ico}</span><span class="grp-lbl">${label}</span><span class="grp-cnt">${arr.length}</span><div class="grp-line"></div></div>`;
-    g += arr.map(r => {
-      const onclick = r.tipo === 'inf' ? `onclick="abrirInfoTecPage(${r.id})"` : '';
-      return `
-      <div class="res-card" ${onclick}>
+    g += visible.map(r => `
+      <div class="res-card">
         <div class="res-top">
           <span class="res-title">${r.titleHL}</span>
-          <span class="res-badge ${classMap[r.tipo]}">${badgeMap[r.tipo]}</span>
+          ${badgeMap[r.tipo]?`<span class="res-badge ${classMap[r.tipo]}">${badgeMap[r.tipo]}</span>`:''}
         </div>
         <div class="res-sub">${r.subHL}</div>
-        ${r.meta ? `<div class="res-meta">${escH(r.meta)}</div>` : ''}
-      </div>`;
-    }).join('');
+        ${r.meta?`<div class="res-meta">${escH(r.meta)}</div>`:''}
+        ${hintHtml(r.hint||'')}
+        ${actBtns(r)}
+      </div>`).join('');
+    if (esCli && ocultos > 0) g += `<button class="ver-mas-btn" onclick="expandirClientes()">Ver los ${ocultos} restantes ›</button>`;
     g += '</div>';
     return g;
   };
 
-  html += renderGrupo(resultsInf, '🔧', 'Info técnica');
-  html += renderGrupo(resultsHis, '📋', 'Historial');
-  html += renderGrupo(resultsCli, '🏢', 'Clientes');
-  html += renderGrupo(resultsHor, '⏰', 'Horarios');
+  // Historial agrupado por cliente
+  const renderHistorialAgrupado = arr => {
+    if (!arr.length) return '';
+    const grupos = {};
+    arr.forEach(h => { const k=h.cliente; if(!grupos[k]) grupos[k]=[]; grupos[k].push(h); });
+    const parseF = d => { const p=(d||'').split('/'); return p.length===3?new Date(+p[2],+p[1]-1,+p[0]):new Date(0); };
+    Object.values(grupos).forEach(g => g.sort((a,b) => parseF(b.fecha)-parseF(a.fecha)));
+    const grpArr = Object.entries(grupos).sort((a,b) => parseF(b[1][0].fecha)-parseF(a[1][0].fecha));
+    let g = `<div class="grp" id="grp-his">`;
+    g += `<div class="grp-hdr"><span class="grp-ico">📋</span><span class="grp-lbl">Historial</span><span class="grp-cnt">${arr.length}</span><div class="grp-line"></div></div>`;
+    grpArr.forEach(([cliente, visitas]) => {
+      const last=visitas[0], extra=visitas.length-1, expandido=_hisExpandidos.has(cliente);
+      g += `
+        <div class="res-card his-grp-card">
+          <div class="res-top"><span class="res-title">${hl(cliente)}</span><span class="res-badge rb-his">HISTORIAL</span></div>
+          <div class="res-sub">${escH(last.fecha)} — ${hl((last.trabajo||'').slice(0,80))}</div>
+          <div class="res-meta">${escH(last.sistema||'')}${last.localidad?' · '+escH(last.localidad):''}</div>
+          ${last.equipo?`<div class="res-meta" style="color:var(--cyan)">⚙️ ${escH(last.equipo)}</div>`:''}
+          ${hintHtml(last.hint||'')}
+          <div class="res-actions">
+            ${last.ot?`<button class="res-act copy" onclick="copiarTexto('${escH(last.ot)}',this)">📋 ${escH(last.ot)}</button>`:''}
+            ${extra>0?`<button class="res-act nav" onclick="toggleHisGrupo(${JSON.stringify(cliente)})">${expandido?'▲ Ocultar':'▼ '+extra+' visita'+(extra>1?'s':'')+' más'}</button>`:''}
+          </div>
+        </div>`;
+      if (expandido) {
+        visitas.slice(1).forEach(v => {
+          g += `
+            <div class="res-card his-sub-card">
+              <div class="res-sub" style="font-weight:700">${escH(v.fecha)} — ${hl((v.trabajo||'').slice(0,80))}</div>
+              <div class="res-meta">${escH(v.sistema||'')}${v.estado?' · '+escH(v.estado):''}</div>
+              ${v.equipo?`<div class="res-meta" style="color:var(--cyan);font-size:9px">⚙️ ${escH(v.equipo)}</div>`:''}
+              ${hintHtml(v.hint||'')}
+              ${v.ot?`<div class="res-actions"><button class="res-act copy" onclick="copiarTexto('${escH(v.ot)}',this)">📋 ${escH(v.ot)}</button></div>`:''}
+            </div>`;
+        });
+      }
+    });
+    g += '</div>';
+    return g;
+  };
+
+  let html = '';
+  const f = filtroActivo;
+  if (f==='todos'||f==='inf') html += renderGrupo(resultsInf,    '🔧', 'Info técnica', 'inf');
+  if (f==='todos'||f==='his') html += renderHistorialAgrupado(resultsHis||[]);
+  if (f==='todos'||f==='cli') html += renderGrupo(resultsCli,    '🏢', 'Clientes',     'cli');
+  if (f==='todos'||f==='equ') html += renderGrupo(resultsEqu||[],'🖥️', 'Equipos',      'equ');
+  if (f==='todos'||f==='hor') html += renderGrupo(resultsHor,    '⏰', 'Horarios',     'hor');
   res.innerHTML = html;
 
-  // Festivos: usar renderer agrupado por fecha
-  if (resultsFes.length) {
+  if ((f==='todos'||f==='fes') && resultsFes && resultsFes.length) {
     const div = document.createElement('div');
     res.appendChild(div);
     _renderFestivosLista(resultsFes, `Festivos (${resultsFes.length})`);
   }
+}
+
+function toggleHisGrupo(cliente) {
+  if (_hisExpandidos.has(cliente)) _hisExpandidos.delete(cliente);
+  else _hisExpandidos.add(cliente);
+  renderResultadosFiltrados();
+}
+
+/* Expandir clientes en "Ver más" */
+function expandirClientes() {
+  _cliExpandido = true;
+  renderResultadosFiltrados();
+}
+
+/* Acceso rápido: mostrar todos los clientes ordenados */
+function mostrarTodosClientes() {
+  const clientes = loadArr(K_EXCEL_B);
+  if (!clientes.length) { buscarToast('Carga el Excel primero'); return; }
+
+  const sorted = [...clientes].sort((a,b) => (a.CLIENTE||'').localeCompare(b.CLIENTE||'','es'));
+  ocultarFiltros();
+  document.getElementById('buscar-empty').classList.add('hidden');
+  const res = document.getElementById('buscar-results');
+  res.classList.add('vis');
+  res.innerHTML =
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <button onclick="clearSearch()" style="background:none;border:none;color:var(--orange);font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;font-family:var(--font-mono);letter-spacing:.05em">← Volver</button>
+      <div class="grp-hdr" style="flex:1;margin:0">
+        <span class="grp-ico">🏢</span><span class="grp-lbl">Todos los clientes</span>
+        <span class="grp-cnt">${sorted.length}</span><div class="grp-line"></div>
+      </div>
+    </div>` +
+    sorted.map(c => `
+      <div class="res-card">
+        <div class="res-top">
+          <span class="res-title">${escH(c.CLIENTE||'—')} · ${escH(c.CODIGO||'—')}</span>
+          <span class="res-badge rb-cli">CLIENTE</span>
+        </div>
+        <div class="res-sub">${escH(c.MUNICIPIO||'—')}${c.DIRECCION?' · '+escH(c.DIRECCION):''}</div>
+        ${c.CENTRAL||c.ZONA ? `<div class="res-meta">${[c.CENTRAL?'⚙️ '+escH(c.CENTRAL):'',c.ZONA?'Zona '+escH(c.ZONA):''].filter(Boolean).join('  ')}</div>` : ''}
+        <div class="res-actions">
+          <button class="res-act copy" onclick="copiarTexto('${escH(c.CODIGO||'')}',this)" title="Copiar código">📋 ${escH(c.CODIGO||'—')}</button>
+        </div>
+      </div>`).join('');
+}
+
+/* Copiar texto al portapapeles con feedback visual en el botón */
+function copiarTexto(txt, btn) {
+  navigator.clipboard?.writeText(txt).then(() => {
+    if (btn) {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '✓ Copiado';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1800);
+    }
+    buscarToast('✓ Copiado al portapapeles');
+  }).catch(() => {
+    buscarToast('No se pudo copiar');
+  });
 }
 
 /* Recientes */
@@ -7970,6 +8116,10 @@ function mostrarHorarios() {
         </div>
         <div class="res-sub">${escH(c.HORARIO)}</div>
         ${c.MUNICIPIO ? `<div class="res-meta">${escH(c.MUNICIPIO)}</div>` : ''}
+        <div class="res-actions">
+          <button class="res-act copy" onclick="copiarTexto(${JSON.stringify(c.HORARIO||'')},this)">📋 Copiar horario</button>
+          <button class="res-act copy" onclick="copiarTexto('${escH(c.CODIGO||'')}',this)">📋 ${escH(c.CODIGO||'—')}</button>
+        </div>
       </div>`).join('');
 }
 /* ================================================================
@@ -8507,7 +8657,7 @@ function tareasInit() {
   renderNotas();
   renderCalendario();
   renderEventos();
-  tareasIrVista('eventos');
+  tareasIrVista('notas');
   initTareasSwipe();
   checkNotifPermission();
   checkTareasHoy();
@@ -9708,134 +9858,6 @@ function tareasFixAltura() {
   });
 }
 window.addEventListener('resize', tareasFixAltura);
-
-/* ================================================================
-   BBVA TEMPLATES — Carga y gestión
-   ================================================================ */
-/* ================================================================
-   PDF FOTOS — Módulo MTO
-   ================================================================ */
-let _pdfFotos = []; // { dataUrl, name }
-
-function abrirPdfFotos() {
-  _pdfFotos = [];
-  _pdfRenderGrid();
-  document.getElementById('pdf-overlay').classList.add('open');
-  document.getElementById('pdf-sheet').classList.add('open');
-}
-
-function cerrarPdfFotos() {
-  document.getElementById('pdf-overlay').classList.remove('open');
-  document.getElementById('pdf-sheet').classList.remove('open');
-  _pdfFotos = [];
-}
-
-function pdfAnadirFotos(input) {
-  const files = Array.from(input.files);
-  Promise.all(files.map(f => new Promise(res => {
-    const r = new FileReader();
-    r.onload = e => res({ dataUrl: e.target.result, name: f.name });
-    r.readAsDataURL(f);
-  }))).then(nuevas => {
-    _pdfFotos.push(...nuevas);
-    _pdfRenderGrid();
-    input.value = '';
-  });
-}
-
-function pdfBorrarFoto(idx) {
-  _pdfFotos.splice(idx, 1);
-  _pdfRenderGrid();
-}
-
-function _pdfRenderGrid() {
-  const grid = document.getElementById('pdf-fotos-grid');
-  const btn  = document.getElementById('pdf-btn-gen');
-  if (!grid) return;
-
-  let html = _pdfFotos.map((f, i) => `
-    <div class="pdf-foto-thumb">
-      <img src="${f.dataUrl}" alt="foto ${i+1}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">
-      <button class="pdf-foto-del" onclick="pdfBorrarFoto(${i})"
-        style="position:absolute;top:4px;right:4px;background:rgba(220,38,38,.85);color:white;
-               border:none;border-radius:50%;width:24px;height:24px;font-size:12px;
-               cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
-    </div>`).join('');
-
-  html += `<div class="pdf-add-btn" onclick="document.getElementById('pdf-input').click()"
-    style="aspect-ratio:3/4;border-radius:8px;border:2px dashed rgba(26,39,68,.2);
-           display:flex;flex-direction:column;align-items:center;justify-content:center;
-           gap:6px;cursor:pointer;background:var(--paper-warm)">
-    <span style="font-size:28px">📷</span>
-    <span style="font-family:var(--font-mono);font-size:8px;color:var(--ink-xl);
-                 text-transform:uppercase;letter-spacing:.06em">Añadir foto</span>
-  </div>`;
-
-  grid.innerHTML = html;
-  if (btn) btn.disabled = _pdfFotos.length === 0;
-}
-
-async function pdfGenerar() {
-  if (!_pdfFotos.length) return;
-  const btn = document.getElementById('pdf-btn-gen');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando…'; }
-
-  try {
-    // Cargar jsPDF dinámicamente si no está
-    if (typeof window.jspdf === 'undefined') {
-      await new Promise((res, rej) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-        s.onload = res; s.onerror = rej;
-        document.head.appendChild(s);
-      });
-    }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const W = 210, H = 297;
-
-    for (let i = 0; i < _pdfFotos.length; i++) {
-      if (i > 0) doc.addPage();
-
-      // Cargar imagen para calcular dimensiones reales
-      const img = new Image();
-      await new Promise(res => { img.onload = res; img.src = _pdfFotos[i].dataUrl; });
-
-      const ratio = img.naturalWidth / img.naturalHeight;
-
-      // Determinar orientación: si la foto es muy apaisada, rotar el PDF
-      let iw, ih, x, y;
-      if (ratio > 1.2) {
-        // Foto apaisada → ajustar al ancho
-        iw = W; ih = W / ratio;
-        x = 0; y = (H - ih) / 2;
-      } else {
-        // Foto vertical o cuadrada → ajustar a la altura
-        ih = H; iw = H * ratio;
-        if (iw > W) { iw = W; ih = W / ratio; }
-        x = (W - iw) / 2; y = (H - ih) / 2;
-      }
-
-      // Calidad alta — JPEG 95%
-      doc.addImage(_pdfFotos[i].dataUrl, 'JPEG', x, y, iw, ih, '', 'FAST');
-    }
-
-    // Nombre con fecha y hora
-    const ahora = new Date();
-    const fecha = ahora.toISOString().slice(0, 10);
-    const hora  = String(ahora.getHours()).padStart(2,'0') + String(ahora.getMinutes()).padStart(2,'0');
-    doc.save(`MTO_${fecha}_${hora}.pdf`);
-
-    cerrarPdfFotos();
-    tareasToast('✅ PDF generado · ' + _pdfFotos.length + ' foto' + (_pdfFotos.length !== 1 ? 's' : ''));
-  } catch(e) {
-    tareasToast('⚠️ Error al generar PDF');
-    console.error('pdfGenerar:', e);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '⬇️ Generar PDF'; }
-  }
-}
 
 // ── INIT UNIFICADO ──
 document.addEventListener('DOMContentLoaded', () => {
