@@ -1275,6 +1275,32 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .mto-scroll::-webkit-scrollbar{width:3px}
 .mto-scroll::-webkit-scrollbar-thumb{background:var(--ink-xl);border-radius:4px}
 
+/* ── MTO BBVA — pantalla nueva ── */
+
+/* ── Modal PDF fotos ── */
+.pdf-overlay{position:fixed;inset:0;background:rgba(15,24,41,.6);z-index:200;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .3s}
+.pdf-overlay.open{opacity:1;pointer-events:all}
+.pdf-sheet{background:var(--paper);border-radius:24px 24px 0 0;width:100%;max-width:480px;margin:0 auto;padding:20px 16px 40px;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;gap:12px;max-height:90vh;overflow-y:auto}
+.pdf-sheet.open{transform:translateY(0)}
+.pdf-sheet-hdr{display:flex;align-items:center;justify-content:space-between}
+.pdf-sheet-title{font-size:17px;font-weight:900;color:var(--navy)}
+.pdf-sheet-close{font-size:20px;color:var(--ink-xl);cursor:pointer;padding:4px 8px}
+
+.pdf-fotos-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pdf-foto-thumb{aspect-ratio:3/4;border-radius:8px;background:var(--paper-warm);border:1px solid rgba(26,39,68,.1);overflow:hidden;position:relative}
+.pdf-foto-thumb img{width:100%;height:100%;object-fit:cover}
+.pdf-foto-del{position:absolute;top:4px;right:4px;background:rgba(220,38,38,.85);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+.pdf-add-btn{aspect-ratio:3/4;border-radius:8px;background:var(--paper-warm);border:2px dashed rgba(26,39,68,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .2s}
+.pdf-add-btn:hover{border-color:var(--orange)}
+.pdf-add-icon{font-size:28px}
+.pdf-add-txt{font-family:var(--font-mono);font-size:8px;color:var(--ink-xl);letter-spacing:.06em;text-transform:uppercase}
+
+.pdf-actions{display:flex;gap:8px;margin-top:4px}
+.pdf-btn-cancel{flex:1;background:var(--paper-warm);border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-pill);padding:12px;font-family:var(--font-ui);font-size:13px;font-weight:700;color:var(--ink-mid);cursor:pointer}
+.pdf-btn-gen{flex:2;background:var(--navy);color:white;border:none;border-radius:var(--r-pill);padding:12px;font-family:var(--font-ui);font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.pdf-btn-gen:disabled{opacity:.5;cursor:not-allowed}
+
 /* ── STATS ── */
 .stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .stat-box{background:white;border-radius:var(--r-md);border:1px solid rgba(26,39,68,.08);padding:9px 6px;text-align:center;box-shadow:0 1px 4px rgba(26,39,68,.05)}
@@ -1293,15 +1319,19 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .busq-clear.visible{display:block}
 
 /* ── FILTROS ── */
-.fil-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.fil-btn{border-radius:var(--r-pill);padding:6px 13px;font-size:10px;font-weight:700;border:1.5px solid rgba(26,39,68,.15);background:white;color:var(--ink-mid);cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;transition:all .15s}
+.fil-row{display:flex;gap:7px;align-items:center;flex-shrink:0;padding:0 12px}
+.fil-row.fil-row-top{padding-top:8px;padding-bottom:6px}
+.fil-row.fil-row-bot{padding-bottom:10px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.fil-row.fil-row-bot::-webkit-scrollbar{display:none}
+.fil-btn{flex-shrink:0;border-radius:var(--r-pill);padding:9px 16px;font-size:12px;font-weight:700;font-family:var(--font-ui);border:1.5px solid rgba(26,39,68,.15);background:white;color:var(--ink-mid);cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;transition:all .15s;height:36px;display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .fil-btn.act{background:var(--navy);color:white;border-color:var(--navy)}
-.fil-btn.pend{color:var(--warn);border-color:rgba(217,119,6,.3);background:var(--warn-bg)}
+.fil-btn.fil-pdf{background:var(--navy);color:white;border-color:var(--navy)}
+.fil-btn.fil-more{padding:9px 13px;font-size:18px;font-weight:900;letter-spacing:0}
 .fil-zona{display:flex;align-items:center;gap:4px;padding-right:9px;font-size:10px}
 .fil-zona select{border:none;background:none;font-family:var(--font-ui);font-size:10px;font-weight:700;color:var(--ink-mid);outline:none;cursor:pointer;padding:0 2px 0 0}
 
 /* Select compacto de cliente — integrado en fila de filtros */
-.fil-sel{border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-pill);background:white;padding:6px 10px 6px 13px;font-family:var(--font-ui);font-size:10px;font-weight:700;color:var(--ink-mid);outline:none;cursor:pointer;-webkit-appearance:none;flex-shrink:0}
+.fil-sel{border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-pill);background:white;padding:0 26px 0 14px;font-family:var(--font-ui);font-size:12px;font-weight:700;color:var(--ink-mid);outline:none;cursor:pointer;-webkit-appearance:none;flex-shrink:0;height:36px}
 .fil-sel:focus{border-color:var(--orange)}
 .fil-sel-wrap{position:relative;display:flex;align-items:center;flex-shrink:0}
 .fil-sel-wrap::after{content:'▾';position:absolute;right:9px;font-size:9px;color:var(--ink-xl);pointer-events:none}
@@ -1615,14 +1645,6 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .rb-cli{background:rgba(26,39,68,.08);color:var(--ink-mid)}
 .rb-hor{background:var(--warn-bg);color:var(--warn)}
 .rb-fes{background:var(--error-bg);color:var(--error)}
-.rb-equ{background:var(--ok-bg);color:var(--ok)}
-
-/* Indicador de campo que coincidió */
-.res-hint{font-family:var(--font-mono);font-size:8px;color:var(--orange-deep);letter-spacing:.04em;margin-top:2px;opacity:.8}
-
-/* Visitas secundarias en historial agrupado */
-.his-sub-card{border-left:3px solid rgba(22,163,74,.25);border-radius:0 var(--r-md) var(--r-md) 0;margin-left:14px;background:var(--paper-warm)}
-.his-grp-card{border-left:3px solid rgba(22,163,74,.5)}
 .res-sub{font-size:11px;color:var(--ink-mid);line-height:1.4}
 .res-meta{font-family:var(--font-mono);font-size:9px;color:var(--ink-xl);margin-top:1px}
 mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--orange-deep);font-weight:900;font-style:normal}
@@ -1632,7 +1654,7 @@ mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--
 .no-results-ico{font-size:36px;opacity:.3}
 .no-results-txt{font-size:13px;color:var(--ink-xl);font-style:italic}
 
-/* ── FILTER CHIPS (Buscador) ── */
+/* ── FILTER CHIPS ── */
 .search-filter-bar{padding:6px 13px 4px;display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;background:var(--paper);border-bottom:1px solid rgba(26,39,68,.06)}
 .search-filter-bar::-webkit-scrollbar{display:none}
 .sf-chip{flex-shrink:0;padding:5px 11px;border-radius:var(--r-pill);font-family:var(--font-mono);font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1.5px solid rgba(26,39,68,.12);background:white;color:var(--ink-mid);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:4px}
@@ -1640,24 +1662,22 @@ mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--
 .sf-chip.act{background:var(--orange);color:white;border-color:var(--orange-deep);box-shadow:0 2px 8px rgba(249,115,22,.3)}
 .sf-chip .sf-n{background:rgba(255,255,255,.28);border-radius:6px;padding:0 5px;font-size:8px;line-height:1.6}
 .sf-chip:not(.act) .sf-n{background:rgba(26,39,68,.07);color:var(--ink-mid)}
-
-/* ── SEARCH STATS BAR ── */
-.search-stats-bar{display:flex;align-items:center;justify-content:space-between;padding:4px 13px 2px;flex-shrink:0}
-.ss-count{font-family:var(--font-mono);font-size:9px;color:var(--ink-xl);letter-spacing:.04em}
-.ss-count strong{color:var(--navy);font-weight:800}
-.ss-clear-all{font-family:var(--font-mono);font-size:9px;color:var(--orange);cursor:pointer;background:none;border:none;padding:2px;letter-spacing:.04em;-webkit-tap-highlight-color:transparent}
-
-/* ── ACTION BUTTONS IN RESULT CARDS ── */
+/* ── BADGES nuevos ── */
+.rb-equ{background:var(--ok-bg);color:var(--ok)}
+/* ── HINT campo coincidente ── */
+.res-hint{font-family:var(--font-mono);font-size:8px;color:var(--orange-deep);letter-spacing:.04em;margin-top:2px;opacity:.8}
+/* ── HISTORIAL agrupado ── */
+.his-grp-card{border-left:3px solid rgba(22,163,74,.5)}
+.his-sub-card{border-left:3px solid rgba(22,163,74,.25);border-radius:0 var(--r-md) var(--r-md) 0;margin-left:14px;background:var(--paper-warm)}
+/* ── ACTION BUTTONS ── */
 .res-actions{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
-.res-act{background:none;border:1px solid rgba(26,39,68,.12);border-radius:var(--r-pill);padding:3px 9px;font-family:var(--font-mono);font-size:8.5px;font-weight:700;color:var(--ink-mid);cursor:pointer;display:inline-flex;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent;transition:all .15s;letter-spacing:.04em}
+.res-act{background:none;border:1px solid rgba(26,39,68,.12);border-radius:var(--r-pill);padding:3px 9px;font-family:var(--font-mono);font-size:8.5px;font-weight:700;color:var(--ink-mid);cursor:pointer;display:inline-flex;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent;transition:all .15s;letter-spacing:.04em;text-decoration:none}
 .res-act:hover{background:var(--paper-warm)}
 .res-act:active{transform:scale(.95)}
 .res-act.copy:hover{border-color:rgba(22,163,74,.35);color:var(--ok)}
-.res-act.call:hover{border-color:rgba(2,132,199,.35);color:var(--cyan)}
 .res-act.nav:hover{border-color:rgba(249,115,22,.35);color:var(--orange)}
 .res-act.copied{background:var(--ok-bg);border-color:rgba(22,163,74,.35);color:var(--ok)}
-
-/* Ver más — botón de expansión de clientes */
+/* ── VER MÁS ── */
 .ver-mas-btn{width:100%;background:none;border:1.5px dashed rgba(26,39,68,.15);border-radius:var(--r-md);padding:9px;font-family:var(--font-mono);font-size:9.5px;font-weight:700;color:var(--orange);cursor:pointer;letter-spacing:.04em;margin-top:4px;-webkit-tap-highlight-color:transparent;transition:all .15s}
 .ver-mas-btn:hover{background:rgba(249,115,22,.06);border-color:rgba(249,115,22,.3)}
 
@@ -2321,8 +2341,9 @@ body { font-size: 14px; }
   border-bottom-color: rgba(249,115,22,.5);
 }
 .it-edit-detalle {
-  resize: none; height: 140px; line-height: 1.6;
-  font-size: 13px; white-space: pre-wrap;
+  resize: none; min-height: 260px; line-height: 1.8;
+  font-size: 14px; white-space: pre-wrap;
+  field-sizing: content;
 }
 .it-save-btn {
   position: sticky; bottom: 16px;
@@ -2506,16 +2527,16 @@ body { font-size: 14px; }
       <button class="busq-clear" id="busq-clear" onclick="limpiarBusq()">✕</button>
     </div>
 
-    <!-- Acciones -->
-    <div class="mto-acciones">
-      <button class="btn-nueva-ofi" onclick="abrirNuevaOficina()">➕ Nueva oficina</button>
-      <button class="btn-reset" onclick="resetearAno()">🗑️ Resetear año</button>
+    <!-- Fila 1: Todos · PDF · ⋮ -->
+    <div class="fil-row fil-row-top">
+      <button class="fil-btn act" id="fil-todos" onclick="setFiltro('todos')">Todos</button>
+      <button class="fil-btn fil-pdf" onclick="abrirPdfFotos()">📷 PDF</button>
+      <button class="fil-btn fil-more" id="mto-more-btn" onclick="toggleMtoMenu()">⋮</button>
     </div>
 
-    <!-- Filtros: estado + zona + cliente -->
-    <div class="fil-row">
-      <button class="fil-btn act" id="fil-todos" onclick="setFiltro('todos')">Todos</button>
-      <button class="fil-btn pend" id="fil-pend" onclick="setFiltro('pend')">⚠ Pendientes</button>
+    <!-- Fila 2: Pendientes · Zona · Cliente -->
+    <div class="fil-row fil-row-bot">
+      <button class="fil-btn" id="fil-pend" onclick="setFiltro('pend')">Pendientes</button>
       <div class="fil-sel-wrap">
         <select class="fil-sel" id="fil-zona-sel" onchange="setZona(this.value)">
           <option value="todas">Zona: Todas</option>
@@ -2527,9 +2548,28 @@ body { font-size: 14px; }
           <option value="bbva">BBVA</option>
           <option value="abanca">ABANCA</option>
           <option value="caj">CAJAMAR</option>
+          <option value="repsol">Repsol</option>
           <option value="otros">Otros</option>
         </select>
       </div>
+    </div>
+
+    <!-- Menú acciones ocasionales -->
+    <div id="mto-ctx-overlay" onclick="closeMtoMenu()" style="display:none;position:fixed;inset:0;z-index:299"></div>
+    <div id="mto-ctx-menu" style="display:none;position:fixed;right:14px;z-index:300;
+      background:var(--paper);border-radius:var(--r);border:1px solid rgba(26,39,68,.1);
+      box-shadow:0 8px 28px rgba(26,39,68,.18);overflow:hidden;min-width:190px">
+      <button onclick="closeMtoMenu();abrirNuevaOficina()" style="width:100%;padding:13px 16px;
+        background:none;border:none;border-bottom:1px solid rgba(26,39,68,.07);
+        font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--navy);
+        text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px">
+        ➕ <span>Nueva oficina</span>
+      </button>
+      <button onclick="closeMtoMenu();resetearAno()" style="width:100%;padding:13px 16px;
+        background:none;border:none;font-family:var(--font-ui);font-size:13px;font-weight:600;
+        color:var(--error);text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px">
+        🗑️ <span>Resetear año</span>
+      </button>
     </div>
 
 
@@ -2538,6 +2578,28 @@ body { font-size: 14px; }
     <div id="mto-lista"></div>
 
   </div><!-- /mto-scroll -->
+
+  <!-- ── Modal PDF Fotos ── -->
+  <div class="pdf-overlay" id="pdf-overlay" onclick="if(event.target===this)cerrarPdfFotos()">
+    <div class="pdf-sheet" id="pdf-sheet">
+      <div class="pdf-sheet-hdr">
+        <div class="pdf-sheet-title">📷 PDF Fotos</div>
+        <div class="pdf-sheet-close" onclick="cerrarPdfFotos()">✕</div>
+      </div>
+      <div style="font-family:var(--font-hand);font-size:12px;color:var(--ink-mid)">Añade las fotos — una por página en el PDF</div>
+      <div class="pdf-fotos-grid" id="pdf-fotos-grid">
+        <div class="pdf-add-btn" onclick="document.getElementById('pdf-input').click()">
+          <div class="pdf-add-icon">📷</div>
+          <div class="pdf-add-txt">Añadir foto</div>
+        </div>
+      </div>
+      <input type="file" id="pdf-input" accept="image/*" capture="environment" multiple style="display:none" onchange="pdfAnadirFotos(this)">
+      <div class="pdf-actions">
+        <button class="pdf-btn-cancel" onclick="cerrarPdfFotos()">Cancelar</button>
+        <button class="pdf-btn-gen" id="pdf-btn-gen" onclick="pdfGenerar()" disabled>⬇️ Generar PDF</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Tab Bar -->
   
@@ -2669,13 +2731,13 @@ body { font-size: 14px; }
 
         <!-- FILTRO POR TIPO — visible solo cuando hay query activo -->
         <div class="search-filter-bar" id="search-filter-bar" style="display:none">
-          <div class="sf-chip act" id="sf-todos"    onclick="selFiltro('todos')">🔎 Todos <span class="sf-n" id="sfn-todos">—</span></div>
-          <div class="sf-chip"    id="sf-cli"     onclick="selFiltro('cli')">🏢 Clientes <span class="sf-n" id="sfn-cli">0</span></div>
-          <div class="sf-chip"    id="sf-his"     onclick="selFiltro('his')">📋 Historial <span class="sf-n" id="sfn-his">0</span></div>
-          <div class="sf-chip"    id="sf-inf"     onclick="selFiltro('inf')">🔧 Info <span class="sf-n" id="sfn-inf">0</span></div>
-          <div class="sf-chip"    id="sf-equ"     onclick="selFiltro('equ')">🖥️ Equipos <span class="sf-n" id="sfn-equ">0</span></div>
-          <div class="sf-chip"    id="sf-hor"     onclick="selFiltro('hor')">⏰ Horarios <span class="sf-n" id="sfn-hor">0</span></div>
-          <div class="sf-chip"    id="sf-fes"     onclick="selFiltro('fes')">📅 Festivos <span class="sf-n" id="sfn-fes">0</span></div>
+          <div class="sf-chip act" id="sf-todos" onclick="selFiltro('todos')">🔎 Todos <span class="sf-n" id="sfn-todos">—</span></div>
+          <div class="sf-chip" id="sf-cli"  onclick="selFiltro('cli')">🏢 Clientes <span class="sf-n" id="sfn-cli">0</span></div>
+          <div class="sf-chip" id="sf-his"  onclick="selFiltro('his')">📋 Historial <span class="sf-n" id="sfn-his">0</span></div>
+          <div class="sf-chip" id="sf-inf"  onclick="selFiltro('inf')">🔧 Info <span class="sf-n" id="sfn-inf">0</span></div>
+          <div class="sf-chip" id="sf-equ"  onclick="selFiltro('equ')">🖥️ Equipos <span class="sf-n" id="sfn-equ">0</span></div>
+          <div class="sf-chip" id="sf-hor"  onclick="selFiltro('hor')">⏰ Horarios <span class="sf-n" id="sfn-hor">0</span></div>
+          <div class="sf-chip" id="sf-fes"  onclick="selFiltro('fes')">📅 Festivos <span class="sf-n" id="sfn-fes">0</span></div>
         </div>
 
         <!-- CONTENIDO: estado vacío O resultados (nunca se toca la barra) -->
@@ -3121,6 +3183,12 @@ body { font-size: 14px; }
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="cerrarFinalizar()">Cancelar</button>
+      <button id="btn-gps-guardar" onclick="btnGuardarGPS()"
+        style="background:rgba(22,163,74,.1);color:var(--ok);border:1.5px solid rgba(22,163,74,.3);
+               border-radius:var(--r-pill);padding:12px;font-family:var(--font-ui);font-size:12px;
+               font-weight:700;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent">
+        📍 GPS
+      </button>
       <button class="btn-guardar" id="btn-guardar" onclick="guardarFinalizar()">→ Guardar</button>
     </div>
   </div>
@@ -3237,8 +3305,6 @@ body { font-size: 14px; }
         <span class="dprog-txt" id="dprog-excel-txt"></span>
       </div>
     </div>
-
-    <div class="dsep"></div>
 
     <!-- ── JSON BACKUP ── -->
     <div>
@@ -3503,7 +3569,7 @@ function irA(modulo) {
       const _td=document.getElementById('tareas-view-dots');
       if(_td) _td.classList.add('vis');
       if(!_tareasIniciado){tareasInit();_tareasIniciado=true;}
-      else{tareasIrVista('notas');renderTareas();renderNotas();renderCalendario();renderEventos();tareasFixAltura();}
+      else{tareasIrVista('eventos');renderTareas();renderNotas();renderCalendario();renderEventos();tareasFixAltura();}
     }
     if (modulo === 'analisis') { renderizar(); }
   } catch(e) { console.log('PycLibreta irA error [' + modulo + ']:', e.message, e.stack); }
@@ -3590,7 +3656,9 @@ function preprocesar(txt) {
   return txt
     .replace(/([A-Za-zÀ-ú])(INC\d)/g,   '$1 $2')
     .replace(/([A-Za-zÀ-ú])(WO\d)/g,    '$1 $2')
-    .replace(/([A-Za-zÀ-ú])(TASK\d)/gi, '$1 $2');
+    .replace(/([A-Za-zÀ-ú])(TASK\d)/gi, '$1 $2')
+    // Separar sufijo .SEG/.PCI/.INST pegado a la dirección: ".SEG)COLON" → ".SEG) COLON"
+    .replace(/(\.[A-Z]{2,4}\))([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
 }
 
 /* ================================================================
@@ -3646,8 +3714,10 @@ function extraerAviso(t) {
   }
   const n16  = t.match(/\b(16\d{7})\b/);   if (n16)  return { aviso:n16[1],          tipo:'NUM'  };
   const al   = t.match(/AL_(M|ATC)\d+/i);  if (al)   return { aviso:al[0].toUpperCase(), tipo:'AL' };
-  // BBVA: (43000302118.SEG) — número entre paréntesis con sufijo .SEG/.PCI/.INST
-  const bbva = t.match(/\((\d{10,12})\.[A-Z]+\)/i); if (bbva) return { aviso:bbva[1], tipo:'NUM' };
+  // BBVA abonado: (43000302118.SEG) — solo usarlo si no hay otro aviso, y marcarlo como NUM_ABONADO
+  // para que la descripción no lo use como ancla
+  const bbva = t.match(/\((\d{10,12})\.[A-Z]+\)/i);
+  if (bbva) return { aviso: bbva[1], tipo: 'ABONADO' };
   return { aviso:'', tipo:'NONE' };
 }
 
@@ -3702,8 +3772,17 @@ function extraerDireccion(bloque) {
   const m3 = bloque.match(/((?:Ctra\.|Carretera|Autovia|CAMINO)[^\n\-]+?)\s*-\s*([A-ZÀ-Úa-zà-ú][^-\n]{2,25})\s*-\s*(?:Valencia|VALENCIA)/i);
   if (m3) return { direccion:m3[1].trim(), localidad:clean(m3[2]) };
 
-  // Fallback con CP para formatos sin prefijo (AQUAE)
-  const m4 = bloque.match(/([A-ZÁÉÍÓÚÑ\d][^-\n]{5,40}?\d[\w\s]*)\s*-\s*(\d{5})\s*-\s*([^-\n]{3,25}?)\s*-\s*(?:VALENCIA|CUENCA|ALBACETE)/i);
+  // Fallback con CP para formatos sin prefijo (AQUAE, BBVA, CR Torrent)
+  // Formato: "E2024 SEDE NOMBRE (66045)AVDA. AL VEDAT, 3 - 46900 - LOCALIDAD - PROV"
+  // Intentar anclar desde justo después del código entre paréntesis
+  const mAncla = bloque.match(/\(\d{4,6}\)\s*([A-ZÁÉÍÓÚÑ][^-\n]{3,40}?\d[\w\s]*)\s*-\s*(\d{5})\s*-\s*([^-\n]{3,25}?)\s*-\s*(?:VALENCIA|CUENCA|ALBACETE)/i);
+  if (mAncla) return { direccion: mAncla[1].trim(), localidad: clean(mAncla[3]) };
+
+  // Limpiar prefijos tipo "(43000302098.SEG)" o "(66045)" y buscar con CP
+  const bloqueLimpio = bloque
+    .replace(/\([^\)]+\.[A-Z]{2,4}\)\s*/gi, '')
+    .replace(/\(\d{4,6}\)/g, '');
+  const m4 = bloqueLimpio.match(/([A-ZÁÉÍÓÚÑ\d][^-\n]{5,40}?\d[\w\s]*)\s*-\s*(\d{5})\s*-\s*([^-\n]{3,25}?)\s*-\s*(?:VALENCIA|CUENCA|ALBACETE)/i);
   if (m4) return { direccion:m4[1].trim(), localidad:clean(m4[3]) };
 
   return { direccion:'', localidad:'' };
@@ -3715,8 +3794,8 @@ function extraerDireccion(bloque) {
 function extraerDescripcion(texto, aviso) {
   let desc = '';
 
-  // Ancla 1: después del INC/WO/TASK (no para AL_M)
-  if (aviso.aviso && aviso.tipo !== 'NONE' && aviso.tipo !== 'AL') {
+  // Ancla 1: después del INC/WO/TASK (no para AL_M ni ABONADO)
+  if (aviso.aviso && aviso.tipo !== 'NONE' && aviso.tipo !== 'AL' && aviso.tipo !== 'ABONADO') {
     const idx = texto.indexOf(aviso.aviso);
     if (idx !== -1) {
       let r = texto.slice(idx + aviso.aviso.length).trim();
@@ -3728,8 +3807,11 @@ function extraerDescripcion(texto, aviso) {
     }
   }
 
-  // Ancla 2: NOTAS:
-  if (!desc) { const m=texto.match(/NOTAS?:\s*(.+)/i); if(m) desc=m[1].trim(); }
+  // Ancla 2: NOTAS: — prioritaria para BBVA instalaciones
+  if (!desc || aviso.tipo === 'ABONADO') {
+    const m = texto.match(/NOTAS?:\s*(.+)/i);
+    if (m) desc = m[1].trim();
+  }
 
   // Ancla 3: texto tras la provincia — ANTES de mantenimientos
   // Cubre CAMPSA, AQUAE, BBVA Minglanilla y cualquier texto libre al final
@@ -4355,7 +4437,7 @@ function renderizar() {
       for (const p of items) {
         const c2=getCfg(p.clienteNorm);
         const isRuta=!!p.enRuta;
-        const avisoVis=(p.aviso&&p.avisoTipo!=='OT_INT')?p.aviso:'';
+        const avisoVis=(p.aviso&&p.avisoTipo!=='OT_INT'&&p.avisoTipo!=='ABONADO')?p.aviso:'';
         const fechaVis=p.fechaEjecucion||p.fecha;
         const dias=p.dias||diasDesde(p.fecha);
         delay+=40;
@@ -4368,7 +4450,7 @@ function renderizar() {
         const bRuta   =isRuta          ?'<span class="badge-ruta">EN RUTA</span>':'';
         const bUrgente=p.urgente&&!isRuta?`<span class="badge-urgente">🚨 URGENTE${p.horasUrgencia?' '+p.horasUrgencia+'H':''}</span>`:'';
         const bAntiguo=dias>7&&!isRuta  ?`<span class="badge-antiguo">${dias}d</span>`:'';
-        const bFijado =p.horaFijada&&!isRuta?`<span class="badge-fijado">📌 ${p.horaFijada}${p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''}</span>`:'';
+        const bFijado =p.horaFijada&&!isRuta?`<span class="badge-fijado">FIJADO ${p.horaFijada}${p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''}</span>`:'';
 
         html+=`
         <div class="aviso-wrap" style="animation-delay:${delay}ms" data-id="${p.id}">
@@ -4754,8 +4836,9 @@ function formatTiempo(km) {
 }
 
 /* ================================================================
-   GEOCODIFICACIÓN — Photon (Komoot, OSM, sin rate limit, sin API key)
-   Consulta UNA vez por dirección+localidad y guarda en localStorage.
+   GEOCODIFICACIÓN — Sistema combinado:
+   1. Coords exactas GPS (guardadas al finalizar parada)  → clave: codigo
+   2. Coords por localidad (Photon/Nominatim)             → clave: localidad
    ================================================================ */
 const K_COORDS = 'pyc_coords';
 
@@ -4763,94 +4846,96 @@ function cargarCoords() {
   return load(K_COORDS) || {};
 }
 
-function _claveCoords(parada) {
-  // Clave por dirección+localidad — más fiable que el código
-  const dir = (parada.direccion || '').toLowerCase().trim();
-  const loc = (parada.localidad || '').toLowerCase().trim();
-  if (dir && loc) return `${dir}|${loc}`;
-  // Fallback: código si existe
-  if (parada.codigo) return String(parada.codigo);
-  return parada.id;
+// Clave por código (coords exactas GPS)
+function _claveExacta(parada) {
+  return parada.codigo ? String(parada.codigo).toLowerCase().trim() : null;
 }
 
-async function geocodificar(parada) {
-  if (parada.lat && parada.lng) return;
-  const clave  = _claveCoords(parada);
-  const coords = cargarCoords();
+// Clave por localidad (coords municipio)
+function _claveLoc(parada) {
+  return (parada.localidad || '').toLowerCase().trim() || null;
+}
 
-  if (coords[clave]) {
-    parada.lat = coords[clave].lat;
-    parada.lng = coords[clave].lng;
-    // Persistir en ruta también
-    const ps  = loadArr(K_RUTA);
-    const idx = ps.findIndex(x => x.id === parada.id);
-    if (idx !== -1 && !ps[idx].lat) { ps[idx].lat = parada.lat; ps[idx].lng = parada.lng; save(K_RUTA, ps); }
-    return;
-  }
+// Obtener las mejores coords disponibles para una parada
+function _getCoordsParada(parada, coords) {
+  // 1. Coords exactas GPS por código
+  const cExacta = _claveExacta(parada);
+  if (cExacta && coords[cExacta]) return coords[cExacta];
+  // 2. Coords por localidad
+  const cLoc = _claveLoc(parada);
+  if (cLoc && coords[cLoc]) return coords[cLoc];
+  return null;
+}
 
-  const dir = parada.direccion || '';
-  const loc = parada.localidad || '';
-  if (!dir && !loc) return;
+async function geocodificarLocalidad(localidad, coords) {
+  const clave = localidad.toLowerCase().trim();
+  if (coords[clave]) return coords[clave];
 
-  // Query principal: dirección + localidad
-  const q = [dir, loc, 'España'].filter(Boolean).join(', ');
-
+  const q = `${localidad}, Valencia, España`;
   try {
-    // Photon — sin rate limit, datos OSM
+    // Photon
     const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1&lang=es`;
     const r   = await fetch(url, { headers: { 'Accept-Language': 'es' } });
-    if (!r.ok) throw new Error('photon ' + r.status);
-    const data = await r.json();
-
-    if (!data.features || !data.features.length) {
-      // Fallback: Nominatim con la misma query
-      try {
-        const urlN = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=es`;
-        const rN   = await fetch(urlN, { headers: { 'Accept-Language': 'es' } });
-        if (rN.ok) {
-          const dN = await rN.json();
-          if (dN.length) {
-            _guardarCoords(parada, clave, parseFloat(dN[0].lat), parseFloat(dN[0].lon), coords);
-          }
-        }
-      } catch {}
-      return;
+    if (r.ok) {
+      const data = await r.json();
+      if (data.features && data.features.length) {
+        const [lng, lat] = data.features[0].geometry.coordinates;
+        coords[clave] = { lat, lng };
+        save(K_COORDS, coords);
+        return { lat, lng };
+      }
     }
+  } catch {}
 
-    const [lng, lat] = data.features[0].geometry.coordinates;
-    _guardarCoords(parada, clave, lat, lng, coords);
+  try {
+    // Nominatim fallback
+    const urlN = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=es`;
+    const rN   = await fetch(urlN, { headers: { 'Accept-Language': 'es' } });
+    if (rN.ok) {
+      const dN = await rN.json();
+      if (dN.length) {
+        const lat = parseFloat(dN[0].lat);
+        const lng = parseFloat(dN[0].lon);
+        coords[clave] = { lat, lng };
+        save(K_COORDS, coords);
+        return { lat, lng };
+      }
+    }
+  } catch {}
 
-  } catch { /* sin internet — silencioso */ }
+  return null;
 }
 
-function _guardarCoords(parada, clave, lat, lng, coords) {
-  parada.lat = lat;
-  parada.lng = lng;
-
-  // Caché coords
-  coords[clave] = { lat, lng };
+// Guardar coords exactas GPS (llamado desde modal Finalizar)
+function guardarCoordsGPS(parada) {
+  if (!gpsActual || !gpsActual.lat || !gpsActual.lng) return false;
+  if (!parada.codigo) return false;
+  const clave  = String(parada.codigo).toLowerCase().trim();
+  const coords = cargarCoords();
+  coords[clave] = { lat: gpsActual.lat, lng: gpsActual.lng, gps: true };
   save(K_COORDS, coords);
-
-  // Actualizar en pyc_ruta_paradas
-  const ps  = loadArr(K_RUTA);
-  const idx = ps.findIndex(x => x.id === parada.id);
-  if (idx !== -1) { ps[idx].lat = lat; ps[idx].lng = lng; save(K_RUTA, ps); }
-
-  // Actualizar en pyc_equipos
-  const eq  = loadObj(K_EQUIPOS);
-  const cod = parada.codigo;
-  if (cod && eq[cod]) { eq[cod].lat = lat; eq[cod].lng = lng; save(K_EQUIPOS, eq); }
-
-  // Refrescar pins del mapa inmediatamente si está visible
-  if (vistaActual === 'mapa' && mapaL && typeof _renderMapaPins === 'function') {
-    try { _renderMapaPins(); } catch(e) {}
-  }
+  return true;
 }
 
 async function geocodificarPendientes() {
   const paradas = loadArr(K_RUTA).filter(p => p.estado === 'pendiente');
-  for (const p of paradas) {
-    if (!p.lat || !p.lng) await geocodificar(p);
+  const coords  = cargarCoords();
+  // Obtener localidades únicas que aún no tengan coords
+  const locsPendientes = [...new Set(
+    paradas
+      .filter(p => {
+        const c = _getCoordsParada(p, coords);
+        return !c;
+      })
+      .map(p => p.localidad)
+      .filter(Boolean)
+  )];
+  for (const loc of locsPendientes) {
+    await geocodificarLocalidad(loc, coords);
+    // Refrescar pins tras cada geocodificación
+    if (vistaActual === 'mapa' && mapaL && typeof _renderMapaPins === 'function') {
+      try { _renderMapaPins(); } catch(e) {}
+    }
   }
 }
 
@@ -4958,11 +5043,9 @@ function iniciarMapa() {
 }
 
 function _renderMapaPins() {
-  const paradas   = loadArr(K_RUTA).filter(p => p.estado !== 'completada');
-  const pendientes= loadArr(K_RUTA).filter(p => p.estado === 'pendiente');
-  const bounds    = [];
-  let sinCoords   = 0;
-  const routeCoords = []; // para polilínea en orden
+  const pendientes = loadArr(K_RUTA).filter(p => p.estado === 'pendiente');
+  const coords     = cargarCoords();
+  const bounds     = [];
 
   // ── Marcador GPS (posición actual) ──
   if (gpsActual && gpsActual.lat) {
@@ -4977,77 +5060,126 @@ function _renderMapaPins() {
       .addTo(mapaL)
       .bindPopup('<div style="font-family:system-ui;font-size:12px;font-weight:700;color:#1a2744">📍 Tu posición</div>', {maxWidth:160});
     bounds.push([gpsActual.lat, gpsActual.lng]);
-    // Añadir GPS como primer punto de la ruta si hay paradas pendientes
-    if (pendientes.length && pendientes[0].lat) routeCoords.push([gpsActual.lat, gpsActual.lng]);
   }
 
-  paradas.forEach((p, i) => {
-    if (!p.lat || !p.lng) { sinCoords++; return; }
-    const col      = getColor(p.cliente);
-    const esActiva = p.estado === 'pendiente' && loadArr(K_RUTA).filter(x=>x.estado==='pendiente')[0]?.id === p.id;
-    const num      = pendientes.findIndex(x => x.id === p.id) + 1;
-    // Pin numerado con color corporativo; la activa es más grande
-    const sz = esActiva ? 36 : 28;
-    const ic = L.divIcon({
+  // ── Agrupar paradas ──
+  // Primero: paradas con coords exactas GPS (por código)
+  // Segundo: resto agrupadas por localidad
+  const exactas   = [];  // { parada, lat, lng, esExacta: true }
+  const porLoc    = {};  // { localidad: [paradas] }
+
+  pendientes.forEach(p => {
+    const cExacta = _claveExacta(p);
+    if (cExacta && coords[cExacta] && coords[cExacta].gps) {
+      exactas.push({ parada: p, lat: coords[cExacta].lat, lng: coords[cExacta].lng });
+    } else {
+      const loc = p.localidad || '—';
+      if (!porLoc[loc]) porLoc[loc] = [];
+      porLoc[loc].push(p);
+    }
+  });
+
+  const routeCoords = gpsActual?.lat ? [[gpsActual.lat, gpsActual.lng]] : [];
+
+  // ── Pins exactos GPS ──
+  exactas.forEach(({ parada: p, lat, lng }) => {
+    const col = getColor(p.clienteNorm || p.cliente || '');
+    const ic  = L.divIcon({
       html: `<div style="background:${col};color:#fff;border-radius:50%;
-             width:${sz}px;height:${sz}px;display:flex;align-items:center;
-             justify-content:center;font-weight:900;font-size:${esActiva?15:12}px;
-             border:${esActiva?'3px':'2px'} solid white;
-             box-shadow:0 2px ${esActiva?'12':'6'}px rgba(0,0,0,${esActiva?'.45':'.3'});
-             ${esActiva?'animation:activa-pulse 2s ease infinite':''}">
-               ${num > 0 ? num : '✓'}
+             width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+             font-weight:900;font-size:12px;border:2.5px solid white;
+             box-shadow:0 2px 8px rgba(0,0,0,.35)">
+               <span style="font-size:9px">GPS</span>
              </div>`,
-      className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2],
+      className:'', iconSize:[32,32], iconAnchor:[16,16],
     });
-    const marker = L.marker([p.lat, p.lng], {icon:ic, zIndexOffset: esActiva ? 1000 : 0}).addTo(mapaL);
+    const marker = L.marker([lat, lng], { icon: ic }).addTo(mapaL);
     marker.bindPopup(`
-      <div style="font-family:system-ui;min-width:170px">
-        ${esActiva ? '<div style="font-family:monospace;font-size:8px;font-weight:700;color:#dc2626;letter-spacing:.08em;margin-bottom:4px">● PARADA ACTIVA</div>' : ''}
-        <div style="font-weight:900;font-size:13px;color:#1a2744">${p.clienteReal||p.cliente}</div>
+      <div style="font-family:system-ui;min-width:160px">
+        <div style="font-family:monospace;font-size:8px;color:#16a34a;font-weight:700;margin-bottom:3px">📍 UBICACIÓN EXACTA</div>
+        <div style="font-weight:900;font-size:13px;color:#1a2744">${p.clienteReal||p.clienteNorm||p.cliente}</div>
         <div style="font-size:10px;color:#5a6a8a;margin-top:2px">${p.codigo ? '· '+p.codigo : ''} ${p.localidad||''}</div>
-        <div style="font-size:11px;color:#2d3d5a;margin-top:3px;font-weight:600">${p.direccion||'—'}</div>
-        ${p.trabajo ? `<div style="font-size:10px;color:#5a6a8a;margin-top:3px;border-left:2px solid #f97316;padding-left:5px">${p.trabajo}</div>` : ''}
+        <div style="font-size:11px;color:#2d3d5a;margin-top:3px">${p.direccion||'—'}</div>
         <div style="display:flex;gap:6px;margin-top:8px">
-          <a href="https://waze.com/ul?q=${encodeURIComponent((p.direccion||'')+' '+(p.localidad||''))}&navigate=yes"
-             target="_blank"
+          <a href="https://waze.com/ul?ll=${lat},${lng}&navigate=yes" target="_blank"
              style="background:#08ccd4;color:white;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;text-decoration:none;flex:1;text-align:center">👻 Waze</a>
-          <a href="https://maps.google.com/?q=${encodeURIComponent((p.direccion||'')+' '+(p.localidad||''))}"
-             target="_blank"
+          <a href="https://maps.google.com/?q=${lat},${lng}" target="_blank"
              style="background:#1a73e8;color:white;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;text-decoration:none;flex:1;text-align:center">📍 Maps</a>
         </div>
       </div>`, {maxWidth:230});
-    bounds.push([p.lat, p.lng]);
-    if (p.estado === 'pendiente') routeCoords.push([p.lat, p.lng]);
+    bounds.push([lat, lng]);
+    routeCoords.push([lat, lng]);
   });
 
-  // ── Polilínea de ruta (GPS → paradas en orden) ──
+  // ── Pins por localidad ──
+  let sinCoords = 0;
+  Object.entries(porLoc).forEach(([loc, paradas]) => {
+    const cLoc = loc.toLowerCase().trim();
+    const c    = coords[cLoc];
+    if (!c) { sinCoords += paradas.length; return; }
+
+    const n      = paradas.length;
+    const colores = [...new Set(paradas.map(p => getColor(p.clienteNorm || p.cliente || '')))];
+    const col    = colores[0] || '#1a2744';
+    const sz     = n > 1 ? 38 : 30;
+
+    const ic = L.divIcon({
+      html: `<div style="background:${col};color:#fff;border-radius:50%;
+             width:${sz}px;height:${sz}px;display:flex;align-items:center;justify-content:center;
+             font-weight:900;font-size:${n>9?13:15}px;border:2.5px solid white;
+             box-shadow:0 2px 10px rgba(0,0,0,.35)">
+               ${n}
+             </div>`,
+      className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2],
+    });
+
+    const listaParadas = paradas.map(p =>
+      `<div style="padding:4px 0;border-bottom:1px solid #f0f0f0;font-size:11px">
+        <span style="font-weight:700;color:#1a2744">${p.clienteReal||p.clienteNorm||p.cliente}</span>
+        ${p.codigo ? `<span style="color:#8896b3"> · ${p.codigo}</span>` : ''}
+        ${p.descripcion ? `<div style="color:#5a6a8a;font-size:10px;margin-top:1px">${p.descripcion.slice(0,50)}</div>` : ''}
+       </div>`
+    ).join('');
+
+    const marker = L.marker([c.lat, c.lng], { icon: ic }).addTo(mapaL);
+    marker.bindPopup(`
+      <div style="font-family:system-ui;min-width:180px;max-width:240px">
+        <div style="font-weight:900;font-size:13px;color:#1a2744;margin-bottom:6px">
+          📍 ${loc} <span style="color:#f97316">(${n})</span>
+        </div>
+        ${listaParadas}
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <a href="https://waze.com/ul?q=${encodeURIComponent(loc+', Valencia')}&navigate=yes" target="_blank"
+             style="background:#08ccd4;color:white;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;text-decoration:none;flex:1;text-align:center">👻 Waze</a>
+          <a href="https://maps.google.com/?q=${encodeURIComponent(loc+', Valencia')}" target="_blank"
+             style="background:#1a73e8;color:white;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;text-decoration:none;flex:1;text-align:center">📍 Maps</a>
+        </div>
+      </div>`, {maxWidth:260});
+    bounds.push([c.lat, c.lng]);
+    routeCoords.push([c.lat, c.lng]);
+  });
+
+  // ── Polilínea ──
   if (routeCoords.length > 1) {
-    // Línea sólida naranja
-    L.polyline(routeCoords, {
-      color: '#f97316', weight: 3, opacity: 0.75,
-    }).addTo(mapaL);
-    // Línea punteada blanca encima para efecto de trazo animado
-    L.polyline(routeCoords, {
-      color: 'white', weight: 1, opacity: 0.5, dashArray: '6,10',
-    }).addTo(mapaL);
+    L.polyline(routeCoords, { color:'#f97316', weight:3, opacity:.75 }).addTo(mapaL);
+    L.polyline(routeCoords, { color:'white',   weight:1, opacity:.5,  dashArray:'6,10' }).addTo(mapaL);
   }
 
+  // ── Ajustar vista ──
   if (bounds.length) {
-    mapaL.fitBounds(bounds, {padding:[44,44]});
+    mapaL.fitBounds(bounds, { padding:[44,44] });
   } else if (sinCoords > 0) {
-    mapaL.setView([39.47, -0.37], 10);
-    setText('mapa-header', `Geocodificando ${sinCoords} parada${sinCoords!==1?'s':''}…`);
+    mapaL.setView([39.47,-0.37], 10);
     setTimeout(() => { if (mapaL) _renderMapaPins(); }, 3000);
-    return;
   } else {
-    mapaL.setView([39.47, -0.37], 9);
+    mapaL.setView([39.47,-0.37], 9);
   }
 
-  const pendCount = pendientes.length;
-  const conCoords = pendCount - sinCoords;
+  const total    = pendientes.length;
+  const conPin   = total - sinCoords;
   const txt = sinCoords > 0
-    ? `${conCoords}/${pendCount} paradas · geocodificando…`
-    : `${pendCount} parada${pendCount!==1?'s':''} pendiente${pendCount!==1?'s':''}`;
+    ? `${conPin}/${total} paradas · geocodificando…`
+    : `${total} parada${total!==1?'s':''} · ${Object.keys(porLoc).filter(l=>coords[l.toLowerCase().trim()]).length + exactas.length} zona${exactas.length+Object.keys(porLoc).length!==1?'s':''}`;
   setText('mapa-header', txt);
 }
 
@@ -5456,6 +5588,19 @@ function abrirFinalizarPara(id) {
 
 function cerrarFinalizar() {
   document.getElementById('modal-fin').classList.remove('open');
+}
+
+function btnGuardarGPS() {
+  if (!paradaActual) return;
+  const ok = guardarCoordsGPS(paradaActual);
+  const btn = document.getElementById('btn-gps-guardar');
+  if (ok) {
+    if (btn) { btn.textContent = '✅ GPS'; btn.style.background = 'rgba(22,163,74,.2)'; }
+    tareasToast('📍 Ubicación GPS guardada para ' + (paradaActual.clienteReal || paradaActual.codigo));
+  } else {
+    if (btn) btn.textContent = '⚠️ Sin GPS';
+    tareasToast('⚠️ GPS no disponible o sin código de cliente');
+  }
 }
 
 function toggleFin() {
@@ -5897,6 +6042,8 @@ function datosClientesNuevos() {
   partes.forEach(p => {
     const cod = String(p.codigo || '').trim();
     if (!cod) return;
+    // Ignorar códigos alfanuméricos tipo E2024 — son identificadores de sistema, no códigos de cliente
+    if (/^[A-Z]\d+$/i.test(cod)) return;
     const nombre = String(p.clienteReal || p.clienteNorm || '');
     if (ESPORADICOS_RE.test(nombre)) return;
     // Comprobar si alguna variante o sufijo del código del parte ya está en Excel
@@ -6128,7 +6275,7 @@ function datosExportarExcel() {
     datosProg('excel', 93, 'Exportando Coordenadas…');
     const coordsObj  = cargarCoords();
     const coordsRows = Object.entries(coordsObj).map(([clave, c]) => ({
-      CLAVE: clave, LAT: c.lat, LNG: c.lng
+      CLAVE: clave, LAT: c.lat, LNG: c.lng, TIPO: c.gps ? 'GPS' : 'Localidad'
     }));
     if (coordsRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(coordsRows), 'Coordenadas');
 
@@ -6370,7 +6517,11 @@ function datosImportarExcel(input) {
             rows.forEach(r => {
               const clave = String(r['CLAVE']);
               if (!existing[clave]) {
-                existing[clave] = { lat: parseFloat(r['LAT']), lng: parseFloat(r['LNG']) };
+                existing[clave] = {
+                  lat: parseFloat(r['LAT']),
+                  lng: parseFloat(r['LNG']),
+                  ...(r['TIPO'] === 'GPS' ? { gps: true } : {})
+                };
               }
             });
             save(K_COORDS, existing);
@@ -6633,8 +6784,25 @@ function popularZonas() {
 function setFiltro(f) {
   mtoFiltro = f;
   document.getElementById('fil-todos').className = 'fil-btn' + (f==='todos'?' act':'');
-  document.getElementById('fil-pend').className  = 'fil-btn pend' + (f==='pend'?' act':'');
+  document.getElementById('fil-pend').className  = 'fil-btn' + (f==='pend'?' act':'');
   renderMTO();
+}
+function toggleMtoMenu() {
+  const menu = document.getElementById('mto-ctx-menu');
+  const overlay = document.getElementById('mto-ctx-overlay');
+  const btn = document.getElementById('mto-more-btn');
+  const open = menu.style.display === 'none';
+  menu.style.display = open ? 'block' : 'none';
+  overlay.style.display = open ? 'block' : 'none';
+  if (open) {
+    // Posicionar bajo el botón ⋮
+    const r = btn.getBoundingClientRect();
+    menu.style.top = (r.bottom + 6) + 'px';
+  }
+}
+function closeMtoMenu() {
+  document.getElementById('mto-ctx-menu').style.display = 'none';
+  document.getElementById('mto-ctx-overlay').style.display = 'none';
 }
 function setZona(z) { mtoZona = z; renderMTO(); }
 function setCliente(c) {
@@ -6671,8 +6839,27 @@ function renderMTO() {
     return;
   }
 
+  // Añadir oficinas nuevas detectadas en análisis (no están en K_EXCEL aún)
+  const nuevos = typeof datosClientesNuevos === 'function' ? datosClientesNuevos() : [];
+  const codsExcel = new Set(clientes.map(c => String(c.CODIGO||c.codigo||'').trim().toLowerCase()));
+  const clientesMas = [...clientes];
+  nuevos.forEach(p => {
+    const cod = String(p.codigo||'').trim().toLowerCase();
+    if (cod && !codsExcel.has(cod)) {
+      clientesMas.push({
+        CLIENTE: p.clienteReal || p.clienteNorm || p.cliente || '',
+        CODIGO: p.codigo || '',
+        MUNICIPIO: p.localidad || '',
+        DIRECCION: p.direccion || '',
+        ZONA: p._zona || inferirZona(p.localidad) || '',
+        OBSERVACIONES: '[Nuevo — pendiente de exportar]',
+        INT:'', Q1:'', Q2:'', Q3:'', Q4:'',
+      });
+    }
+  });
+
   // Filtrar clientes
-  const filtrados = clientes.filter(c => {
+  const filtrados = clientesMas.filter(c => {
     const cli = c.CLIENTE || c.cliente || '';
     const cod = c.CODIGO  || c.codigo  || '';
     const mun = c.MUNICIPIO || c.municipio || '';
@@ -6682,9 +6869,11 @@ function renderMTO() {
     if (mtoZona !== 'todas' && zona !== mtoZona) return false;
 
     // Filtro cliente
-    if (mtoCliente === 'bbva'   && !esBanco(cli))  return false;
-    if (mtoCliente === 'caj'    && !/CAJAMAR|CAJA\s*RURAL|RURALCAJA|CAIXA/.test((cli).toUpperCase())) return false;
-    if (mtoCliente === 'otros'  && esBanco(cli))   return false;
+    if (mtoCliente === 'bbva'   && !cli.toUpperCase().includes('BBVA')) return false;
+    if (mtoCliente === 'abanca' && !cli.toUpperCase().includes('ABANCA')) return false;
+    if (mtoCliente === 'caj'    && !/CAJAMAR|CAJA\s*RURAL|RURALCAJA|CAIXA/.test(cli.toUpperCase())) return false;
+    if (mtoCliente === 'otros'  && (esBanco(cli) || esRepsol(cli))) return false;
+    if (mtoCliente === 'repsol' && !esRepsol(cli)) return false;
 
     // Buscador
     if (mtoBusq) {
@@ -6710,7 +6899,7 @@ function renderMTO() {
   });
 
   // Stats — reflejan zona+cliente seleccionados (no filtro pend)
-  const stats = calcularStatsFiltradas(clientes, mtoMan);
+  const stats = calcularStatsFiltradas(clientesMas, mtoMan);
   setText('stat-total',  stats.total);
   setText('stat-hechas', stats.hechas);
   setText('stat-pend',   stats.pend);
@@ -6718,7 +6907,7 @@ function renderMTO() {
   // Badge tab MTO — usa global para no perder info
   const badge = document.getElementById('mto-badge');
   if (badge) {
-    const pendOficinas = clientes.filter(c => {
+    const pendOficinas = clientesMas.filter(c => {
       const key = mtoKey(c); const man = mtoMan[key]||{};
       return getMtoTipos(c.CLIENTE||c.cliente||'').some(t => { const ex=getExcelDate(c,t); return !man[t]&&!ex; });
     }).length;
@@ -7049,8 +7238,9 @@ function calcularStatsFiltradas(clientes, mtoMan) {
     const cliName = (c.CLIENTE || c.cliente || '').toUpperCase();
     if (mtoCliente === 'bbva'    && !cliName.includes('BBVA')) return false;
     if (mtoCliente === 'abanca'  && !cliName.includes('ABANCA')) return false;
-    if (mtoCliente === 'caj'     && !/CAJAMAR|CAJA\s*RURAL|RURALCAJA|CAIXA/.test(c)) return false;
-    if (mtoCliente === 'otros' && esBanco(cli)) return false;
+    if (mtoCliente === 'caj'     && !/CAJAMAR|CAJA\s*RURAL|RURALCAJA|CAIXA/.test(cliName)) return false;
+    if (mtoCliente === 'otros'   && (esBanco(cli) || esRepsol(cli))) return false;
+    if (mtoCliente === 'repsol'  && !esRepsol(cli)) return false;
     if (mtoBusq) {
       const cod = c.CODIGO || c.codigo || '';
       const mun = c.MUNICIPIO || c.municipio || '';
@@ -7060,18 +7250,16 @@ function calcularStatsFiltradas(clientes, mtoMan) {
     return true;
   });
 
-  let hechas = 0, pend = 0;
+  let hechasOf = 0, pendOf = 0;
   base.forEach(c => {
     const key  = mtoKey(c);
     const man  = mtoMan[key] || {};
     const tipos = getMtoTipos(c.CLIENTE || c.cliente || '');
-    tipos.forEach(t => {
-      const ex = getExcelDate(c, t);
-      if (man[t] || ex) hechas++; else pend++;
-    });
+    const todaHecha = tipos.every(t => { const ex = getExcelDate(c, t); return !!(man[t] || ex); });
+    if (todaHecha) hechasOf++; else pendOf++;
   });
 
-  return { total: base.length, hechas, pend };
+  return { total: base.length, hechas: hechasOf, pend: pendOf };
 }
 
 /* ================================================================
@@ -7258,11 +7446,11 @@ let buscarVista = 'buscar';
 let tipoSeleccionado = '';
 let etiquetasSeleccionadas = new Set();
 let searchQuery = '';
-let filtroActivo = 'todos';   // 'todos' | 'cli' | 'his' | 'inf' | 'hor' | 'fes' | 'equ'
-let _ultimosResultados = {}; // cache para cambiar filtro sin re-buscar
-let _cliExpandido = false;   // controla "Ver más" en clientes
-let _hisExpandidos = new Set(); // grupos de historial expandidos
-const CLI_PAGE = 10;         // resultados de clientes visibles por defecto
+let filtroActivo = 'todos';
+let _ultimosResultados = {};
+let _cliExpandido = false;
+let _hisExpandidos = new Set();
+const CLI_PAGE = 10;
 
 /* ================================================================
    INIT
@@ -7270,30 +7458,24 @@ const CLI_PAGE = 10;         // resultados de clientes visibles por defecto
 let _buscarIniciado = false;
 
 function buscarInit() {
-  // Render dinámico — siempre actualizar al entrar
   renderTagsArea();
   renderInfoSaved();
   renderRecientes();
   renderCierre();
-  // Mantener la última vista activa; solo fuerza 'buscar' la primera vez
   buscarIrVista(buscarVista || 'buscar');
 
-  // Swipe solo se inicializa UNA vez
   if (!_buscarIniciado) {
     initBuscarSwipe();
-
-    // Enter key — ejecutar búsqueda inmediata sin esperar debounce
     const inp = document.getElementById('search-hero-input');
     if (inp) {
       inp.addEventListener('keydown', e => {
         if (e.key === 'Enter') {
           clearTimeout(searchTimer);
           if (searchQuery.length >= 2) ejecutarBusqueda(searchQuery);
-          inp.blur(); // cerrar teclado en móvil
+          inp.blur();
         }
       });
     }
-
     _buscarIniciado = true;
   }
 }
@@ -7315,7 +7497,6 @@ function buscarIrVista(v) {
 
   if (v === 'cierre') renderCierre();
 
-  // Auto-focus en la barra de búsqueda al entrar en la vista Buscar
   if (v === 'buscar') {
     setTimeout(() => {
       const inp = document.getElementById('search-hero-input');
@@ -7505,7 +7686,7 @@ function renderInfoSaved() {
         ${item.tipoDato ? `<span class="ii-tipo">${escH(item.tipoDato)}</span>` : ''}
         <button class="ii-del" onclick="event.stopPropagation();borrarInfo(${item.id})">✕</button>
       </div>
-      <div class="ii-desc">${escH(item.detalle.slice(0,100))}${item.detalle.length>100?'…':''}</div>
+      <div class="ii-desc">${escH(item.detalle.slice(0,120))}${item.detalle.length>120?'…':''}</div>
       ${item.etiquetas.length ? `<div class="ii-tags">${item.etiquetas.join(' ')}</div>` : ''}
     </div>`).join('');
 }
@@ -7519,21 +7700,7 @@ function borrarInfo(id) {
 }
 
 function verInfoItem(id) {
-  const item = loadArr(K_INFO_TEC).find(i => String(i.id) === String(id));
-  if (!item) return;
-  if (document.getElementById('inf-entidad').value === item.entidad) return;
-  document.getElementById('inf-entidad').value = item.entidad;
-  document.getElementById('inf-codigo').value   = item.codigo;
-  document.getElementById('inf-poblacion').value= item.poblacion;
-  document.getElementById('inf-sistema').value  = item.sistema;
-  document.getElementById('inf-detalle').value  = item.detalle;
-  tipoSeleccionado = item.tipoDato;
-  etiquetasSeleccionadas = new Set(item.etiquetas);
-  document.querySelectorAll('.tc').forEach(tc => {
-    tc.classList.toggle('sel', tc.textContent.trim() === item.tipoDato);
-  });
-  renderTagsArea();
-  document.querySelector('.info-scroll')?.scrollTo({top:0,behavior:'smooth'});
+  abrirInfoTecPage(id);
 }
 
 /* ================================================================
@@ -7617,7 +7784,6 @@ function onSearchInput(val) {
     mostrarEstadoVacio();
     return;
   }
-  // Mínimo 2 caracteres
   if (searchQuery.length < 2) {
     ocultarFiltros();
     document.getElementById('buscar-empty').classList.add('hidden');
@@ -7648,12 +7814,10 @@ function ocultarFiltros() {
 
 function selFiltro(tipo) {
   filtroActivo = tipo;
-  // Actualizar chips activos
-  ['todos','cli','his','inf','hor','fes'].forEach(k => {
+  ['todos','cli','his','inf','equ','hor','fes'].forEach(k => {
     const el = document.getElementById('sf-' + k);
     if (el) el.classList.toggle('act', k === tipo);
   });
-  // Re-renderizar con cache
   renderResultadosFiltrados();
 }
 
@@ -7666,13 +7830,13 @@ function ejecutarBusqueda(q) {
   const clientes  = loadArr(K_EXCEL_B);
   const historial = loadArr(K_HIST_B);
   const infoTec   = loadArr(K_INFO_TEC);
-  const equiposArr= Object.values(loadObj(K_EQUIPOS));
+  const equiposArr = Object.values(loadObj(K_EQUIPOS));
 
   const qLow = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const nrm  = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const match = s => nrm(s).includes(qLow);
 
-  // Fuzzy bigram — sin dependencias externas, funciona offline
+  // Fuzzy bigram — offline, sin CDN
   const fuzzy = s => {
     const h = nrm(s), n = qLow;
     if (h.includes(n) || n.length < 4) return false;
@@ -7681,8 +7845,9 @@ function ejecutarBusqueda(q) {
     nb.forEach(b => { if(hb.has(b)) ok++; });
     return nb.size>0 && ok/nb.size >= 0.62;
   };
+  const esNumerico = /^[\d\s\-./]+$/.test(q.trim());
 
-  // Indicador del campo que coincidió (solo cuando no es el campo principal)
+  // Indicadores de campo coincidente
   const hintCli = c => {
     if (match(c.CLIENTE)||match(c.CODIGO)||match(c.MUNICIPIO)) return '';
     if (match(c.CENTRAL)||match(c['MOD. CENTRAL'])) return 'Central';
@@ -7702,7 +7867,7 @@ function ejecutarBusqueda(q) {
     return '';
   };
   const hintEqu = e => {
-    if (match(e.CLIENTE)||match(e.CÓDIGO)) return '';
+    if (match(e.CLIENTE)||match(String(e.CÓDIGO||''))) return '';
     if (match(e.central)) return 'Central intrusión';
     if (match(e.grabador)) return 'Grabador';
     if (match(e.com)) return 'Comunicación';
@@ -7720,15 +7885,13 @@ function ejecutarBusqueda(q) {
     const safeNrm = safe.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     let result='', i=0;
     safeNrm.replace(hlRe, (m, offset) => {
-      result += safe.slice(i,offset) + '<mark>' + safe.slice(offset,offset+m.length) + '</mark>';
+      result += safe.slice(i,offset)+'<mark>'+safe.slice(offset,offset+m.length)+'</mark>';
       i = offset+m.length;
     });
-    return result + safe.slice(i);
+    return result+safe.slice(i);
   };
 
-  // CLIENTES — exact + fuzzy + puntuación de relevancia
-  // Fuzzy solo para nombres (no códigos) y solo cuando la query no es numérica
-  const esNumerico = /^[\d\s\-./]+$/.test(q.trim());
+  // CLIENTES
   const matchCli = c => {
     if (match(c.CLIENTE)||match(c.CODIGO)||match(c.MUNICIPIO)) return true;
     if (q.length>=4) {
@@ -7762,8 +7925,8 @@ function ejecutarBusqueda(q) {
       subHL:   `${hl(c.MUNICIPIO||'')}${c.DIRECCION?' · '+hl(c.DIRECCION):''}`,
     }));
 
-  // HISTORIAL — incluye campos de equipo, se agrupa por cliente en render
-  _hisExpandidos = new Set(); // resetear expansiones al nueva búsqueda
+  // HISTORIAL — incluye campos de equipo, agrupado por cliente en render
+  _hisExpandidos = new Set();
   const resultsHis = historial.filter(h =>
     match(h.CLIENTE)||match(h.SISTEMA)||match(h.TRABAJO)||match(h.LOCALIDAD)||
     match(h.OT)||match(h.KEY)||
@@ -7809,13 +7972,13 @@ function ejecutarBusqueda(q) {
     subHL:   hl(c.HORARIO||''),
   }));
 
-  // EQUIPOS (pyc_equipos — objeto indexado por código)
+  // EQUIPOS (pyc_equipos)
   const resultsEqu = equiposArr.filter(e =>
     match(e.CLIENTE)||match(String(e.CÓDIGO||e.codigo||''))||match(e.MUNICIPIO)||
     match(e.central)||match(e.grabador)||match(e.com)||
     match(e.incendio)||match(e.acceso)||match(e.modelo)
   ).slice(0,15).map(e => {
-    const cod    = String(e.CÓDIGO||e.codigo||'');
+    const cod = String(e.CÓDIGO||e.codigo||'');
     const sistem = [e.central,e.grabador,e.com,e.incendio,e.acceso,e.modelo].filter(Boolean);
     return {
       tipo:'equ', codigo:cod, hint: hintEqu(e),
@@ -7833,7 +7996,6 @@ function ejecutarBusqueda(q) {
     match(f.Descripción||f.Descripcion)||match(f.Municipio)||match(f.Tipo)||match(f.Fecha)
   );
 
-  // Guardar cache y renderizar
   _ultimosResultados = { resultsCli, resultsHis, resultsInf, resultsHor, resultsEqu, resultsFes, q, hl };
 
   const total = resultsCli.length + resultsHis.length + resultsInf.length +
@@ -7858,19 +8020,11 @@ function ejecutarBusqueda(q) {
 function actualizarChipsFiltro(nCli, nHis, nInf, nHor, nFes, nEqu, total) {
   const fb = document.getElementById('search-filter-bar');
   if (fb) fb.style.display = 'flex';
-  const set = (id, n) => { const el = document.getElementById(id); if(el) el.textContent = n; };
-  set('sfn-todos', total);
-  set('sfn-cli',   nCli);
-  set('sfn-his',   nHis);
-  set('sfn-inf',   nInf);
-  set('sfn-hor',   nHor);
-  set('sfn-fes',   nFes);
-  set('sfn-equ',   nEqu);
+  const set = (id, n) => { const el=document.getElementById(id); if(el) el.textContent=n; };
+  set('sfn-todos', total); set('sfn-cli', nCli); set('sfn-his', nHis);
+  set('sfn-inf', nInf); set('sfn-hor', nHor); set('sfn-fes', nFes); set('sfn-equ', nEqu);
   const pairs = [['sf-cli',nCli],['sf-his',nHis],['sf-inf',nInf],['sf-hor',nHor],['sf-fes',nFes],['sf-equ',nEqu]];
-  pairs.forEach(([id, n]) => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = n > 0 ? '' : 'none';
-  });
+  pairs.forEach(([id,n]) => { const el=document.getElementById(id); if(el) el.style.display=n>0?'':'none'; });
   const counts = { todos:total, cli:nCli, his:nHis, inf:nInf, hor:nHor, fes:nFes, equ:nEqu };
   if (!counts[filtroActivo]) selFiltro('todos');
 }
@@ -7883,27 +8037,25 @@ function renderResultadosFiltrados() {
   res.classList.add('vis');
   document.getElementById('buscar-empty').classList.add('hidden');
 
-  // Indicador del campo que coincidió
   const hintHtml = hint => hint ? `<div class="res-hint">↳ ${escH(hint)}</div>` : '';
 
-  // Botones de acción por tipo
   const actBtns = r => {
     let btns = '';
-    if (r.tipo === 'cli') {
+    if (r.tipo==='cli') {
       if (r.codigo)  btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
       if (r.central) btns += `<span class="res-act" style="cursor:default;pointer-events:none">⚙️ ${escH(r.central)}</span>`;
     }
-    if (r.tipo === 'his') {
+    if (r.tipo==='his') {
       if (r.ot) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.ot)}',this)">📋 ${escH(r.ot)}</button>`;
     }
-    if (r.tipo === 'inf') {
+    if (r.tipo==='inf') {
       btns += `<button class="res-act nav" onclick="abrirInfoTecPage(${r.id})">🔍 Ver</button>`;
       if (r.detalle) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.detalle)},this)">📋 Copiar</button>`;
     }
-    if (r.tipo === 'hor') {
+    if (r.tipo==='hor') {
       if (r.horario) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.horario)},this)">📋 Copiar horario</button>`;
     }
-    if (r.tipo === 'equ') {
+    if (r.tipo==='equ') {
       if (r.codigo) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
     }
     return btns ? `<div class="res-actions">${btns}</div>` : '';
@@ -7912,12 +8064,11 @@ function renderResultadosFiltrados() {
   const badgeMap = { cli:'CLIENTE', inf:'INFO', hor:'HORARIO', equ:'EQUIPO' };
   const classMap = { cli:'rb-cli', inf:'rb-inf', hor:'rb-hor', equ:'rb-equ' };
 
-  // Render genérico (clientes, info, horarios, equipos)
   const renderGrupo = (arr, ico, label, tipo) => {
     if (!arr.length) return '';
-    const esCli = tipo === 'cli';
-    const visible = esCli && !_cliExpandido ? arr.slice(0, CLI_PAGE) : arr;
-    const ocultos = esCli && !_cliExpandido ? arr.length - CLI_PAGE : 0;
+    const esCli = tipo==='cli';
+    const visible = esCli&&!_cliExpandido ? arr.slice(0,CLI_PAGE) : arr;
+    const ocultos = esCli&&!_cliExpandido ? arr.length-CLI_PAGE : 0;
     let g = `<div class="grp" id="grp-${tipo}">`;
     g += `<div class="grp-hdr"><span class="grp-ico">${ico}</span><span class="grp-lbl">${label}</span><span class="grp-cnt">${arr.length}</span><div class="grp-line"></div></div>`;
     g += visible.map(r => `
@@ -7931,12 +8082,11 @@ function renderResultadosFiltrados() {
         ${hintHtml(r.hint||'')}
         ${actBtns(r)}
       </div>`).join('');
-    if (esCli && ocultos > 0) g += `<button class="ver-mas-btn" onclick="expandirClientes()">Ver los ${ocultos} restantes ›</button>`;
+    if (esCli && ocultos>0) g += `<button class="ver-mas-btn" onclick="expandirClientes()">Ver los ${ocultos} restantes ›</button>`;
     g += '</div>';
     return g;
   };
 
-  // Historial agrupado por cliente
   const renderHistorialAgrupado = arr => {
     if (!arr.length) return '';
     const grupos = {};
@@ -7999,17 +8149,14 @@ function toggleHisGrupo(cliente) {
   renderResultadosFiltrados();
 }
 
-/* Expandir clientes en "Ver más" */
 function expandirClientes() {
   _cliExpandido = true;
   renderResultadosFiltrados();
 }
 
-/* Acceso rápido: mostrar todos los clientes ordenados */
 function mostrarTodosClientes() {
   const clientes = loadArr(K_EXCEL_B);
   if (!clientes.length) { buscarToast('Carga el Excel primero'); return; }
-
   const sorted = [...clientes].sort((a,b) => (a.CLIENTE||'').localeCompare(b.CLIENTE||'','es'));
   ocultarFiltros();
   document.getElementById('buscar-empty').classList.add('hidden');
@@ -8030,26 +8177,23 @@ function mostrarTodosClientes() {
           <span class="res-badge rb-cli">CLIENTE</span>
         </div>
         <div class="res-sub">${escH(c.MUNICIPIO||'—')}${c.DIRECCION?' · '+escH(c.DIRECCION):''}</div>
-        ${c.CENTRAL||c.ZONA ? `<div class="res-meta">${[c.CENTRAL?'⚙️ '+escH(c.CENTRAL):'',c.ZONA?'Zona '+escH(c.ZONA):''].filter(Boolean).join('  ')}</div>` : ''}
+        ${c.CENTRAL||c.ZONA?`<div class="res-meta">${[c.CENTRAL?'⚙️ '+escH(c.CENTRAL):'',c.ZONA?'Zona '+escH(c.ZONA):''].filter(Boolean).join('  ')}</div>`:''}
         <div class="res-actions">
-          <button class="res-act copy" onclick="copiarTexto('${escH(c.CODIGO||'')}',this)" title="Copiar código">📋 ${escH(c.CODIGO||'—')}</button>
+          <button class="res-act copy" onclick="copiarTexto('${escH(c.CODIGO||'')}',this)">📋 ${escH(c.CODIGO||'—')}</button>
         </div>
       </div>`).join('');
 }
 
-/* Copiar texto al portapapeles con feedback visual en el botón */
 function copiarTexto(txt, btn) {
   navigator.clipboard?.writeText(txt).then(() => {
     if (btn) {
       const orig = btn.innerHTML;
       btn.innerHTML = '✓ Copiado';
       btn.classList.add('copied');
-      setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1800);
+      setTimeout(() => { btn.innerHTML=orig; btn.classList.remove('copied'); }, 1800);
     }
     buscarToast('✓ Copiado al portapapeles');
-  }).catch(() => {
-    buscarToast('No se pudo copiar');
-  });
+  }).catch(() => buscarToast('No se pudo copiar'));
 }
 
 /* Recientes */
@@ -8116,10 +8260,6 @@ function mostrarHorarios() {
         </div>
         <div class="res-sub">${escH(c.HORARIO)}</div>
         ${c.MUNICIPIO ? `<div class="res-meta">${escH(c.MUNICIPIO)}</div>` : ''}
-        <div class="res-actions">
-          <button class="res-act copy" onclick="copiarTexto(${JSON.stringify(c.HORARIO||'')},this)">📋 Copiar horario</button>
-          <button class="res-act copy" onclick="copiarTexto('${escH(c.CODIGO||'')}',this)">📋 ${escH(c.CODIGO||'—')}</button>
-        </div>
       </div>`).join('');
 }
 /* ================================================================
@@ -8548,7 +8688,17 @@ function _renderItEdit(item) {
 
     <button class="it-save-btn" onclick="guardarEdicionInfoTec()">💾 Guardar cambios</button>
   `;
-  setTimeout(() => document.getElementById('ite-entidad')?.focus(), 100);
+  setTimeout(() => {
+    const ta = document.getElementById('ite-detalle');
+    if (ta) {
+      const grow = () => { ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; };
+      grow();
+      ta.addEventListener('input', grow);
+      ta.focus();
+    } else {
+      document.getElementById('ite-entidad')?.focus();
+    }
+  }, 100);
 }
 
 function toggleEditInfoTec() {
@@ -8657,7 +8807,7 @@ function tareasInit() {
   renderNotas();
   renderCalendario();
   renderEventos();
-  tareasIrVista('notas');
+  tareasIrVista('eventos');
   initTareasSwipe();
   checkNotifPermission();
   checkTareasHoy();
@@ -9858,6 +10008,134 @@ function tareasFixAltura() {
   });
 }
 window.addEventListener('resize', tareasFixAltura);
+
+/* ================================================================
+   BBVA TEMPLATES — Carga y gestión
+   ================================================================ */
+/* ================================================================
+   PDF FOTOS — Módulo MTO
+   ================================================================ */
+let _pdfFotos = []; // { dataUrl, name }
+
+function abrirPdfFotos() {
+  _pdfFotos = [];
+  _pdfRenderGrid();
+  document.getElementById('pdf-overlay').classList.add('open');
+  document.getElementById('pdf-sheet').classList.add('open');
+}
+
+function cerrarPdfFotos() {
+  document.getElementById('pdf-overlay').classList.remove('open');
+  document.getElementById('pdf-sheet').classList.remove('open');
+  _pdfFotos = [];
+}
+
+function pdfAnadirFotos(input) {
+  const files = Array.from(input.files);
+  Promise.all(files.map(f => new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => res({ dataUrl: e.target.result, name: f.name });
+    r.readAsDataURL(f);
+  }))).then(nuevas => {
+    _pdfFotos.push(...nuevas);
+    _pdfRenderGrid();
+    input.value = '';
+  });
+}
+
+function pdfBorrarFoto(idx) {
+  _pdfFotos.splice(idx, 1);
+  _pdfRenderGrid();
+}
+
+function _pdfRenderGrid() {
+  const grid = document.getElementById('pdf-fotos-grid');
+  const btn  = document.getElementById('pdf-btn-gen');
+  if (!grid) return;
+
+  let html = _pdfFotos.map((f, i) => `
+    <div class="pdf-foto-thumb">
+      <img src="${f.dataUrl}" alt="foto ${i+1}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">
+      <button class="pdf-foto-del" onclick="pdfBorrarFoto(${i})"
+        style="position:absolute;top:4px;right:4px;background:rgba(220,38,38,.85);color:white;
+               border:none;border-radius:50%;width:24px;height:24px;font-size:12px;
+               cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>`).join('');
+
+  html += `<div class="pdf-add-btn" onclick="document.getElementById('pdf-input').click()"
+    style="aspect-ratio:3/4;border-radius:8px;border:2px dashed rgba(26,39,68,.2);
+           display:flex;flex-direction:column;align-items:center;justify-content:center;
+           gap:6px;cursor:pointer;background:var(--paper-warm)">
+    <span style="font-size:28px">📷</span>
+    <span style="font-family:var(--font-mono);font-size:8px;color:var(--ink-xl);
+                 text-transform:uppercase;letter-spacing:.06em">Añadir foto</span>
+  </div>`;
+
+  grid.innerHTML = html;
+  if (btn) btn.disabled = _pdfFotos.length === 0;
+}
+
+async function pdfGenerar() {
+  if (!_pdfFotos.length) return;
+  const btn = document.getElementById('pdf-btn-gen');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando…'; }
+
+  try {
+    // Cargar jsPDF dinámicamente si no está
+    if (typeof window.jspdf === 'undefined') {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210, H = 297;
+
+    for (let i = 0; i < _pdfFotos.length; i++) {
+      if (i > 0) doc.addPage();
+
+      // Cargar imagen para calcular dimensiones reales
+      const img = new Image();
+      await new Promise(res => { img.onload = res; img.src = _pdfFotos[i].dataUrl; });
+
+      const ratio = img.naturalWidth / img.naturalHeight;
+
+      // Determinar orientación: si la foto es muy apaisada, rotar el PDF
+      let iw, ih, x, y;
+      if (ratio > 1.2) {
+        // Foto apaisada → ajustar al ancho
+        iw = W; ih = W / ratio;
+        x = 0; y = (H - ih) / 2;
+      } else {
+        // Foto vertical o cuadrada → ajustar a la altura
+        ih = H; iw = H * ratio;
+        if (iw > W) { iw = W; ih = W / ratio; }
+        x = (W - iw) / 2; y = (H - ih) / 2;
+      }
+
+      // Calidad alta — JPEG 95%
+      doc.addImage(_pdfFotos[i].dataUrl, 'JPEG', x, y, iw, ih, '', 'FAST');
+    }
+
+    // Nombre con fecha y hora
+    const ahora = new Date();
+    const fecha = ahora.toISOString().slice(0, 10);
+    const hora  = String(ahora.getHours()).padStart(2,'0') + String(ahora.getMinutes()).padStart(2,'0');
+    doc.save(`MTO_${fecha}_${hora}.pdf`);
+
+    cerrarPdfFotos();
+    tareasToast('✅ PDF generado · ' + _pdfFotos.length + ' foto' + (_pdfFotos.length !== 1 ? 's' : ''));
+  } catch(e) {
+    tareasToast('⚠️ Error al generar PDF');
+    console.error('pdfGenerar:', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬇️ Generar PDF'; }
+  }
+}
 
 // ── INIT UNIFICADO ──
 document.addEventListener('DOMContentLoaded', () => {
