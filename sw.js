@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pycseca-v6';
+const CACHE_NAME = 'pycseca-v7';
 
 const CACHE_STATIC = [
   './app.html',
