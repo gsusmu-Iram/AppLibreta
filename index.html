@@ -1572,10 +1572,10 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 /* ============================================
    PANTALLA BUSCAR — diseño limpio
    ============================================ */
-#v-buscar{display:flex;flex-direction:column;overflow:hidden}
+#v-buscar{display:flex;flex-direction:column}
 
 /* Barra SIEMPRE visible arriba */
-.buscar-barra{padding:12px 13px 6px;flex-shrink:0;background:var(--paper);position:sticky;top:0;z-index:10;box-shadow:0 1px 0 rgba(26,39,68,.07)}
+.buscar-barra{padding:12px 13px 6px;flex-shrink:0;background:var(--paper);position:relative;z-index:10}
 
 /* Estado vacío — debajo de la barra */
 .buscar-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -1654,6 +1654,33 @@ mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--
 .no-results-ico{font-size:36px;opacity:.3}
 .no-results-txt{font-size:13px;color:var(--ink-xl);font-style:italic}
 
+/* ── FILTER CHIPS ── */
+.search-filter-bar{padding:6px 13px 4px;display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;background:var(--paper);border-bottom:1px solid rgba(26,39,68,.06)}
+.search-filter-bar::-webkit-scrollbar{display:none}
+.sf-chip{flex-shrink:0;padding:5px 11px;border-radius:var(--r-pill);font-family:var(--font-mono);font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1.5px solid rgba(26,39,68,.12);background:white;color:var(--ink-mid);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:4px}
+.sf-chip:hover{border-color:rgba(249,115,22,.35);color:var(--orange)}
+.sf-chip.act{background:var(--orange);color:white;border-color:var(--orange-deep);box-shadow:0 2px 8px rgba(249,115,22,.3)}
+.sf-chip .sf-n{background:rgba(255,255,255,.28);border-radius:6px;padding:0 5px;font-size:8px;line-height:1.6}
+.sf-chip:not(.act) .sf-n{background:rgba(26,39,68,.07);color:var(--ink-mid)}
+/* ── BADGES nuevos ── */
+.rb-equ{background:var(--ok-bg);color:var(--ok)}
+/* ── HINT campo coincidente ── */
+.res-hint{font-family:var(--font-mono);font-size:8px;color:var(--orange-deep);letter-spacing:.04em;margin-top:2px;opacity:.8}
+/* ── HISTORIAL agrupado ── */
+.his-grp-card{border-left:3px solid rgba(22,163,74,.5)}
+.his-sub-card{border-left:3px solid rgba(22,163,74,.25);border-radius:0 var(--r-md) var(--r-md) 0;margin-left:14px;background:var(--paper-warm)}
+/* ── ACTION BUTTONS ── */
+.res-actions{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.res-act{background:none;border:1px solid rgba(26,39,68,.12);border-radius:var(--r-pill);padding:3px 9px;font-family:var(--font-mono);font-size:8.5px;font-weight:700;color:var(--ink-mid);cursor:pointer;display:inline-flex;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent;transition:all .15s;letter-spacing:.04em;text-decoration:none}
+.res-act:hover{background:var(--paper-warm)}
+.res-act:active{transform:scale(.95)}
+.res-act.copy:hover{border-color:rgba(22,163,74,.35);color:var(--ok)}
+.res-act.nav:hover{border-color:rgba(249,115,22,.35);color:var(--orange)}
+.res-act.copied{background:var(--ok-bg);border-color:rgba(22,163,74,.35);color:var(--ok)}
+/* ── VER MÁS ── */
+.ver-mas-btn{width:100%;background:none;border:1.5px dashed rgba(26,39,68,.15);border-radius:var(--r-md);padding:9px;font-family:var(--font-mono);font-size:9.5px;font-weight:700;color:var(--orange);cursor:pointer;letter-spacing:.04em;margin-top:4px;-webkit-tap-highlight-color:transparent;transition:all .15s}
+.ver-mas-btn:hover{background:rgba(249,115,22,.06);border-color:rgba(249,115,22,.3)}
+
 /* ============================================
    PANTALLA CIERRE — Resumen del día
    ============================================ */
@@ -1708,6 +1735,25 @@ mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--
 .views-wrapper.show-info   { transform: translateX(0%); }
 .views-wrapper.show-buscar { transform: translateX(-33.333%); }
 .views-wrapper.show-cierre { transform: translateX(-66.666%); }
+
+/* Buscar views — IDs específicos para evitar conflictos con otros módulos */
+#buscar-views-outer {
+  flex: 1; overflow: hidden; position: relative; z-index: 5;
+  width: 100%; min-height: 0;
+}
+#buscar-views-wrapper {
+  display: flex; width: 300%; height: 100%;
+  transition: transform .35s cubic-bezier(.4,0,.2,1);
+  will-change: transform;
+}
+#buscar-views-wrapper.show-info   { transform: translateX(0%); }
+#buscar-views-wrapper.show-buscar { transform: translateX(-33.333%); }
+#buscar-views-wrapper.show-cierre { transform: translateX(-66.666%); }
+#buscar-views-wrapper .view {
+  flex: 0 0 33.333%; width: 33.333%; height: 100%;
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; position: relative;
+}
 
 /* Dots visibles solo en mod-buscar */
 .buscar-view-dots{display:none;justify-content:center;align-items:center;gap:6px;padding:5px 0;background:var(--paper);border-bottom:1px solid rgba(26,39,68,.05);position:relative;z-index:5}
@@ -2314,8 +2360,9 @@ body { font-size: 14px; }
   border-bottom-color: rgba(249,115,22,.5);
 }
 .it-edit-detalle {
-  resize: none; height: 140px; line-height: 1.6;
-  font-size: 13px; white-space: pre-wrap;
+  resize: none; min-height: 260px; line-height: 1.8;
+  font-size: 14px; white-space: pre-wrap;
+  field-sizing: content;
 }
 .it-save-btn {
   position: sticky; bottom: 16px;
@@ -2701,6 +2748,17 @@ body { font-size: 14px; }
           </div>
         </div>
 
+        <!-- FILTRO POR TIPO — visible solo cuando hay query activo -->
+        <div class="search-filter-bar" id="search-filter-bar" style="display:none">
+          <div class="sf-chip act" id="sf-todos" onclick="selFiltro('todos')">🔎 Todos <span class="sf-n" id="sfn-todos">—</span></div>
+          <div class="sf-chip" id="sf-cli"  onclick="selFiltro('cli')">🏢 Clientes <span class="sf-n" id="sfn-cli">0</span></div>
+          <div class="sf-chip" id="sf-his"  onclick="selFiltro('his')">📋 Historial <span class="sf-n" id="sfn-his">0</span></div>
+          <div class="sf-chip" id="sf-inf"  onclick="selFiltro('inf')">🔧 Info <span class="sf-n" id="sfn-inf">0</span></div>
+          <div class="sf-chip" id="sf-equ"  onclick="selFiltro('equ')">🖥️ Equipos <span class="sf-n" id="sfn-equ">0</span></div>
+          <div class="sf-chip" id="sf-hor"  onclick="selFiltro('hor')">⏰ Horarios <span class="sf-n" id="sfn-hor">0</span></div>
+          <div class="sf-chip" id="sf-fes"  onclick="selFiltro('fes')">📅 Festivos <span class="sf-n" id="sfn-fes">0</span></div>
+        </div>
+
         <!-- CONTENIDO: estado vacío O resultados (nunca se toca la barra) -->
         <div class="buscar-content" id="buscar-content">
 
@@ -2717,6 +2775,10 @@ body { font-size: 14px; }
               <div class="qs-btn" onclick="mostrarFestivos()">
                 <span class="qs-ico">📅</span>
                 <span class="qs-lbl" style="color:var(--error)">Festivos</span>
+              </div>
+              <div class="qs-btn" onclick="mostrarTodosClientes()">
+                <span class="qs-ico">🏢</span>
+                <span class="qs-lbl" style="color:var(--navy)">Clientes</span>
               </div>
               <div class="qs-btn" onclick="cargarFestivosCV()" id="btn-cargar-festivos" style="display:none">
                 <span class="qs-ico">⬇️</span>
@@ -7403,6 +7465,11 @@ let buscarVista = 'buscar';
 let tipoSeleccionado = '';
 let etiquetasSeleccionadas = new Set();
 let searchQuery = '';
+let filtroActivo = 'todos';
+let _ultimosResultados = {};
+let _cliExpandido = false;
+let _hisExpandidos = new Set();
+const CLI_PAGE = 10;
 
 /* ================================================================
    INIT
@@ -7410,17 +7477,24 @@ let searchQuery = '';
 let _buscarIniciado = false;
 
 function buscarInit() {
-  // Render dinámico — siempre actualizar al entrar
   renderTagsArea();
   renderInfoSaved();
   renderRecientes();
   renderCierre();
-  // Mantener la última vista activa; solo fuerza 'buscar' la primera vez
   buscarIrVista(buscarVista || 'buscar');
 
-  // Swipe solo se inicializa UNA vez
   if (!_buscarIniciado) {
     initBuscarSwipe();
+    const inp = document.getElementById('search-hero-input');
+    if (inp) {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          clearTimeout(searchTimer);
+          if (searchQuery.length >= 2) ejecutarBusqueda(searchQuery);
+          inp.blur();
+        }
+      });
+    }
     _buscarIniciado = true;
   }
 }
@@ -7440,9 +7514,14 @@ function buscarIrVista(v) {
     if (el) el.classList.toggle('act', i === map[v]);
   });
 
-  // Badge handled by index.html header
-
   if (v === 'cierre') renderCierre();
+
+  if (v === 'buscar') {
+    setTimeout(() => {
+      const inp = document.getElementById('search-hero-input');
+      if (inp && !inp.value) inp.focus();
+    }, 350);
+  }
 }
 
 function initBuscarSwipe() {
@@ -7619,22 +7698,16 @@ function renderInfoSaved() {
     el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--ink-xl);font-style:italic;font-size:11px">Nada guardado todavía</div>';
     return;
   }
-  el.innerHTML = lista.map(item => {
-    // Título: entidad si existe, si no el inicio del detalle
-    const titulo = item.entidad
-      ? `${escH(item.entidad)}${item.codigo?' · '+escH(item.codigo):''}${item.poblacion?' · '+escH(item.poblacion):''}`
-      : `<span style="color:var(--ink-xl);font-style:italic">${escH(item.detalle.slice(0,40))}…</span>`;
-    return `
-    <div class="info-item" onclick="verInfoItem('${item.id}')">
+  el.innerHTML = lista.map(item => `
+    <div class="info-item" onclick="verInfoItem(${item.id})">
       <div class="ii-top">
-        <span class="ii-title">${titulo}</span>
+        <span class="ii-title">${escH(item.entidad||'—')}${item.codigo?' · '+escH(item.codigo):''}${item.poblacion?' · '+escH(item.poblacion):''}</span>
         ${item.tipoDato ? `<span class="ii-tipo">${escH(item.tipoDato)}</span>` : ''}
-        <button class="ii-del" onclick="event.stopPropagation();borrarInfo('${item.id}')">✕</button>
+        <button class="ii-del" onclick="event.stopPropagation();borrarInfo(${item.id})">✕</button>
       </div>
-      <div class="ii-desc">${escH(item.detalle.slice(0,100))}${item.detalle.length>100?'…':''}</div>
+      <div class="ii-desc">${escH(item.detalle.slice(0,120))}${item.detalle.length>120?'…':''}</div>
       ${item.etiquetas.length ? `<div class="ii-tags">${item.etiquetas.join(' ')}</div>` : ''}
-    </div>`;
-  }).join('');
+    </div>`).join('');
 }
 
 function borrarInfo(id) {
@@ -7726,27 +7799,45 @@ function onSearchInput(val) {
 
   clearTimeout(searchTimer);
   if (!searchQuery) {
+    ocultarFiltros();
     mostrarEstadoVacio();
     return;
   }
-  // Mínimo 3 caracteres
-  if (searchQuery.length < 3) {
+  if (searchQuery.length < 2) {
+    ocultarFiltros();
     document.getElementById('buscar-empty').classList.add('hidden');
     const res = document.getElementById('buscar-results');
     res.classList.add('vis');
-    res.innerHTML = `<div class="no-results"><div class="no-results-ico" style="font-size:28px;opacity:.3">⌨️</div><div class="no-results-txt">Escribe al menos 3 letras</div></div>`;
+    res.innerHTML = `<div class="no-results"><div class="no-results-ico" style="font-size:28px;opacity:.3">⌨️</div><div class="no-results-txt">Escribe al menos 2 letras</div></div>`;
     return;
   }
-  searchTimer = setTimeout(() => ejecutarBusqueda(searchQuery), 280);
+  searchTimer = setTimeout(() => ejecutarBusqueda(searchQuery), 220);
 }
 
 function clearSearch() {
   searchQuery = '';
+  filtroActivo = 'todos';
+  _ultimosResultados = {};
   const inp = document.getElementById('search-hero-input');
   if (inp) inp.value = '';
   const clearBtn = document.getElementById('search-hero-clear');
   if (clearBtn) clearBtn.classList.remove('vis');
+  ocultarFiltros();
   mostrarEstadoVacio();
+}
+
+function ocultarFiltros() {
+  const fb = document.getElementById('search-filter-bar');
+  if (fb) fb.style.display = 'none';
+}
+
+function selFiltro(tipo) {
+  filtroActivo = tipo;
+  ['todos','cli','his','inf','equ','hor','fes'].forEach(k => {
+    const el = document.getElementById('sf-' + k);
+    if (el) el.classList.toggle('act', k === tipo);
+  });
+  renderResultadosFiltrados();
 }
 
 function mostrarEstadoVacio() {
@@ -7755,147 +7846,373 @@ function mostrarEstadoVacio() {
 }
 
 function ejecutarBusqueda(q) {
-  const clientes = loadArr(K_EXCEL_B);
-  const historial= loadArr(K_HIST_B);
-  const infoTec  = loadArr(K_INFO_TEC);
-  const horarios = loadArr(K_HORARIOS_B);
+  const clientes  = loadArr(K_EXCEL_B);
+  const historial = loadArr(K_HIST_B);
+  const infoTec   = loadArr(K_INFO_TEC);
+  const equiposArr = Object.values(loadObj(K_EQUIPOS));
 
   const qLow = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const nrm  = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const match= s => nrm(s).includes(qLow);
-  
-  // Para clientes: dirección y observaciones solo si query ≥ 5 chars
-  // Evita ruido: "sp" en España/Gaspar/Crespo cuando buscas SP el cliente
-  const matchCli = c => {
-    if (match(c.CLIENTE) || match(c.CODIGO) || match(c.MUNICIPIO)) return true;
-    if (q.length >= 5) {
-      if (match(c.DIRECCION) || match(c.OBSERVACIONES)) return true;
-    }
-    return false;
+  const match = s => nrm(s).includes(qLow);
+
+  // Fuzzy bigram — offline, sin CDN
+  const fuzzy = s => {
+    const h = nrm(s), n = qLow;
+    if (h.includes(n) || n.length < 4) return false;
+    const bg = str => { const b=new Set(); for(let i=0;i<str.length-1;i++) b.add(str[i]+str[i+1]); return b; };
+    const nb=bg(n), hb=bg(h); let ok=0;
+    nb.forEach(b => { if(hb.has(b)) ok++; });
+    return nb.size>0 && ok/nb.size >= 0.62;
   };
-  
-  // hl: escapa HTML primero, luego resalta con normalización de acentos
+  const esNumerico = /^[\d\s\-./]+$/.test(q.trim());
+
+  // Indicadores de campo coincidente
+  const hintCli = c => {
+    if (match(c.CLIENTE)||match(c.CODIGO)||match(c.MUNICIPIO)) return '';
+    if (match(c.CENTRAL)||match(c['MOD. CENTRAL'])) return 'Central';
+    if (match(c.DIRECCION)) return 'Dirección';
+    if (match(c.OBSERVACIONES)) return 'Observaciones';
+    return '';
+  };
+  const hintHis = h => {
+    if (match(h.CLIENTE)) return '';
+    if (match(h['CENTRAL INTRUSIÓN'])||match(h['MODELO CENTRAL'])) return 'Central intrusión';
+    if (match(h.GRABADOR)) return 'Grabador';
+    if (match(h['COMUNICACIÓN'])) return 'Comunicación';
+    if (match(h['CENTRAL INCENDIO'])) return 'Central incendio';
+    if (match(h['CONTROL ACCESO'])) return 'Control acceso';
+    if (match(h.OT)) return 'OT';
+    if (match(h.SISTEMA)) return 'Sistema';
+    return '';
+  };
+  const hintEqu = e => {
+    if (match(e.CLIENTE)||match(String(e.CÓDIGO||''))) return '';
+    if (match(e.central)) return 'Central intrusión';
+    if (match(e.grabador)) return 'Grabador';
+    if (match(e.com)) return 'Comunicación';
+    if (match(e.incendio)) return 'Central incendio';
+    if (match(e.acceso)) return 'Control acceso';
+    if (match(e.modelo)) return 'Modelo';
+    return '';
+  };
+
+  // Resaltado con normalización de acentos
   const hlNrm = q.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const hlRe  = new RegExp(hlNrm.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
   const hl = s => {
     const safe = escH(String(s||''));
     const safeNrm = safe.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    let result = ''; let i = 0;
+    let result='', i=0;
     safeNrm.replace(hlRe, (m, offset) => {
-      result += safe.slice(i, offset) + '<mark>' + safe.slice(offset, offset + m.length) + '</mark>';
-      i = offset + m.length;
+      result += safe.slice(i,offset)+'<mark>'+safe.slice(offset,offset+m.length)+'</mark>';
+      i = offset+m.length;
     });
-    return result + safe.slice(i);
+    return result+safe.slice(i);
   };
 
-  // Usar Fuse.js si está disponible, sino match simple
-  let resultsCli = [], resultsHis = [], resultsInf = [], resultsHor = [];
-
   // CLIENTES
-  resultsCli = clientes.filter(c => matchCli(c)).slice(0, 100).map(c => ({
-    tipo:'cli',
-    title: `${c.CLIENTE||'—'} · ${c.CODIGO||'—'}`,
-    sub:   `${c.MUNICIPIO||'—'}${c.DIRECCION?' · '+c.DIRECCION:''}`,
-    meta:  `Zona ${c.ZONA||'—'}`,
-    titleHL: `${hl(c.CLIENTE||'')} · ${hl(c.CODIGO||'')}`,
-    subHL: `${hl(c.MUNICIPIO||'')}${c.DIRECCION?' · '+hl(c.DIRECCION):''}`,
-  }));
+  const matchCli = c => {
+    if (match(c.CLIENTE)||match(c.CODIGO)||match(c.MUNICIPIO)) return true;
+    if (q.length>=4) {
+      if (match(c.DIRECCION)||match(c.OBSERVACIONES)||match(c.CENTRAL)||match(c['MOD. CENTRAL'])) return true;
+      if (!esNumerico && fuzzy(c.CLIENTE)) return true;
+    }
+    return false;
+  };
+  const scoreCli = c => {
+    const nc=nrm(c.CLIENTE||''), nd=nrm(c.CODIGO||'');
+    if (nc===qLow||nd===qLow) return 100;
+    if (nc.startsWith(qLow)) return 80;
+    if (nd.startsWith(qLow)) return 70;
+    if (nc.includes(qLow))   return 50;
+    if (nd.includes(qLow))   return 40;
+    if (nrm(c.MUNICIPIO||'').includes(qLow)) return 20;
+    return 10;
+  };
+  _cliExpandido = false;
+  const resultsCli = clientes.filter(c => matchCli(c))
+    .map(c => ({...c, _score: scoreCli(c)}))
+    .sort((a,b) => b._score - a._score)
+    .slice(0,100)
+    .map(c => ({
+      tipo:'cli', codigo:c.CODIGO||'', central:c.CENTRAL||'', zona:c.ZONA||'',
+      hint: hintCli(c),
+      title:   `${c.CLIENTE||'—'} · ${c.CODIGO||'—'}`,
+      sub:     `${c.MUNICIPIO||'—'}${c.DIRECCION?' · '+c.DIRECCION:''}`,
+      meta:    [c.CENTRAL?'⚙️ '+c.CENTRAL:'',c.ZONA?'Zona '+c.ZONA:''].filter(Boolean).join('  '),
+      titleHL: `${hl(c.CLIENTE||'')} · ${hl(c.CODIGO||'')}`,
+      subHL:   `${hl(c.MUNICIPIO||'')}${c.DIRECCION?' · '+hl(c.DIRECCION):''}`,
+    }));
 
-  // HISTORIAL
-  resultsHis = historial.filter(h =>
-    match(h.CLIENTE) || match(h.SISTEMA) || match(h.TRABAJO) || match(h.LOCALIDAD) || match(h.OT) || match(h.KEY)
-  ).slice(0, 20).map(h => ({
-    tipo:'his',
-    title: `${h.CLIENTE||'—'} · ${h.SISTEMA||'—'} · ${h.LOCALIDAD||'—'}`,
-    sub:   `${h.FECHA||'—'} — ${(h.TRABAJO||'').slice(0,80)}`,
-    meta:  h.OT || '',
+  // HISTORIAL — incluye campos de equipo, agrupado por cliente en render
+  _hisExpandidos = new Set();
+  const resultsHis = historial.filter(h =>
+    match(h.CLIENTE)||match(h.SISTEMA)||match(h.TRABAJO)||match(h.LOCALIDAD)||
+    match(h.OT)||match(h.KEY)||
+    match(h['CENTRAL INTRUSIÓN'])||match(h['MODELO CENTRAL'])||
+    match(h.GRABADOR)||match(h['COMUNICACIÓN'])||
+    match(h['CENTRAL INCENDIO'])||match(h['CONTROL ACCESO'])
+  ).map(h => ({
+    tipo:'his', ot:h.OT||'', cliente:h.CLIENTE||'—',
+    fecha:h.FECHA||'—', trabajo:h.TRABAJO||'', sistema:h.SISTEMA||'',
+    localidad:h.LOCALIDAD||'', estado:h.ESTADO||'',
+    hint: hintHis(h),
+    equipo: [h['CENTRAL INTRUSIÓN'],h.GRABADOR,h['COMUNICACIÓN'],h['CENTRAL INCENDIO'],h['CONTROL ACCESO']].filter(Boolean).join(' · '),
+    title:   `${h.CLIENTE||'—'} · ${h.SISTEMA||'—'} · ${h.LOCALIDAD||'—'}`,
+    sub:     `${h.FECHA||'—'} — ${(h.TRABAJO||'').slice(0,90)}`,
+    meta:    h.OT||'',
     titleHL: `${hl(h.CLIENTE||'')} · ${hl(h.SISTEMA||'')} · ${hl(h.LOCALIDAD||'')}`,
-    subHL: `${h.FECHA||'—'} — ${hl((h.TRABAJO||'').slice(0,80))}`,
+    subHL:   `${h.FECHA||'—'} — ${hl((h.TRABAJO||'').slice(0,90))}`,
   }));
 
   // INFO TÉCNICA
-  resultsInf = infoTec.filter(i =>
-    match(i.entidad) || match(i.codigo) || match(i.detalle) || match(i.sistema) ||
-    match(i.tipoDato) || (i.etiquetas||[]).some(t => match(t))
-  ).slice(0, 10).map(i => ({
-    tipo:'inf',
-    id:    i.id,
-    title: `${i.entidad||'—'}${i.codigo?' · '+i.codigo:''}${i.poblacion?' · '+i.poblacion:''}`,
-    sub:   (i.detalle||'').slice(0,100),
-    meta:  (i.etiquetas||[]).join(' ') || i.tipoDato || '',
+  const resultsInf = infoTec.filter(i =>
+    match(i.entidad)||match(i.codigo)||match(i.detalle)||match(i.sistema)||
+    match(i.tipoDato)||(i.etiquetas||[]).some(t=>match(t))
+  ).slice(0,10).map(i => ({
+    tipo:'inf', id:i.id, detalle:i.detalle||'',
+    hint: (match(i.entidad)||match(i.codigo)) ? '' : (i.tipoDato||''),
+    title:   `${i.entidad||'—'}${i.codigo?' · '+i.codigo:''}${i.poblacion?' · '+i.poblacion:''}`,
+    sub:     (i.detalle||'').slice(0,100),
+    meta:    (i.etiquetas||[]).join(' ')||i.tipoDato||'',
     titleHL: `${hl(i.entidad||'')}${i.codigo?' · '+hl(i.codigo):''}`,
-    subHL: hl((i.detalle||'').slice(0,100)),
+    subHL:   hl((i.detalle||'').slice(0,100)),
   }));
 
-  // HORARIOS — vienen de la columna HORARIO de cada cliente en K_EXCEL_B
-  const cliConHorario = clientes.filter(c => c.HORARIO && c.HORARIO.trim());
-  resultsHor = cliConHorario.filter(c =>
-    match(c.CODIGO) || match(c.CLIENTE) || match(c.MUNICIPIO) || match(c.HORARIO)
-  ).slice(0, 6).map(c => ({
-    tipo:'hor',
-    title: `${c.CLIENTE||'—'} · ${c.CODIGO||'—'}`,
-    sub:   c.HORARIO,
-    meta:  c.MUNICIPIO || '',
+  // HORARIOS
+  const cliConHorario = clientes.filter(c => c.HORARIO&&c.HORARIO.trim());
+  const resultsHor = cliConHorario.filter(c =>
+    match(c.CODIGO)||match(c.CLIENTE)||match(c.MUNICIPIO)||match(c.HORARIO)
+  ).slice(0,8).map(c => ({
+    tipo:'hor', codigo:c.CODIGO||'', horario:c.HORARIO||'',
+    title:   `${c.CLIENTE||'—'} · ${c.CODIGO||'—'}`,
+    sub:     c.HORARIO, meta:c.MUNICIPIO||'',
     titleHL: `${hl(c.CLIENTE||'')} · ${hl(c.CODIGO||'')}`,
-    subHL: hl(c.HORARIO || ''),
+    subHL:   hl(c.HORARIO||''),
   }));
 
-  // FESTIVOS — campos reales: Fecha, Descripción/Descripcion, Municipio, Tipo
+  // EQUIPOS (pyc_equipos)
+  const resultsEqu = equiposArr.filter(e =>
+    match(e.CLIENTE)||match(String(e.CÓDIGO||e.codigo||''))||match(e.MUNICIPIO)||
+    match(e.central)||match(e.grabador)||match(e.com)||
+    match(e.incendio)||match(e.acceso)||match(e.modelo)
+  ).slice(0,15).map(e => {
+    const cod = String(e.CÓDIGO||e.codigo||'');
+    const sistem = [e.central,e.grabador,e.com,e.incendio,e.acceso,e.modelo].filter(Boolean);
+    return {
+      tipo:'equ', codigo:cod, hint: hintEqu(e),
+      title:   `${e.CLIENTE||'—'} · ${cod||'—'}`,
+      sub:     sistem.join(' · ')||'Sin datos de equipo',
+      meta:    e.MUNICIPIO||'',
+      titleHL: `${hl(e.CLIENTE||'')} · ${hl(cod)}`,
+      subHL:   hl(sistem.join(' · ')||''),
+    };
+  });
+
+  // FESTIVOS
   const festivos = loadArr(K_FESTIVOS_B);
   const resultsFes = festivos.filter(f =>
-    match(f.Descripción||f.Descripcion) || match(f.Municipio) || match(f.Tipo) || match(f.Fecha)
+    match(f.Descripción||f.Descripcion)||match(f.Municipio)||match(f.Tipo)||match(f.Fecha)
   );
 
-  // Renderizar
-  const total = resultsCli.length + resultsHis.length + resultsInf.length + resultsHor.length + resultsFes.length;
+  _ultimosResultados = { resultsCli, resultsHis, resultsInf, resultsHor, resultsEqu, resultsFes, q, hl };
+
+  const total = resultsCli.length + resultsHis.length + resultsInf.length +
+                resultsHor.length + resultsEqu.length + resultsFes.length;
+
   document.getElementById('buscar-empty').classList.add('hidden');
   const res = document.getElementById('buscar-results');
   res.classList.add('vis');
 
   if (total === 0) {
+    ocultarFiltros();
     res.innerHTML = `<div class="no-results"><div class="no-results-ico">🔍</div><div class="no-results-txt">Sin resultados para "${escH(q)}"</div></div>`;
     return;
   }
 
-  // Guardar en recientes solo si hay resultados
   guardarReciente(q);
+  actualizarChipsFiltro(resultsCli.length, resultsHis.length, resultsInf.length,
+                        resultsHor.length, resultsFes.length, resultsEqu.length, total);
+  renderResultadosFiltrados();
+}
 
-  const badgeMap = { cli:'🏢 CLIENTE', his:'📋 HISTORIAL', inf:'🔧 INFO', hor:'⏰ HORARIO' };
-  const classMap = { cli:'rb-cli', his:'rb-his', inf:'rb-inf', hor:'rb-hor' };
-  let html = '';
+function actualizarChipsFiltro(nCli, nHis, nInf, nHor, nFes, nEqu, total) {
+  const fb = document.getElementById('search-filter-bar');
+  if (fb) fb.style.display = 'flex';
+  const set = (id, n) => { const el=document.getElementById(id); if(el) el.textContent=n; };
+  set('sfn-todos', total); set('sfn-cli', nCli); set('sfn-his', nHis);
+  set('sfn-inf', nInf); set('sfn-hor', nHor); set('sfn-fes', nFes); set('sfn-equ', nEqu);
+  const pairs = [['sf-cli',nCli],['sf-his',nHis],['sf-inf',nInf],['sf-hor',nHor],['sf-fes',nFes],['sf-equ',nEqu]];
+  pairs.forEach(([id,n]) => { const el=document.getElementById(id); if(el) el.style.display=n>0?'':'none'; });
+  const counts = { todos:total, cli:nCli, his:nHis, inf:nInf, hor:nHor, fes:nFes, equ:nEqu };
+  if (!counts[filtroActivo]) selFiltro('todos');
+}
 
-  const renderGrupo = (arr, ico, label) => {
+function renderResultadosFiltrados() {
+  const { resultsCli, resultsHis, resultsInf, resultsHor, resultsEqu, resultsFes, q, hl } = _ultimosResultados;
+  if (!resultsCli) return;
+
+  const res = document.getElementById('buscar-results');
+  res.classList.add('vis');
+  document.getElementById('buscar-empty').classList.add('hidden');
+
+  const hintHtml = hint => hint ? `<div class="res-hint">↳ ${escH(hint)}</div>` : '';
+
+  const actBtns = r => {
+    let btns = '';
+    if (r.tipo==='cli') {
+      if (r.codigo)  btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
+      if (r.central) btns += `<span class="res-act" style="cursor:default;pointer-events:none">⚙️ ${escH(r.central)}</span>`;
+    }
+    if (r.tipo==='his') {
+      if (r.ot) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.ot)}',this)">📋 ${escH(r.ot)}</button>`;
+    }
+    if (r.tipo==='inf') {
+      btns += `<button class="res-act nav" onclick="abrirInfoTecPage(${r.id})">🔍 Ver</button>`;
+      if (r.detalle) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.detalle)},this)">📋 Copiar</button>`;
+    }
+    if (r.tipo==='hor') {
+      if (r.horario) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.horario)},this)">📋 Copiar horario</button>`;
+    }
+    if (r.tipo==='equ') {
+      if (r.codigo) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
+    }
+    return btns ? `<div class="res-actions">${btns}</div>` : '';
+  };
+
+  const badgeMap = { cli:'CLIENTE', inf:'INFO', hor:'HORARIO', equ:'EQUIPO' };
+  const classMap = { cli:'rb-cli', inf:'rb-inf', hor:'rb-hor', equ:'rb-equ' };
+
+  const renderGrupo = (arr, ico, label, tipo) => {
     if (!arr.length) return '';
-    let g = `<div class="grp">`;
+    const esCli = tipo==='cli';
+    const visible = esCli&&!_cliExpandido ? arr.slice(0,CLI_PAGE) : arr;
+    const ocultos = esCli&&!_cliExpandido ? arr.length-CLI_PAGE : 0;
+    let g = `<div class="grp" id="grp-${tipo}">`;
     g += `<div class="grp-hdr"><span class="grp-ico">${ico}</span><span class="grp-lbl">${label}</span><span class="grp-cnt">${arr.length}</span><div class="grp-line"></div></div>`;
-    g += arr.map(r => {
-      const onclick = r.tipo === 'inf' ? `onclick="abrirInfoTecPage('${r.id}')"` : '';
-      return `
-      <div class="res-card" ${onclick}>
+    g += visible.map(r => `
+      <div class="res-card">
         <div class="res-top">
           <span class="res-title">${r.titleHL}</span>
-          <span class="res-badge ${classMap[r.tipo]}">${badgeMap[r.tipo]}</span>
+          ${badgeMap[r.tipo]?`<span class="res-badge ${classMap[r.tipo]}">${badgeMap[r.tipo]}</span>`:''}
         </div>
         <div class="res-sub">${r.subHL}</div>
-        ${r.meta ? `<div class="res-meta">${escH(r.meta)}</div>` : ''}
-      </div>`;
-    }).join('');
+        ${r.meta?`<div class="res-meta">${escH(r.meta)}</div>`:''}
+        ${hintHtml(r.hint||'')}
+        ${actBtns(r)}
+      </div>`).join('');
+    if (esCli && ocultos>0) g += `<button class="ver-mas-btn" onclick="expandirClientes()">Ver los ${ocultos} restantes ›</button>`;
     g += '</div>';
     return g;
   };
 
-  html += renderGrupo(resultsInf, '🔧', 'Info técnica');
-  html += renderGrupo(resultsHis, '📋', 'Historial');
-  html += renderGrupo(resultsCli, '🏢', 'Clientes');
-  html += renderGrupo(resultsHor, '⏰', 'Horarios');
+  const renderHistorialAgrupado = arr => {
+    if (!arr.length) return '';
+    const grupos = {};
+    arr.forEach(h => { const k=h.cliente; if(!grupos[k]) grupos[k]=[]; grupos[k].push(h); });
+    const parseF = d => { const p=(d||'').split('/'); return p.length===3?new Date(+p[2],+p[1]-1,+p[0]):new Date(0); };
+    Object.values(grupos).forEach(g => g.sort((a,b) => parseF(b.fecha)-parseF(a.fecha)));
+    const grpArr = Object.entries(grupos).sort((a,b) => parseF(b[1][0].fecha)-parseF(a[1][0].fecha));
+    let g = `<div class="grp" id="grp-his">`;
+    g += `<div class="grp-hdr"><span class="grp-ico">📋</span><span class="grp-lbl">Historial</span><span class="grp-cnt">${arr.length}</span><div class="grp-line"></div></div>`;
+    grpArr.forEach(([cliente, visitas]) => {
+      const last=visitas[0], extra=visitas.length-1, expandido=_hisExpandidos.has(cliente);
+      g += `
+        <div class="res-card his-grp-card">
+          <div class="res-top"><span class="res-title">${hl(cliente)}</span><span class="res-badge rb-his">HISTORIAL</span></div>
+          <div class="res-sub">${escH(last.fecha)} — ${hl((last.trabajo||'').slice(0,80))}</div>
+          <div class="res-meta">${escH(last.sistema||'')}${last.localidad?' · '+escH(last.localidad):''}</div>
+          ${last.equipo?`<div class="res-meta" style="color:var(--cyan)">⚙️ ${escH(last.equipo)}</div>`:''}
+          ${hintHtml(last.hint||'')}
+          <div class="res-actions">
+            ${last.ot?`<button class="res-act copy" onclick="copiarTexto('${escH(last.ot)}',this)">📋 ${escH(last.ot)}</button>`:''}
+            ${extra>0?`<button class="res-act nav" onclick="toggleHisGrupo(${JSON.stringify(cliente)})">${expandido?'▲ Ocultar':'▼ '+extra+' visita'+(extra>1?'s':'')+' más'}</button>`:''}
+          </div>
+        </div>`;
+      if (expandido) {
+        visitas.slice(1).forEach(v => {
+          g += `
+            <div class="res-card his-sub-card">
+              <div class="res-sub" style="font-weight:700">${escH(v.fecha)} — ${hl((v.trabajo||'').slice(0,80))}</div>
+              <div class="res-meta">${escH(v.sistema||'')}${v.estado?' · '+escH(v.estado):''}</div>
+              ${v.equipo?`<div class="res-meta" style="color:var(--cyan);font-size:9px">⚙️ ${escH(v.equipo)}</div>`:''}
+              ${hintHtml(v.hint||'')}
+              ${v.ot?`<div class="res-actions"><button class="res-act copy" onclick="copiarTexto('${escH(v.ot)}',this)">📋 ${escH(v.ot)}</button></div>`:''}
+            </div>`;
+        });
+      }
+    });
+    g += '</div>';
+    return g;
+  };
+
+  let html = '';
+  const f = filtroActivo;
+  if (f==='todos'||f==='inf') html += renderGrupo(resultsInf,    '🔧', 'Info técnica', 'inf');
+  if (f==='todos'||f==='his') html += renderHistorialAgrupado(resultsHis||[]);
+  if (f==='todos'||f==='cli') html += renderGrupo(resultsCli,    '🏢', 'Clientes',     'cli');
+  if (f==='todos'||f==='equ') html += renderGrupo(resultsEqu||[],'🖥️', 'Equipos',      'equ');
+  if (f==='todos'||f==='hor') html += renderGrupo(resultsHor,    '⏰', 'Horarios',     'hor');
   res.innerHTML = html;
 
-  // Festivos: usar renderer agrupado por fecha
-  if (resultsFes.length) {
+  if ((f==='todos'||f==='fes') && resultsFes && resultsFes.length) {
     const div = document.createElement('div');
     res.appendChild(div);
     _renderFestivosLista(resultsFes, `Festivos (${resultsFes.length})`);
   }
+}
+
+function toggleHisGrupo(cliente) {
+  if (_hisExpandidos.has(cliente)) _hisExpandidos.delete(cliente);
+  else _hisExpandidos.add(cliente);
+  renderResultadosFiltrados();
+}
+
+function expandirClientes() {
+  _cliExpandido = true;
+  renderResultadosFiltrados();
+}
+
+function mostrarTodosClientes() {
+  const clientes = loadArr(K_EXCEL_B);
+  if (!clientes.length) { buscarToast('Carga el Excel primero'); return; }
+  const sorted = [...clientes].sort((a,b) => (a.CLIENTE||'').localeCompare(b.CLIENTE||'','es'));
+  ocultarFiltros();
+  document.getElementById('buscar-empty').classList.add('hidden');
+  const res = document.getElementById('buscar-results');
+  res.classList.add('vis');
+  res.innerHTML =
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <button onclick="clearSearch()" style="background:none;border:none;color:var(--orange);font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;font-family:var(--font-mono);letter-spacing:.05em">← Volver</button>
+      <div class="grp-hdr" style="flex:1;margin:0">
+        <span class="grp-ico">🏢</span><span class="grp-lbl">Todos los clientes</span>
+        <span class="grp-cnt">${sorted.length}</span><div class="grp-line"></div>
+      </div>
+    </div>` +
+    sorted.map(c => `
+      <div class="res-card">
+        <div class="res-top">
+          <span class="res-title">${escH(c.CLIENTE||'—')} · ${escH(c.CODIGO||'—')}</span>
+          <span class="res-badge rb-cli">CLIENTE</span>
+        </div>
+        <div class="res-sub">${escH(c.MUNICIPIO||'—')}${c.DIRECCION?' · '+escH(c.DIRECCION):''}</div>
+        ${c.CENTRAL||c.ZONA?`<div class="res-meta">${[c.CENTRAL?'⚙️ '+escH(c.CENTRAL):'',c.ZONA?'Zona '+escH(c.ZONA):''].filter(Boolean).join('  ')}</div>`:''}
+        <div class="res-actions">
+          <button class="res-act copy" onclick="copiarTexto('${escH(c.CODIGO||'')}',this)">📋 ${escH(c.CODIGO||'—')}</button>
+        </div>
+      </div>`).join('');
+}
+
+function copiarTexto(txt, btn) {
+  navigator.clipboard?.writeText(txt).then(() => {
+    if (btn) {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '✓ Copiado';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.innerHTML=orig; btn.classList.remove('copied'); }, 1800);
+    }
+    buscarToast('✓ Copiado al portapapeles');
+  }).catch(() => buscarToast('No se pudo copiar'));
 }
 
 /* Recientes */
@@ -8331,7 +8648,7 @@ let _itPageId    = null;   // id del item abierto
 let _itEditMode  = false;  // true = modo edición activo
 
 function abrirInfoTecPage(id) {
-  const item = loadArr(K_INFO_TEC).find(i => String(i.id) === String(id));
+  const item = loadArr(K_INFO_TEC).find(i => i.id === id);
   if (!item) return;
   _itPageId   = id;
   _itEditMode = false;
@@ -8390,7 +8707,17 @@ function _renderItEdit(item) {
 
     <button class="it-save-btn" onclick="guardarEdicionInfoTec()">💾 Guardar cambios</button>
   `;
-  setTimeout(() => document.getElementById('ite-entidad')?.focus(), 100);
+  setTimeout(() => {
+    const ta = document.getElementById('ite-detalle');
+    if (ta) {
+      const grow = () => { ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; };
+      grow();
+      ta.addEventListener('input', grow);
+      ta.focus();
+    } else {
+      document.getElementById('ite-entidad')?.focus();
+    }
+  }, 100);
 }
 
 function toggleEditInfoTec() {
