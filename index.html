@@ -1655,8 +1655,7 @@ mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--
 .no-results-txt{font-size:13px;color:var(--ink-xl);font-style:italic}
 
 /* ── FILTER CHIPS ── */
-.search-filter-bar{padding:6px 13px 4px;display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;background:var(--paper);border-bottom:1px solid rgba(26,39,68,.06)}
-.search-filter-bar::-webkit-scrollbar{display:none}
+.search-filter-bar{padding:6px 13px 6px;display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0;background:var(--paper);border-bottom:1px solid rgba(26,39,68,.06)}
 .sf-chip{flex-shrink:0;padding:5px 11px;border-radius:var(--r-pill);font-family:var(--font-mono);font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1.5px solid rgba(26,39,68,.12);background:white;color:var(--ink-mid);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:4px}
 .sf-chip:hover{border-color:rgba(249,115,22,.35);color:var(--orange)}
 .sf-chip.act{background:var(--orange);color:white;border-color:var(--orange-deep);box-shadow:0 2px 8px rgba(249,115,22,.3)}
@@ -2631,6 +2630,18 @@ body { font-size: 14px; }
     <div class="vdot" id="dot-1" onclick="buscarIrVista('buscar')" title="Buscar"></div>
     <div class="vdot" id="dot-2" onclick="buscarIrVista('cierre')" title="Cierre"></div>
   </div>
+
+  <!-- FILTRO POR TIPO — fuera del swipe, estático -->
+  <div class="search-filter-bar" id="search-filter-bar" style="display:none">
+    <div class="sf-chip act" id="sf-todos" onclick="selFiltro('todos')">🔎 Todos <span class="sf-n" id="sfn-todos">—</span></div>
+    <div class="sf-chip" id="sf-cli"  onclick="selFiltro('cli')">🏢 Clientes <span class="sf-n" id="sfn-cli">0</span></div>
+    <div class="sf-chip" id="sf-his"  onclick="selFiltro('his')">📋 Historial <span class="sf-n" id="sfn-his">0</span></div>
+    <div class="sf-chip" id="sf-inf"  onclick="selFiltro('inf')">🔧 Info <span class="sf-n" id="sfn-inf">0</span></div>
+    <div class="sf-chip" id="sf-equ"  onclick="selFiltro('equ')">🖥️ Equipos <span class="sf-n" id="sfn-equ">0</span></div>
+    <div class="sf-chip" id="sf-hor"  onclick="selFiltro('hor')">⏰ Horarios <span class="sf-n" id="sfn-hor">0</span></div>
+    <div class="sf-chip" id="sf-fes"  onclick="selFiltro('fes')">📅 Festivos <span class="sf-n" id="sfn-fes">0</span></div>
+  </div>
+
   <!-- Vistas: Info · Buscar · Cierre -->
   <div class="views-outer" id="buscar-views-outer">
     <div class="views-wrapper show-buscar" id="buscar-views-wrapper">
@@ -2748,18 +2759,7 @@ body { font-size: 14px; }
           </div>
         </div>
 
-        <!-- FILTRO POR TIPO — visible solo cuando hay query activo -->
-        <div class="search-filter-bar" id="search-filter-bar" style="display:none">
-          <div class="sf-chip act" id="sf-todos" onclick="selFiltro('todos')">🔎 Todos <span class="sf-n" id="sfn-todos">—</span></div>
-          <div class="sf-chip" id="sf-cli"  onclick="selFiltro('cli')">🏢 Clientes <span class="sf-n" id="sfn-cli">0</span></div>
-          <div class="sf-chip" id="sf-his"  onclick="selFiltro('his')">📋 Historial <span class="sf-n" id="sfn-his">0</span></div>
-          <div class="sf-chip" id="sf-inf"  onclick="selFiltro('inf')">🔧 Info <span class="sf-n" id="sfn-inf">0</span></div>
-          <div class="sf-chip" id="sf-equ"  onclick="selFiltro('equ')">🖥️ Equipos <span class="sf-n" id="sfn-equ">0</span></div>
-          <div class="sf-chip" id="sf-hor"  onclick="selFiltro('hor')">⏰ Horarios <span class="sf-n" id="sfn-hor">0</span></div>
-          <div class="sf-chip" id="sf-fes"  onclick="selFiltro('fes')">📅 Festivos <span class="sf-n" id="sfn-fes">0</span></div>
-        </div>
-
-        <!-- CONTENIDO: estado vacío O resultados (nunca se toca la barra) -->
+        <!-- CONTENIDO: estado vacío O resultados -->
         <div class="buscar-content" id="buscar-content">
 
           <!-- Estado vacío -->
@@ -3578,7 +3578,7 @@ function irA(modulo) {
   window._moduloActual = modulo;
   try {
     if (modulo === 'ruta')     { sincronizar(); renderLista(); setTimeout(()=>geocodificarPendientes().then(()=>{ if(vistaActual==='mapa'&&typeof _renderMapaPins==='function') try{_renderMapaPins();}catch(e){} }),500); }
-    if (modulo === 'mto')      { renderMTO(); }
+    if (modulo === 'mto')      { popularZonas(); renderMTO(); }
     if (modulo === 'buscar')   {
       const bd = document.getElementById('buscar-view-dots');
       if (bd) bd.style.display = 'flex';
@@ -6376,6 +6376,7 @@ function datosImportarExcel(input) {
           }));
           save(K_EXCEL, clientes);
           cliCount = clientes.length;
+          if (typeof popularZonas === 'function') popularZonas();
         }
 
         else if (nl.includes('historial')) {
