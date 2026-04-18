@@ -70,23 +70,20 @@ self.addEventListener('message', event => {
     _cancelarAlarma(event.data.id);
   }
   else if(type === 'RESTORE_ALARMS'){
-    // Restaurar varias alarmas de golpe (al arrancar la app)
     (event.data.alarmas || []).forEach(a => _programarAlarma(a));
   }
 });
 
 // ── Programar una alarma ──────────────────────────────────────
 function _programarAlarma({ id, ts, titulo, body, repetir, tipo }) {
-  // Cancelar si ya existía
   _cancelarAlarma(id);
 
   const diff = ts - Date.now();
-  if(diff <= 0) return; // ya pasó
+  if(diff <= 0) return;
 
   const timerId = setTimeout(() => {
     _disparar(id, titulo, body, tipo);
 
-    // Repetición
     const minutos = parseInt(repetir) || 0;
     if(minutos > 0){
       let count = 0;
