@@ -1572,7 +1572,44 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 /* ============================================
    PANTALLA BUSCAR — diseño limpio
    ============================================ */
-#v-buscar{display:flex;flex-direction:column}
+#v-buscar{display:flex;flex-direction:column;min-height:0}
+#buscar-views-outer{overflow:hidden}
+
+/* Módulo Buscar — fixed igual que Tareas, soluciona el bleeding entre vistas */
+#mod-buscar { display: none; }
+#mod-buscar.active {
+  display: block;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 80;
+  background: var(--paper);
+  max-width: 480px; margin: 0 auto;
+}
+/* Dots y filter-bar: fixed dentro del módulo */
+#buscar-view-dots {
+  position: fixed;
+  top: 78px; left: 0; right: 0;
+  max-width: 480px; margin: 0 auto;
+  z-index: 85;
+  background: var(--paper);
+  border-bottom: 1px solid rgba(26,39,68,.05);
+}
+#search-filter-bar-fixed {
+  position: fixed;
+  z-index: 84;
+  background: var(--paper);
+  border-bottom: 1px solid rgba(26,39,68,.06);
+  left: 0; right: 0;
+  max-width: 480px; margin: 0 auto;
+}
+/* views-outer ocupa el espacio restante — top calculado en JS */
+#buscar-views-outer {
+  position: fixed;
+  left: 0; right: 0; bottom: 58px;
+  max-width: 480px; margin: 0 auto;
+  overflow: hidden;
+  z-index: 81;
+}
 
 /* Barra SIEMPRE visible arriba */
 .buscar-barra{padding:12px 13px 6px;flex-shrink:0;background:var(--paper);position:relative;z-index:10}
@@ -1602,7 +1639,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .search-hero-clear.vis{display:flex}
 
 /* Accesos rápidos — bajo la barra, discretos */
-.quick-strip{display:flex;gap:8px;justify-content:center;margin-top:8px;width:100%}
+.quick-strip{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px;width:100%}
 .qs-btn{display:flex;align-items:center;gap:6px;background:white;border:1px solid rgba(26,39,68,.1);border-radius:var(--r-pill);padding:7px 14px;cursor:pointer;box-shadow:0 1px 4px rgba(26,39,68,.07);-webkit-tap-highlight-color:transparent;transition:all .15s}
 .qs-btn:active{background:var(--paper-warm)}
 .qs-ico{font-size:14px}
@@ -1629,23 +1666,39 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .grp{display:flex;flex-direction:column;gap:5px;margin-top:8px}
 .grp:first-child{margin-top:0}
 .grp-hdr{display:flex;align-items:center;gap:7px}
-.grp-ico{font-size:14px}
-.grp-lbl{font-family:var(--font-mono);font-size:9px;font-weight:700;color:var(--ink-xl);letter-spacing:.1em;text-transform:uppercase}
-.grp-cnt{font-family:var(--font-mono);font-size:9px;background:rgba(26,39,68,.07);border-radius:8px;padding:1px 6px;color:var(--ink-xl)}
+.grp-ico{font-size:15px}
+.grp-lbl{font-family:var(--font-mono);font-size:10px;font-weight:700;color:var(--ink-xl);letter-spacing:.1em;text-transform:uppercase}
+.grp-cnt{font-family:var(--font-mono);font-size:10px;background:rgba(26,39,68,.07);border-radius:8px;padding:1px 6px;color:var(--ink-xl)}
+.grp-hdr{display:flex;align-items:center;gap:7px;padding:6px 10px 5px;border-radius:var(--r-md) var(--r-md) 0 0;margin-bottom:2px}
+.grp-hdr-inf{background:rgba(249,115,22,.08);border-left:3px solid var(--orange)}
+.grp-hdr-inf .grp-lbl{color:var(--orange-deep)}
+.grp-hdr-inf .grp-cnt{background:rgba(249,115,22,.15);color:var(--orange-deep)}
+.grp-hdr-his{background:rgba(26,39,68,.06);border-left:3px solid var(--navy)}
+.grp-hdr-his .grp-lbl{color:var(--navy)}
+.grp-hdr-his .grp-cnt{background:rgba(26,39,68,.12);color:var(--navy)}
+.grp-hdr-cli{background:rgba(26,39,68,.04);border-left:3px solid var(--ink-light)}
+.grp-hdr-cli .grp-lbl{color:var(--ink-mid)}
+.grp-hdr-cli .grp-cnt{background:rgba(26,39,68,.08);color:var(--ink-mid)}
+.grp-hdr-equ{background:rgba(2,132,199,.07);border-left:3px solid var(--cyan)}
+.grp-hdr-equ .grp-lbl{color:var(--cyan)}
+.grp-hdr-equ .grp-cnt{background:rgba(2,132,199,.12);color:var(--cyan)}
+.grp-hdr-hor{background:rgba(217,119,6,.07);border-left:3px solid var(--warn)}
+.grp-hdr-hor .grp-lbl{color:var(--warn)}
+.grp-hdr-hor .grp-cnt{background:rgba(217,119,6,.12);color:var(--warn)}
 .grp-line{flex:1;height:1px;background:rgba(26,39,68,.08)}
 
 /* Tarjeta de resultado */
 .res-card{background:white;border-radius:var(--r-md);border:1px solid rgba(26,39,68,.08);padding:9px 11px;display:flex;flex-direction:column;gap:3px;box-shadow:0 1px 3px rgba(26,39,68,.05);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:box-shadow .15s}
 .res-card:active{box-shadow:0 2px 8px rgba(26,39,68,.12)}
 .res-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.res-title{font-size:13px;font-weight:800;color:var(--navy);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-title{font-size:14px;font-weight:800;color:var(--navy);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .res-badge{font-family:var(--font-mono);font-size:9px;padding:2px 6px;border-radius:3px;flex-shrink:0}
 .rb-inf{background:var(--purple-bg);color:var(--purple)}
 .rb-his{background:var(--ok-bg);color:var(--ok)}
 .rb-cli{background:rgba(26,39,68,.08);color:var(--ink-mid)}
 .rb-hor{background:var(--warn-bg);color:var(--warn)}
 .rb-fes{background:var(--error-bg);color:var(--error)}
-.res-sub{font-size:11px;color:var(--ink-mid);line-height:1.4}
+.res-sub{font-size:12px;color:var(--ink-mid);line-height:1.4}
 .res-meta{font-family:var(--font-mono);font-size:9px;color:var(--ink-xl);margin-top:1px}
 mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--orange-deep);font-weight:900;font-style:normal}
 
@@ -1734,25 +1787,6 @@ mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--
 .views-wrapper.show-info   { transform: translateX(0%); }
 .views-wrapper.show-buscar { transform: translateX(-33.333%); }
 .views-wrapper.show-cierre { transform: translateX(-66.666%); }
-
-/* Buscar views — IDs específicos para evitar conflictos con otros módulos */
-#buscar-views-outer {
-  flex: 1; overflow: hidden; position: relative; z-index: 5;
-  width: 100%; min-height: 0;
-}
-#buscar-views-wrapper {
-  display: flex; width: 300%; height: 100%;
-  transition: transform .35s cubic-bezier(.4,0,.2,1);
-  will-change: transform;
-}
-#buscar-views-wrapper.show-info   { transform: translateX(0%); }
-#buscar-views-wrapper.show-buscar { transform: translateX(-33.333%); }
-#buscar-views-wrapper.show-cierre { transform: translateX(-66.666%); }
-#buscar-views-wrapper .view {
-  flex: 0 0 33.333%; width: 33.333%; height: 100%;
-  overflow-y: auto; overflow-x: hidden;
-  -webkit-overflow-scrolling: touch; position: relative;
-}
 
 /* Dots visibles solo en mod-buscar */
 .buscar-view-dots{display:none;justify-content:center;align-items:center;gap:6px;padding:5px 0;background:var(--paper);border-bottom:1px solid rgba(26,39,68,.05);position:relative;z-index:5}
@@ -2630,18 +2664,6 @@ body { font-size: 14px; }
     <div class="vdot" id="dot-1" onclick="buscarIrVista('buscar')" title="Buscar"></div>
     <div class="vdot" id="dot-2" onclick="buscarIrVista('cierre')" title="Cierre"></div>
   </div>
-
-  <!-- FILTRO POR TIPO — fuera del swipe, estático -->
-  <div class="search-filter-bar" id="search-filter-bar" style="display:none">
-    <div class="sf-chip act" id="sf-todos" onclick="selFiltro('todos')">🔎 Todos <span class="sf-n" id="sfn-todos">—</span></div>
-    <div class="sf-chip" id="sf-cli"  onclick="selFiltro('cli')">🏢 Clientes <span class="sf-n" id="sfn-cli">0</span></div>
-    <div class="sf-chip" id="sf-his"  onclick="selFiltro('his')">📋 Historial <span class="sf-n" id="sfn-his">0</span></div>
-    <div class="sf-chip" id="sf-inf"  onclick="selFiltro('inf')">🔧 Info <span class="sf-n" id="sfn-inf">0</span></div>
-    <div class="sf-chip" id="sf-equ"  onclick="selFiltro('equ')">🖥️ Equipos <span class="sf-n" id="sfn-equ">0</span></div>
-    <div class="sf-chip" id="sf-hor"  onclick="selFiltro('hor')">⏰ Horarios <span class="sf-n" id="sfn-hor">0</span></div>
-    <div class="sf-chip" id="sf-fes"  onclick="selFiltro('fes')">📅 Festivos <span class="sf-n" id="sfn-fes">0</span></div>
-  </div>
-
   <!-- Vistas: Info · Buscar · Cierre -->
   <div class="views-outer" id="buscar-views-outer">
     <div class="views-wrapper show-buscar" id="buscar-views-wrapper">
@@ -2759,7 +2781,18 @@ body { font-size: 14px; }
           </div>
         </div>
 
-        <!-- CONTENIDO: estado vacío O resultados -->
+        <!-- FILTRO POR TIPO — visible solo cuando hay query activo -->
+        <div class="search-filter-bar" id="search-filter-bar" style="display:none">
+          <div class="sf-chip act" id="sf-todos" onclick="selFiltro('todos')">🔎 Todos <span class="sf-n" id="sfn-todos">—</span></div>
+          <div class="sf-chip" id="sf-cli"  onclick="selFiltro('cli')">🏢 Clientes <span class="sf-n" id="sfn-cli">0</span></div>
+          <div class="sf-chip" id="sf-his"  onclick="selFiltro('his')">📋 Historial <span class="sf-n" id="sfn-his">0</span></div>
+          <div class="sf-chip" id="sf-inf"  onclick="selFiltro('inf')">🔧 Info <span class="sf-n" id="sfn-inf">0</span></div>
+          <div class="sf-chip" id="sf-equ"  onclick="selFiltro('equ')">🖥️ Equipos <span class="sf-n" id="sfn-equ">0</span></div>
+          <div class="sf-chip" id="sf-hor"  onclick="selFiltro('hor')">⏰ Horarios <span class="sf-n" id="sfn-hor">0</span></div>
+          <div class="sf-chip" id="sf-fes"  onclick="selFiltro('fes')">📅 Festivos <span class="sf-n" id="sfn-fes">0</span></div>
+        </div>
+
+        <!-- CONTENIDO: estado vacío O resultados (nunca se toca la barra) -->
         <div class="buscar-content" id="buscar-content">
 
           <!-- Estado vacío -->
@@ -2779,6 +2812,14 @@ body { font-size: 14px; }
               <div class="qs-btn" onclick="mostrarTodosClientes()">
                 <span class="qs-ico">🏢</span>
                 <span class="qs-lbl" style="color:var(--navy)">Clientes</span>
+              </div>
+              <div class="qs-btn" onclick="mostrarTodaInfo()">
+                <span class="qs-ico">🔧</span>
+                <span class="qs-lbl" style="color:var(--orange)">Info</span>
+              </div>
+              <div class="qs-btn" onclick="mostrarTodoHistorial()">
+                <span class="qs-ico">📋</span>
+                <span class="qs-lbl" style="color:var(--navy)">Historial</span>
               </div>
               <div class="qs-btn" onclick="cargarFestivosCV()" id="btn-cargar-festivos" style="display:none">
                 <span class="qs-ico">⬇️</span>
@@ -3576,9 +3617,11 @@ function irA(modulo) {
     b.classList.toggle('active', b.dataset.mod === modulo);
   });
   window._moduloActual = modulo;
+  // Cancelar búsqueda pendiente al salir del módulo
+  if (modulo !== 'buscar' && typeof searchTimer !== 'undefined') clearTimeout(searchTimer);
   try {
     if (modulo === 'ruta')     { sincronizar(); renderLista(); setTimeout(()=>geocodificarPendientes().then(()=>{ if(vistaActual==='mapa'&&typeof _renderMapaPins==='function') try{_renderMapaPins();}catch(e){} }),500); }
-    if (modulo === 'mto')      { popularZonas(); renderMTO(); }
+    if (modulo === 'mto')      { renderMTO(); }
     if (modulo === 'buscar')   {
       const bd = document.getElementById('buscar-view-dots');
       if (bd) bd.style.display = 'flex';
@@ -6355,7 +6398,7 @@ function datosImportarExcel(input) {
         if (nl.includes('cliente')) {
           const rows = getRows(ws).filter(r => r['CLIENTE'] && r['CLIENTE'] !== 'CLIENTE');
           const clientes = rows.map(r => ({
-            ZONA:String(r['ZONA']||''), CLIENTE:String(r['CLIENTE']||''),
+            ZONA:(r => { const v=r['ZONA']; if(v===undefined||v===null||v==='') return ''; const n=parseFloat(v); return (!isNaN(n)&&isFinite(n))?String(Math.round(n)):String(v).trim(); })(r), CLIENTE:String(r['CLIENTE']||''),
             CODIGO:String(r['CODIGO']||''), DIRECCION:String(r['DIRECCION']||''),
             MUNICIPIO:String(r['MUNICIPIO']||''), PROVINCIA:String(r['PROVINCIA']||''),
             OBSERVACIONES:String(r['OBSERVACIONES']||''),
@@ -6376,7 +6419,6 @@ function datosImportarExcel(input) {
           }));
           save(K_EXCEL, clientes);
           cliCount = clientes.length;
-          if (typeof popularZonas === 'function') popularZonas();
         }
 
         else if (nl.includes('historial')) {
@@ -6784,12 +6826,22 @@ document.addEventListener('DOMContentLoaded', () => {
    ================================================================ */
 function popularZonas() {
   const clientes = loadArr(K_EXCEL);
-  const zonas = [...new Set(clientes.map(c => String(c.ZONA||c.zona||'')).filter(Boolean))].sort((a,b) => parseInt(a)-parseInt(b));
+  const zonasSet = new Set();
+  clientes.forEach(c => {
+    let z = c.ZONA || c.zona || '';
+    if (z === '' || z === null || z === undefined) return;
+    const n = parseFloat(z);
+    z = (!isNaN(n) && isFinite(n)) ? String(Math.round(n)) : String(z).trim();
+    if (z) zonasSet.add(z);
+  });
+  const zonas = Array.from(zonasSet).sort((a,b) => {
+    const na=parseInt(a), nb=parseInt(b);
+    return (!isNaN(na)&&!isNaN(nb)) ? na-nb : a.localeCompare(b);
+  });
   const sel = document.getElementById('fil-zona-sel');
   if (!sel) return;
   sel.innerHTML = '<option value="todas">Zona: Todas</option>';
-  // Nombres de zona (si los hay) — mapeamos desde el nombre en el Excel
-  const zonaNames = { '1':'Valencia Ciudad','2':'Valencia Norte','3':'Valencia Oeste','4':'Valencia Sur','5':'Ribera·Safor','6':'Castellón','7':'Alicante','8':'Murcia','9':'Valencia Este' };
+  const zonaNames = {'1':'Valencia Ciudad','2':'Valencia Norte','3':'Valencia Oeste','4':'Valencia Sur','5':'Ribera·Safor','6':'Castellón','7':'Alicante','8':'Murcia','9':'Valencia Este'};
   zonas.forEach(z => {
     const opt = document.createElement('option');
     opt.value = z;
@@ -6884,8 +6936,10 @@ function renderMTO() {
     const cod = c.CODIGO  || c.codigo  || '';
     const mun = c.MUNICIPIO || c.municipio || '';
 
-    // Filtro zona
-    const zona = String(c.ZONA || c.zona || '');
+    // Filtro zona — normalizar por si hay datos legacy "1.0" en localStorage
+    const zonaRaw = String(c.ZONA || c.zona || '');
+    const zonaNum = parseFloat(zonaRaw);
+    const zona = (!isNaN(zonaNum) && isFinite(zonaNum)) ? String(Math.round(zonaNum)) : zonaRaw;
     if (mtoZona !== 'todas' && zona !== mtoZona) return false;
 
     // Filtro cliente
@@ -7253,7 +7307,9 @@ function calcularStatsFiltradas(clientes, mtoMan) {
   // Aplicar zona + cliente pero NO el filtro de pendientes
   const base = clientes.filter(c => {
     const cli  = c.CLIENTE || c.cliente || '';
-    const zona = String(c.ZONA || c.zona || '');
+    const zonaRaw2 = String(c.ZONA || c.zona || '');
+    const zonaNum2 = parseFloat(zonaRaw2);
+    const zona = (!isNaN(zonaNum2) && isFinite(zonaNum2)) ? String(Math.round(zonaNum2)) : zonaRaw2;
     if (mtoZona !== 'todas' && zona !== mtoZona) return false;
     const cliName = (c.CLIENTE || c.cliente || '').toUpperCase();
     if (mtoCliente === 'bbva'    && !cliName.includes('BBVA')) return false;
@@ -7483,6 +7539,7 @@ function buscarInit() {
   renderRecientes();
   renderCierre();
   buscarIrVista(buscarVista || 'buscar');
+  _recalcBuscarTop();
 
   if (!_buscarIniciado) {
     initBuscarSwipe();
@@ -7498,6 +7555,14 @@ function buscarInit() {
     }
     _buscarIniciado = true;
   }
+}
+
+function _recalcBuscarTop() {
+  const dots  = document.getElementById('buscar-view-dots');
+  const outer = document.getElementById('buscar-views-outer');
+  if (!outer) return;
+  const dotsH = (dots && dots.offsetHeight) || 28;
+  outer.style.top = (78 + dotsH) + 'px';
 }
 
 /* ================================================================
@@ -7804,12 +7869,16 @@ function onSearchInput(val) {
     mostrarEstadoVacio();
     return;
   }
-  if (searchQuery.length < 2) {
+  const esNum  = /^[\d\s\-./]+$/.test(searchQuery.trim());
+  const esTag  = searchQuery.startsWith('#');
+  const minLen = esTag ? 2 : (esNum ? 2 : 3);
+  if (searchQuery.length < minLen) {
     ocultarFiltros();
     document.getElementById('buscar-empty').classList.add('hidden');
     const res = document.getElementById('buscar-results');
     res.classList.add('vis');
-    res.innerHTML = `<div class="no-results"><div class="no-results-ico" style="font-size:28px;opacity:.3">⌨️</div><div class="no-results-txt">Escribe al menos 2 letras</div></div>`;
+    const msg = esTag ? '2 caracteres' : (esNum ? '2 dígitos' : '3 letras');
+    res.innerHTML = `<div class="no-results"><div class="no-results-ico" style="font-size:28px;opacity:.3">⌨️</div><div class="no-results-txt">Escribe al menos ${msg}</div></div>`;
     return;
   }
   searchTimer = setTimeout(() => ejecutarBusqueda(searchQuery), 220);
@@ -7866,6 +7935,37 @@ function ejecutarBusqueda(q) {
     return nb.size>0 && ok/nb.size >= 0.62;
   };
   const esNumerico = /^[\d\s\-./]+$/.test(q.trim());
+  const esBusquedaTag = q.startsWith('#');
+
+  // Si la query empieza por # → buscar SOLO en etiquetas de Info técnica
+  if (esBusquedaTag) {
+    const tagQ = q.toLowerCase();
+    const tagResults = infoTec.filter(i =>
+      (i.etiquetas||[]).some(t => t.toLowerCase().startsWith(tagQ))
+    ).slice(0,15).map(i => ({
+      tipo:'inf', id:i.id, detalle:i.detalle||'',
+      hint: '',
+      title:   `${i.entidad||'—'}${i.codigo?' · '+i.codigo:''}${i.poblacion?' · '+i.poblacion:''}`,
+      sub:     (i.detalle||'').slice(0,100),
+      meta:    (i.etiquetas||[]).join(' '),
+      titleHL: escH(i.entidad||'—'),
+      subHL:   escH((i.detalle||'').slice(0,100)),
+    }));
+    const total = tagResults.length;
+    document.getElementById('buscar-empty').classList.add('hidden');
+    const res = document.getElementById('buscar-results');
+    res.classList.add('vis');
+    if (!total) {
+      ocultarFiltros();
+      res.innerHTML = `<div class="no-results"><div class="no-results-ico">🏷️</div><div class="no-results-txt">Sin registros con etiqueta "${escH(q)}"</div></div>`;
+      return;
+    }
+    guardarReciente(q);
+    _ultimosResultados = { resultsCli:[], resultsHis:[], resultsInf:tagResults, resultsHor:[], resultsEqu:[], resultsFes:[], q, hl };
+    actualizarChipsFiltro(0, 0, tagResults.length, 0, 0, 0, total);
+    renderResultadosFiltrados();
+    return;
+  }
 
   // Indicadores de campo coincidente
   const hintCli = c => {
@@ -8011,10 +8111,11 @@ function ejecutarBusqueda(q) {
   });
 
   // FESTIVOS
+  // Festivos: mínimo 4 caracteres para evitar ruido en búsquedas cortas
   const festivos = loadArr(K_FESTIVOS_B);
-  const resultsFes = festivos.filter(f =>
+  const resultsFes = q.length >= 4 ? festivos.filter(f =>
     match(f.Descripción||f.Descripcion)||match(f.Municipio)||match(f.Tipo)||match(f.Fecha)
-  );
+  ) : [];
 
   _ultimosResultados = { resultsCli, resultsHis, resultsInf, resultsHor, resultsEqu, resultsFes, q, hl };
 
@@ -8050,12 +8151,14 @@ function actualizarChipsFiltro(nCli, nHis, nInf, nHor, nFes, nEqu, total) {
 }
 
 function renderResultadosFiltrados() {
-  const { resultsCli, resultsHis, resultsInf, resultsHor, resultsEqu, resultsFes, q, hl } = _ultimosResultados;
+  const { resultsCli, resultsHis, resultsInf, resultsHor, resultsEqu, resultsFes, q, hl } = _ultimosResultados || {};
   if (!resultsCli) return;
 
   const res = document.getElementById('buscar-results');
+  if (!res) return;
   res.classList.add('vis');
-  document.getElementById('buscar-empty').classList.add('hidden');
+  const emptyEl = document.getElementById('buscar-empty');
+  if (emptyEl) emptyEl.classList.add('hidden');
 
   const hintHtml = hint => hint ? `<div class="res-hint">↳ ${escH(hint)}</div>` : '';
 
@@ -8089,8 +8192,9 @@ function renderResultadosFiltrados() {
     const esCli = tipo==='cli';
     const visible = esCli&&!_cliExpandido ? arr.slice(0,CLI_PAGE) : arr;
     const ocultos = esCli&&!_cliExpandido ? arr.length-CLI_PAGE : 0;
+    const hdrCls = {cli:'grp-hdr-cli',inf:'grp-hdr-inf',hor:'grp-hdr-hor',equ:'grp-hdr-equ'}[tipo]||'';
     let g = `<div class="grp" id="grp-${tipo}">`;
-    g += `<div class="grp-hdr"><span class="grp-ico">${ico}</span><span class="grp-lbl">${label}</span><span class="grp-cnt">${arr.length}</span><div class="grp-line"></div></div>`;
+    g += `<div class="grp-hdr ${hdrCls}"><span class="grp-ico">${ico}</span><span class="grp-lbl">${label}</span><span class="grp-cnt">${arr.length}</span><div class="grp-line"></div></div>`;
     g += visible.map(r => `
       <div class="res-card">
         <div class="res-top">
@@ -8115,7 +8219,7 @@ function renderResultadosFiltrados() {
     Object.values(grupos).forEach(g => g.sort((a,b) => parseF(b.fecha)-parseF(a.fecha)));
     const grpArr = Object.entries(grupos).sort((a,b) => parseF(b[1][0].fecha)-parseF(a[1][0].fecha));
     let g = `<div class="grp" id="grp-his">`;
-    g += `<div class="grp-hdr"><span class="grp-ico">📋</span><span class="grp-lbl">Historial</span><span class="grp-cnt">${arr.length}</span><div class="grp-line"></div></div>`;
+    g += `<div class="grp-hdr grp-hdr-his"><span class="grp-ico">📋</span><span class="grp-lbl">Historial</span><span class="grp-cnt">${arr.length}</span><div class="grp-line"></div></div>`;
     grpArr.forEach(([cliente, visitas]) => {
       const last=visitas[0], extra=visitas.length-1, expandido=_hisExpandidos.has(cliente);
       g += `
@@ -8159,7 +8263,10 @@ function renderResultadosFiltrados() {
   if ((f==='todos'||f==='fes') && resultsFes && resultsFes.length) {
     const div = document.createElement('div');
     res.appendChild(div);
-    _renderFestivosLista(resultsFes, `Festivos (${resultsFes.length})`);
+    // En modo "Todos" mostrar máx 3 para no tapar otros resultados
+    const listaFes = f==='fes' ? resultsFes : resultsFes.slice(0,3);
+    const label = f==='fes' ? `Festivos (${resultsFes.length})` : `Festivos (${listaFes.length}${resultsFes.length>3?' de '+resultsFes.length:''})`;
+    _renderFestivosLista(listaFes, label);
   }
 }
 
@@ -8201,6 +8308,70 @@ function mostrarTodosClientes() {
         <div class="res-actions">
           <button class="res-act copy" onclick="copiarTexto('${escH(c.CODIGO||'')}',this)">📋 ${escH(c.CODIGO||'—')}</button>
         </div>
+      </div>`).join('');
+}
+
+function mostrarTodaInfo() {
+  const lista = loadArr(K_INFO_TEC);
+  if (!lista.length) { buscarToast('No hay información guardada'); return; }
+  ocultarFiltros();
+  document.getElementById('buscar-empty').classList.add('hidden');
+  const res = document.getElementById('buscar-results');
+  res.classList.add('vis');
+  res.innerHTML =
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <button onclick="clearSearch()" style="background:none;border:none;color:var(--orange);font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;font-family:var(--font-mono);letter-spacing:.05em">← Volver</button>
+      <div class="grp-hdr grp-hdr-inf" style="flex:1;margin:0">
+        <span class="grp-ico">🔧</span><span class="grp-lbl">Info técnica</span>
+        <span class="grp-cnt">${lista.length}</span><div class="grp-line"></div>
+      </div>
+    </div>` +
+    lista.map(i => `
+      <div class="res-card">
+        <div class="res-top">
+          <span class="res-title">${escH(i.entidad||'—')}${i.codigo?' · '+escH(i.codigo):''}</span>
+          <span class="res-badge rb-inf">INFO</span>
+        </div>
+        <div class="res-sub">${escH((i.detalle||'').slice(0,100))}${(i.detalle||'').length>100?'…':''}</div>
+        ${i.etiquetas&&i.etiquetas.length?`<div class="res-meta">${escH(i.etiquetas.join(' '))}</div>`:''}
+        <div class="res-actions">
+          <button class="res-act nav" onclick="abrirInfoTecPage(${i.id})">🔍 Ver</button>
+          <button class="res-act copy" onclick="copiarTexto(${JSON.stringify(i.detalle||'')},this)">📋 Copiar</button>
+        </div>
+      </div>`).join('');
+}
+
+function mostrarTodoHistorial() {
+  const hist = loadArr(K_HIST_B);
+  if (!hist.length) { buscarToast('No hay historial cargado'); return; }
+  const sorted = [...hist].sort((a,b) => {
+    const pa=a.FECHA||'', pb=b.FECHA||'';
+    const da=pa.split('/'), db=pb.split('/');
+    const fa=da.length===3?new Date(+da[2],+da[1]-1,+da[0]):new Date(0);
+    const fb=db.length===3?new Date(+db[2],+db[1]-1,+db[0]):new Date(0);
+    return fb-fa;
+  });
+  ocultarFiltros();
+  document.getElementById('buscar-empty').classList.add('hidden');
+  const res = document.getElementById('buscar-results');
+  res.classList.add('vis');
+  res.innerHTML =
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <button onclick="clearSearch()" style="background:none;border:none;color:var(--orange);font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;font-family:var(--font-mono);letter-spacing:.05em">← Volver</button>
+      <div class="grp-hdr grp-hdr-his" style="flex:1;margin:0">
+        <span class="grp-ico">📋</span><span class="grp-lbl">Historial</span>
+        <span class="grp-cnt">${sorted.length}</span><div class="grp-line"></div>
+      </div>
+    </div>` +
+    sorted.map(h => `
+      <div class="res-card">
+        <div class="res-top">
+          <span class="res-title">${escH(h.CLIENTE||'—')} · ${escH(h.SISTEMA||'—')}</span>
+          <span class="res-badge rb-his">HISTORIAL</span>
+        </div>
+        <div class="res-sub">${escH(h.FECHA||'—')} — ${escH((h.TRABAJO||'').slice(0,80))}</div>
+        <div class="res-meta">${escH(h.LOCALIDAD||'')}${h.OT?' · '+escH(h.OT):''}</div>
+        ${h.OT?`<div class="res-actions"><button class="res-act copy" onclick="copiarTexto('${escH(h.OT)}',this)">📋 ${escH(h.OT)}</button></div>`:''}
       </div>`).join('');
 }
 
