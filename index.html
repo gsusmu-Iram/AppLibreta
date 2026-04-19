@@ -7024,7 +7024,8 @@ function renderMTO() {
     if (mtoFiltro === 'hechas') {
       const key = mtoKey(c); const man = mtoMan[key] || {};
       const tipos = getMtoTipos(cli);
-      const todosOk = tipos.every(t => { const ex=getExcelDate(c,t); return !!(man[t]||ex); });
+      const tiposCheck = (mtoTipo !== 'todos' && tipos.includes(mtoTipo)) ? [mtoTipo] : tipos;
+      const todosOk = tiposCheck.every(t => { const ex=getExcelDate(c,t); return !!(man[t]||ex); });
       if (!todosOk) return false;
     }
     if (mtoFiltro === 'pend') {
@@ -7402,7 +7403,9 @@ function calcularStatsFiltradas(clientes, mtoMan) {
     const key  = mtoKey(c);
     const man  = mtoMan[key] || {};
     const tipos = getMtoTipos(c.CLIENTE || c.cliente || '');
-    const todaHecha = tipos.every(t => { const ex = getExcelDate(c, t); return !!(man[t] || ex); });
+    // Si hay tipo seleccionado: hecha = ese tipo completado; si no: todos los tipos
+    const tiposCheck = (mtoTipo !== 'todos' && tipos.includes(mtoTipo)) ? [mtoTipo] : tipos;
+    const todaHecha = tiposCheck.every(t => { const ex = getExcelDate(c, t); return !!(man[t] || ex); });
     if (todaHecha) hechasOf++; else pendOf++;
   });
 
