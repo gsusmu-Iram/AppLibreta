@@ -2581,16 +2581,14 @@ body { font-size: 14px; }
       <button class="busq-clear" id="busq-clear" onclick="limpiarBusq()">✕</button>
     </div>
 
-    <!-- Fila 1: Todos · PDF · ⋮ -->
+    <!-- Fila 1: PDF · ⋮ -->
     <div class="fil-row fil-row-top">
-      <button class="fil-btn act" id="fil-todos" onclick="setFiltro('todos')">Todos</button>
       <button class="fil-btn fil-pdf" onclick="abrirPdfFotos()">📷 PDF</button>
       <button class="fil-btn fil-more" id="mto-more-btn" onclick="toggleMtoMenu()">⋮</button>
     </div>
 
-    <!-- Fila 2: Pendientes · Zona · Cliente -->
+    <!-- Fila 2: Zona · Cliente -->
     <div class="fil-row fil-row-bot">
-      <button class="fil-btn" id="fil-pend" onclick="setFiltro('pend')">Pendientes</button>
       <div class="fil-sel-wrap">
         <select class="fil-sel" id="fil-zona-sel" onchange="setZona(this.value)">
           <option value="todas">Zona: Todas</option>
@@ -6910,8 +6908,6 @@ function popularZonas() {
    ================================================================ */
 function setFiltro(f) {
   mtoFiltro = f;
-  document.getElementById('fil-todos').className = 'fil-btn' + (f==='todos'?' act':'');
-  document.getElementById('fil-pend').className  = 'fil-btn' + (f==='pend'?' act':'');
   ['sbox-total','sbox-hechas','sbox-pend'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('act'); });
   const smap = {todos:'sbox-total', hechas:'sbox-hechas', pend:'sbox-pend'};
   if (smap[f]) { const el=document.getElementById(smap[f]); if(el) el.classList.add('act'); }
