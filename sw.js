@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pycseca-v7';
+const CACHE_NAME = 'Libreta-2.0';
 
 const CACHE_STATIC = [
   './index.html',
