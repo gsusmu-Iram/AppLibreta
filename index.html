@@ -7765,11 +7765,11 @@ function renderInfoSaved() {
     return;
   }
   el.innerHTML = lista.map(item => `
-    <div class="info-item" onclick="verInfoItem(${item.id})">
+    <div class="info-item" onclick="verInfoItem('${item.id}')">
       <div class="ii-top">
         <span class="ii-title">${escH(item.entidad||'—')}${item.codigo?' · '+escH(item.codigo):''}${item.poblacion?' · '+escH(item.poblacion):''}</span>
         ${item.tipoDato ? `<span class="ii-tipo">${escH(item.tipoDato)}</span>` : ''}
-        <button class="ii-del" onclick="event.stopPropagation();borrarInfo(${item.id})">✕</button>
+        <button class="ii-del" onclick="event.stopPropagation();borrarInfo('${item.id}')">✕</button>
       </div>
       <div class="ii-desc">${escH(item.detalle.slice(0,120))}${item.detalle.length>120?'…':''}</div>
       ${item.etiquetas.length ? `<div class="ii-tags">${item.etiquetas.join(' ')}</div>` : ''}
@@ -8172,7 +8172,7 @@ function renderResultadosFiltrados() {
       if (r.ot) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.ot)}',this)">📋 ${escH(r.ot)}</button>`;
     }
     if (r.tipo==='inf') {
-      btns += `<button class="res-act nav" onclick="abrirInfoTecPage(${r.id})">🔍 Ver</button>`;
+      btns += `<button class="res-act nav" onclick="abrirInfoTecPage('${r.id}')">🔍 Ver</button>`;
       if (r.detalle) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.detalle)},this)">📋 Copiar</button>`;
     }
     if (r.tipo==='hor') {
@@ -8335,7 +8335,7 @@ function mostrarTodaInfo() {
         <div class="res-sub">${escH((i.detalle||'').slice(0,100))}${(i.detalle||'').length>100?'…':''}</div>
         ${i.etiquetas&&i.etiquetas.length?`<div class="res-meta">${escH(i.etiquetas.join(' '))}</div>`:''}
         <div class="res-actions">
-          <button class="res-act nav" onclick="abrirInfoTecPage(${i.id})">🔍 Ver</button>
+          <button class="res-act nav" onclick="abrirInfoTecPage('${i.id}')">🔍 Ver</button>
           <button class="res-act copy" onclick="copiarTexto(${JSON.stringify(i.detalle||'')},this)">📋 Copiar</button>
         </div>
       </div>`).join('');
@@ -8820,7 +8820,7 @@ let _itPageId    = null;   // id del item abierto
 let _itEditMode  = false;  // true = modo edición activo
 
 function abrirInfoTecPage(id) {
-  const item = loadArr(K_INFO_TEC).find(i => i.id === id);
+  const item = loadArr(K_INFO_TEC).find(i => String(i.id) === String(id));
   if (!item) return;
   _itPageId   = id;
   _itEditMode = false;
