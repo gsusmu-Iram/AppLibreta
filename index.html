@@ -2569,55 +2569,20 @@ body { font-size: 14px; }
 
     <!-- Stats -->
     <div class="stats-row">
-      <div class="stat-box stat-btn act" id="sbox-total" onclick="setFiltro('todos')"><span class="stat-n" id="stat-total">—</span><span class="stat-l">Oficinas</span></div>
-      <div class="stat-box stat-btn" id="sbox-hechas" onclick="setFiltro('hechas')"><span class="stat-n ok" id="stat-hechas">0</span><span class="stat-l">Hechas</span></div>
-      <div class="stat-box stat-btn" id="sbox-pend" onclick="setFiltro('pend')"><span class="stat-n warn" id="stat-pend">—</span><span class="stat-l">Pendientes</span></div>
+      <div class="stat-box stat-btn act" id="sbox-total" onclick="ciclarCliente()"><span class="stat-n" id="stat-total">—</span><span class="stat-l" id="lbl-cliente">Todos</span></div>
+      <div class="stat-box stat-btn" id="sbox-hechas" onclick="mtoFiltro==='hechas'?ciclarZona():setFiltro('hechas')"><span class="stat-n ok" id="stat-hechas">0</span><span class="stat-l" id="lbl-zona">Hechas</span></div>
+      <div class="stat-box stat-btn" id="sbox-pend" onclick="mtoFiltro==='pend'?ciclarRevision():setFiltro('pend')"><span class="stat-n warn" id="stat-pend">—</span><span class="stat-l" id="lbl-revision">Pendientes</span></div>
     </div>
 
-    <!-- Buscador -->
-    <div class="busq-wrap">
-      <span class="busq-ico">🔍</span>
-      <input class="busq-input" id="mto-busq" type="text" placeholder="Buscar cliente, código, municipio…" oninput="onBusq(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
-      <button class="busq-clear" id="busq-clear" onclick="limpiarBusq()">✕</button>
-    </div>
-
-    <!-- Fila 1: PDF · ⋮ -->
-    <div class="fil-row fil-row-top">
-      <button class="fil-btn fil-pdf" onclick="abrirPdfFotos()">📷 PDF</button>
-      <button class="fil-btn fil-more" id="mto-more-btn" onclick="toggleMtoMenu()">⋮</button>
-    </div>
-
-    <!-- Fila 2: Zona · Cliente -->
-    <div class="fil-row fil-row-bot">
-      <div class="fil-sel-wrap">
-        <select class="fil-sel" id="fil-zona-sel" onchange="setZona(this.value)">
-          <option value="todas">Zona: Todas</option>
-        </select>
+    <!-- PDF · Buscar · ⋮ -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <button onclick="abrirPdfFotos()" style="flex-shrink:0;background:var(--orange);color:white;border:none;border-radius:var(--r-pill);padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 10px rgba(249,115,22,.35)">📷 PDF</button>
+      <div class="busq-wrap" style="flex:1;margin:0">
+        <span class="busq-ico">🔍</span>
+        <input class="busq-input" id="mto-busq" type="text" placeholder="Buscar…" oninput="onBusq(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="busq-clear" id="busq-clear" onclick="limpiarBusq()">✕</button>
       </div>
-      <div class="fil-sel-wrap">
-        <select class="fil-sel" id="fil-cli-sel" onchange="setCliente(this.value)">
-          <option value="todos">Cliente: Todos</option>
-          <option value="bbva">BBVA</option>
-          <option value="abanca">ABANCA</option>
-          <option value="caj">CAJAMAR</option>
-          <option value="repsol">Repsol</option>
-          <option value="otros">Otros</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Fila 3: Tipo de revisión -->
-    <div class="fil-row fil-row-bot">
-      <div class="fil-sel-wrap" style="flex:1">
-        <select class="fil-sel" id="fil-tipo-sel" onchange="setTipo(this.value)" style="width:100%">
-          <option value="todos">Revisión: Todas</option>
-          <option value="INT">Anual — INT</option>
-          <option value="Q1">PCI 1 — Q1</option>
-          <option value="Q2">PCI 2 — Q2</option>
-          <option value="Q3">PCI 3 — Q3</option>
-          <option value="Q4">PCI 4 — Q4</option>
-        </select>
-      </div>
+      <button class="fil-btn fil-more" id="mto-more-btn" onclick="toggleMtoMenu()" style="flex-shrink:0">⋮</button>
     </div>
 
     <!-- Menú acciones ocasionales -->
@@ -6739,7 +6704,9 @@ function datosCerrarConfirm() {
 }
 function datosBorrarTodo() {
   const keys = [K_EXCEL, K_HIST, K_EQUIPOS, K_UBICS, K_RUTA,
-                K_ANALISIS, K_HORARIOS, K_FESTIVOS, OTS_VISTOS_KEY, K_BACKUP_TS, 'pyc_gps', 'pyc_coords'];
+                K_ANALISIS, K_HORARIOS, K_FESTIVOS, OTS_VISTOS_KEY, K_BACKUP_TS,
+                K_MTO_MAN, K_MTO_EXT, K_INFO_TEC, K_TAREAS, K_NOTAS, K_EVENTOS,
+                K_ETIQUETAS, 'pyc_gps', 'pyc_coords', 'pyc_alarmas'];
   keys.forEach(k => localStorage.removeItem(k));
   datosCerrarConfirm();
   cerrarDatos();
@@ -6765,9 +6732,46 @@ function datosBorrarTodo() {
    ================================================================ */
 let mtoFiltro   = 'todos'; // 'todos' | 'pend' | 'hechas'
 let mtoZona     = 'todas';
-let mtoCliente  = 'todos'; // 'todos' | 'bbva' | 'caj' | 'otros'
-let mtoTipo     = 'todos'; // 'todos' | 'INT' | 'Q1' | 'Q2' | 'Q3' | 'Q4'
+let mtoCliente  = 'todos';
+let mtoTipo     = 'todos';
 let mtoBusq     = '';
+
+const _CLI_CICLO  = ['todos','bbva','caj','repsol','otros'];
+const _CLI_LABEL  = {todos:'Todos',bbva:'BBVA',caj:'CAJAMAR',repsol:'Repsol',otros:'Otros'};
+const _TIPO_CICLO = ['todos','INT','Q1','Q2','Q3','Q4'];
+const _TIPO_LABEL = {todos:'Pendientes',INT:'Anual',Q1:'PCI 1',Q2:'PCI 2',Q3:'PCI 3',Q4:'PCI 4'};
+
+function _actualizarLabels() {
+  const lc = document.getElementById('lbl-cliente');
+  if (lc) lc.textContent = _CLI_LABEL[mtoCliente] || 'Todos';
+  const lz = document.getElementById('lbl-zona');
+  if (lz) lz.textContent = mtoFiltro === 'hechas' && mtoZona !== 'todas' ? 'Zona ' + mtoZona : 'Hechas';
+  const lr = document.getElementById('lbl-revision');
+  if (lr) lr.textContent = mtoFiltro === 'pend' && mtoTipo !== 'todos' ? _TIPO_LABEL[mtoTipo] : 'Pendientes';
+}
+
+function ciclarCliente() {
+  const idx = _CLI_CICLO.indexOf(mtoCliente);
+  mtoCliente = _CLI_CICLO[(idx + 1) % _CLI_CICLO.length];
+  setFiltro('todos');
+}
+
+function ciclarZona() {
+  const zonas = ['todas'];
+  const sel = document.getElementById('fil-zona-sel');
+  if (sel) Array.from(sel.options).forEach(o => { if (o.value !== 'todas') zonas.push(o.value); });
+  const idx = zonas.indexOf(mtoZona);
+  mtoZona = zonas[(idx + 1) % zonas.length];
+  renderMTO();
+}
+
+function ciclarRevision() {
+  const idx = _TIPO_CICLO.indexOf(mtoTipo);
+  mtoTipo = _TIPO_CICLO[(idx + 1) % _TIPO_CICLO.length];
+  const sel = document.getElementById('fil-tipo-sel');
+  if (sel) sel.value = mtoTipo;
+  renderMTO();
+}
 let _delKey     = null;    // key de la oficina a borrar
 let _extKey     = null;    // key de la oficina en edición de extintores
 let _extTemp    = { polvo:0, co2:0 };
@@ -6911,6 +6915,7 @@ function setFiltro(f) {
   ['sbox-total','sbox-hechas','sbox-pend'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('act'); });
   const smap = {todos:'sbox-total', hechas:'sbox-hechas', pend:'sbox-pend'};
   if (smap[f]) { const el=document.getElementById(smap[f]); if(el) el.classList.add('act'); }
+  _actualizarLabels();
   renderMTO();
 }
 function setTipo(t) { mtoTipo = t; renderMTO(); }
@@ -6934,9 +6939,7 @@ function closeMtoMenu() {
 function setZona(z) { mtoZona = z; renderMTO(); }
 function setCliente(c) {
   mtoCliente = c;
-  // Sincronizar select si se llama desde código
-  const sel = document.getElementById('fil-cli-sel');
-  if (sel && sel.value !== c) sel.value = c;
+  _actualizarLabels();
   renderMTO();
 }
 function onBusq(v) {
@@ -7102,6 +7105,7 @@ function renderMTO() {
   });
 
   lista.innerHTML = html;
+  _actualizarLabels();
 }
 
 /* ================================================================
