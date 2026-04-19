@@ -6172,6 +6172,7 @@ function datosExportarExcel() {
     // ── CLIENTES (incluye nuevos del análisis) ──────────────────
     datosProg('excel', 30, 'Exportando Clientes…');
     const clientes = loadArr(K_EXCEL);
+    const mtoMan   = loadObj(K_MTO_MAN);  // fechas marcadas manualmente
     const nuevos   = datosClientesNuevos();
 
     // Añadir clientes nuevos con flag
@@ -6191,7 +6192,16 @@ function datosExportarExcel() {
     });
 
     const cliRows = todosClientes.length > 0
-      ? todosClientes.map(c => ({
+      ? todosClientes.map(c => {
+          // Fusionar fechas manuales (K_MTO_MAN) con las del Excel
+          const key = mtoKey(c);
+          const man = mtoMan[key] || {};
+          const intVal  = man['INT'] || String(c.INT  || '');
+          const q1Val   = man['Q1']  || String(c.Q1   || '');
+          const q2Val   = man['Q2']  || String(c.Q2   || '');
+          const q3Val   = man['Q3']  || String(c.Q3   || '');
+          const q4Val   = man['Q4']  || String(c.Q4   || '');
+          return ({
           'ZONA':        String(c.ZONA       || c.zona       || ''),
           'CLIENTE':     String(c.CLIENTE    || c.cliente    || ''),
           'CODIGO':      String(c.CODIGO     || c.codigo     || ''),
@@ -6199,9 +6209,9 @@ function datosExportarExcel() {
           'MUNICIPIO':   String(c.MUNICIPIO  || c.municipio  || ''),
           'PROVINCIA':   String(c.PROVINCIA  || c.provincia  || ''),
           'OBSERVACIONES': String(c.OBSERVACIONES || c.observaciones || ''),
-          'INT': String(c.INT || ''), 'Q1': String(c.Q1 || ''),
-          'Q2':  String(c.Q2  || ''), 'Q3': String(c.Q3 || ''),
-          'Q4':  String(c.Q4  || ''),
+          'INT': intVal, 'Q1': q1Val,
+          'Q2':  q2Val,  'Q3': q3Val,
+          'Q4':  q4Val,
           'EXT_POLVO': c.EXT_POLVO || 0,
           'EXT_CO2':   c.EXT_CO2   || 0,
           'HORARIO':   String(c.HORARIO || c.horario || ''),
@@ -6211,7 +6221,7 @@ function datosExportarExcel() {
           'COMUNICACIÓN': String(c['COMUNICACIÓN'] || ''),
           'INCENDIO':  String(c.INCENDIO || ''),
           'ACCESO':    String(c.ACCESO || ''),
-        }))
+        });})
       : [{'ZONA':'','CLIENTE':'','CODIGO':'','DIRECCION':'','MUNICIPIO':'','PROVINCIA':'',
           'OBSERVACIONES':'','INT':'','Q1':'','Q2':'','Q3':'','Q4':'',
           'EXT_POLVO':0,'EXT_CO2':0,'HORARIO':'','CENTRAL':'','MOD. CENTRAL':'',
@@ -6306,6 +6316,7 @@ function datosExportarExcel() {
     const infoTec = loadArr(K_INFO_TEC);
     const infoRows = infoTec.length > 0
       ? infoTec.map(i => ({
+          'ID':          String(i.id       || ''),
           'FECHA':       String(i.fecha    || ''),
           'ENTIDAD':     String(i.entidad  || ''),
           'CODIGO':      String(i.codigo   || ''),
@@ -6315,7 +6326,7 @@ function datosExportarExcel() {
           'INFORMACION': String(i.detalle  || ''),
           'ETIQUETAS':   (i.etiquetas||[]).join(' '),
         }))
-      : [{'FECHA':'','ENTIDAD':'','CODIGO':'','POBLACION':'','SISTEMA':'','TIPO_DATO':'','INFORMACION':'','ETIQUETAS':''}];
+      : [{'ID':'','FECHA':'','ENTIDAD':'','CODIGO':'','POBLACION':'','SISTEMA':'','TIPO_DATO':'','INFORMACION':'','ETIQUETAS':''}];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(infoRows), 'Información');
 
     // ── FESTIVOS (si hay) ────────────────────────────────────
@@ -6341,8 +6352,16 @@ function datosExportarExcel() {
     }));
     if (coordsRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(coordsRows), 'Coordenadas');
 
+    // ── MTO_EXT (extintores caducados) ───────────────────────
+    datosProg('excel', 94, 'Exportando MTO_Ext…');
+    const mtoExtObj  = loadObj(K_MTO_EXT);
+    const mtoExtRows = Object.entries(mtoExtObj)
+      .filter(([, v]) => v.polvo > 0 || v.co2 > 0)
+      .map(([clave, v]) => ({ CLAVE: clave, POLVO: v.polvo || 0, CO2: v.co2 || 0 }));
+    if (mtoExtRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mtoExtRows), 'MTO_Ext');
+
     // ── DESCARGAR ─────────────────────────────────────────────
-    datosProg('excel', 94, 'Generando archivo…');
+    datosProg('excel', 96, 'Generando archivo…');
     const fecha = new Date().toISOString().slice(0,10);
     XLSX.writeFile(wb, `${fecha}_Libreta.xlsx`);
 
@@ -6486,7 +6505,7 @@ function datosImportarExcel(input) {
         else if (nl.includes('tarea')) {
           // Fila 1: título decorativo, fila 2: cabeceras reales
           const rows = XLSX.utils.sheet_to_json(ws, {defval:'',raw:false,range:1})
-            .filter(r => r['ID'] && r['ID'] !== 'ID' && String(r['ID']).startsWith('T_'));
+            .filter(r => r['ID'] && r['ID'] !== 'ID' && (String(r['ID']).startsWith('T_') || String(r['ID']).startsWith('TAREA_')));
           if (rows.length > 0) {
             const parsed = rows.map(r => ({
               id:          String(r['ID']||'T_'+Date.now()),
@@ -6503,7 +6522,7 @@ function datosImportarExcel(input) {
 
         else if (nl.includes('nota')) {
           const rows = XLSX.utils.sheet_to_json(ws, {defval:'',raw:false,range:1})
-            .filter(r => r['ID'] && r['ID'] !== 'ID' && String(r['ID']).startsWith('N_') || String(r['ID']).startsWith('NOTA'));
+            .filter(r => r['ID'] && r['ID'] !== 'ID' && (String(r['ID']).startsWith('N_') || String(r['ID']).startsWith('NOTA')));
           if (rows.length > 0) {
             const parsed = rows.map(r => ({
               id:        String(r['ID']||'N_'+Date.now()),
@@ -6539,15 +6558,20 @@ function datosImportarExcel(input) {
           const rows = getRows(ws).filter(r => r['INFORMACION'] || r['Información/Detalle']);
           if (rows.length > 0) {
             const existing = JSON.parse(localStorage.getItem(K_INFO_TEC)||'[]');
-            const existIds = new Set(existing.map(i => i.fecha + '|' + i.detalle));
+            const existIds = new Set(existing.map(i => i.id).filter(Boolean));
+            const existKeys = new Set(existing.map(i => i.fecha + '|' + i.detalle));
             rows.forEach(r => {
               const detalle = String(r['INFORMACION'] || r['Información/Detalle'] || '').trim();
               if (!detalle) return;
               const fecha   = String(r['FECHA'] || r['Última actualización'] || '');
-              const key     = fecha + '|' + detalle;
-              if (existIds.has(key)) return; // No duplicar
+              const rid     = String(r['ID'] || '').trim();
+              // Si ya existe por ID → no duplicar
+              if (rid && existIds.has(rid)) return;
+              // Si ya existe por fecha+detalle → no duplicar
+              const key = fecha + '|' + detalle;
+              if (existKeys.has(key)) return;
               existing.push({
-                id:        'IT_' + Date.now() + '_' + Math.floor(Math.random()*10000),
+                id:        rid || ('IT_' + Date.now() + '_' + Math.floor(Math.random()*10000)),
                 fecha:     fecha,
                 entidad:   String(r['ENTIDAD']   || r['Entidad']        || ''),
                 codigo:    String(r['CODIGO']    || r['Codigo Cliente'] || ''),
@@ -6569,6 +6593,20 @@ function datosImportarExcel(input) {
             const deleted = rows.filter(r => r['TIPO'] === 'eliminada').map(r => r['ETIQUETA']);
             if (custom.length)  save(K_ETIQUETAS, custom);
             if (deleted.length) save(K_ETIQUETAS_DEL, deleted);
+          }
+        }
+
+        else if (nl.includes('mto_ext') || nl === 'mtoext') {
+          const rows = getRows(ws).filter(r => r['CLAVE'] && (r['POLVO'] || r['CO2']));
+          if (rows.length) {
+            const existing = loadObj(K_MTO_EXT);
+            rows.forEach(r => {
+              existing[String(r['CLAVE'])] = {
+                polvo: parseInt(r['POLVO']) || 0,
+                co2:   parseInt(r['CO2'])   || 0,
+              };
+            });
+            save(K_MTO_EXT, existing);
           }
         }
 
