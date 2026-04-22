@@ -2567,47 +2567,11 @@ body { font-size: 14px; }
   <div class="module-wrap" id="mod-mto">
   <div class="mto-scroll" id="mto-scroll">
 
-    <!-- Stats: cada contador abre su selector -->
+    <!-- Stats -->
     <div class="stats-row">
-      <div class="stat-box stat-btn act" id="sbox-total" onclick="abrirSel('sel-cliente')">
-        <span class="stat-n" id="stat-total">—</span>
-        <span class="stat-l" id="lbl-cliente">Todos</span>
-      </div>
-      <div class="stat-box stat-btn" id="sbox-hechas" onclick="setFiltro('hechas');abrirSel('sel-zona')">
-        <span class="stat-n ok" id="stat-hechas">0</span>
-        <span class="stat-l">Hechas</span>
-      </div>
-      <div class="stat-box stat-btn" id="sbox-pend" onclick="setFiltro('pend');abrirSel('sel-revision')">
-        <span class="stat-n warn" id="stat-pend">—</span>
-        <span class="stat-l" id="lbl-revision">Pendientes</span>
-      </div>
-    </div>
-
-    <!-- Selectores desplegables bajo los contadores (hidden por defecto) -->
-    <div id="sel-cliente" style="display:none;margin-bottom:6px">
-      <select class="fil-sel" style="width:100%" onchange="setCliente(this.value);cerrarSel('sel-cliente')">
-        <option value="todos">Cliente: Todos</option>
-        <option value="bbva">BBVA</option>
-        <option value="abanca">ABANCA</option>
-        <option value="caj">CAJAMAR</option>
-        <option value="repsol">Repsol</option>
-        <option value="otros">Otros</option>
-      </select>
-    </div>
-    <div id="sel-zona" style="display:none;margin-bottom:6px">
-      <select class="fil-sel" id="fil-zona-sel" style="width:100%" onchange="setZona(this.value);cerrarSel('sel-zona')">
-        <option value="todas">Zona: Todas</option>
-      </select>
-    </div>
-    <div id="sel-revision" style="display:none;margin-bottom:6px">
-      <select class="fil-sel" id="fil-tipo-sel" style="width:100%" onchange="setTipo(this.value);cerrarSel('sel-revision')">
-        <option value="todos">Revisión: Todas</option>
-        <option value="INT">Anual — INT</option>
-        <option value="Q1">PCI 1 — Q1</option>
-        <option value="Q2">PCI 2 — Q2</option>
-        <option value="Q3">PCI 3 — Q3</option>
-        <option value="Q4">PCI 4 — Q4</option>
-      </select>
+      <div class="stat-box stat-btn act" id="sbox-total" onclick="ciclarCliente()"><span class="stat-n" id="stat-total">—</span><span class="stat-l" id="lbl-cliente">Todos</span></div>
+      <div class="stat-box stat-btn" id="sbox-hechas" onclick="mtoFiltro==='hechas'?ciclarZona():setFiltro('hechas')"><span class="stat-n ok" id="stat-hechas">0</span><span class="stat-l" id="lbl-zona">Hechas</span></div>
+      <div class="stat-box stat-btn" id="sbox-pend" onclick="mtoFiltro==='pend'?ciclarRevision():setFiltro('pend')"><span class="stat-n warn" id="stat-pend">—</span><span class="stat-l" id="lbl-revision">Pendientes</span></div>
     </div>
 
     <!-- PDF · Buscar · ⋮ -->
@@ -6772,25 +6736,41 @@ let mtoCliente  = 'todos';
 let mtoTipo     = 'todos';
 let mtoBusq     = '';
 
-const _CLI_LABEL = {todos:'Todos',bbva:'BBVA',caj:'CAJAMAR',repsol:'Repsol',otros:'Otros'};
-const _TIPO_LABEL = {todos:'Todas',INT:'Anual',Q1:'PCI 1',Q2:'PCI 2',Q3:'PCI 3',Q4:'PCI 4'};
-
-function abrirSel(id) {
-  ['sel-cliente','sel-zona','sel-revision'].forEach(s => {
-    const el = document.getElementById(s);
-    if (el) el.style.display = s === id ? (el.style.display === 'none' ? 'block' : 'none') : 'none';
-  });
-}
-function cerrarSel(id) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = 'none';
-}
+const _CLI_CICLO  = ['todos','bbva','caj','repsol','otros'];
+const _CLI_LABEL  = {todos:'Todos',bbva:'BBVA',caj:'CAJAMAR',repsol:'Repsol',otros:'Otros'};
+const _TIPO_CICLO = ['todos','INT','Q1','Q2','Q3','Q4'];
+const _TIPO_LABEL = {todos:'Pendientes',INT:'Anual',Q1:'PCI 1',Q2:'PCI 2',Q3:'PCI 3',Q4:'PCI 4'};
 
 function _actualizarLabels() {
   const lc = document.getElementById('lbl-cliente');
   if (lc) lc.textContent = _CLI_LABEL[mtoCliente] || 'Todos';
+  const lz = document.getElementById('lbl-zona');
+  if (lz) lz.textContent = mtoFiltro === 'hechas' && mtoZona !== 'todas' ? 'Zona ' + mtoZona : 'Hechas';
   const lr = document.getElementById('lbl-revision');
-  if (lr) lr.textContent = mtoTipo !== 'todos' ? _TIPO_LABEL[mtoTipo] : 'Pendientes';
+  if (lr) lr.textContent = mtoFiltro === 'pend' && mtoTipo !== 'todos' ? _TIPO_LABEL[mtoTipo] : 'Pendientes';
+}
+
+function ciclarCliente() {
+  const idx = _CLI_CICLO.indexOf(mtoCliente);
+  mtoCliente = _CLI_CICLO[(idx + 1) % _CLI_CICLO.length];
+  setFiltro('todos');
+}
+
+function ciclarZona() {
+  const zonas = ['todas'];
+  const sel = document.getElementById('fil-zona-sel');
+  if (sel) Array.from(sel.options).forEach(o => { if (o.value !== 'todas') zonas.push(o.value); });
+  const idx = zonas.indexOf(mtoZona);
+  mtoZona = zonas[(idx + 1) % zonas.length];
+  renderMTO();
+}
+
+function ciclarRevision() {
+  const idx = _TIPO_CICLO.indexOf(mtoTipo);
+  mtoTipo = _TIPO_CICLO[(idx + 1) % _TIPO_CICLO.length];
+  const sel = document.getElementById('fil-tipo-sel');
+  if (sel) sel.value = mtoTipo;
+  renderMTO();
 }
 let _delKey     = null;    // key de la oficina a borrar
 let _extKey     = null;    // key de la oficina en edición de extintores
@@ -6938,7 +6918,7 @@ function setFiltro(f) {
   _actualizarLabels();
   renderMTO();
 }
-function setTipo(t) { mtoTipo = t; _actualizarLabels(); renderMTO(); }
+function setTipo(t) { mtoTipo = t; renderMTO(); }
 function toggleMtoMenu() {
   const menu = document.getElementById('mto-ctx-menu');
   const overlay = document.getElementById('mto-ctx-overlay');
@@ -7317,11 +7297,12 @@ function autoMarcarMTO(parte) {
 
   // Detectar tipo desde texto
   let tipo = null;
-  if (/pci|incendio|extintor|detector|pulsador|rev.*trim|trim.*rev|mto.*pci|pci.*mto|recarga/i.test(trabajo)) {
-    if      (/\b1[er°º]?\b.*tri|tri.*\b1\b|pci.*1\b|primera|1er|q1\b/i.test(trabajo)) tipo = 'Q1';
-    else if (/\b2[do°º]?\b.*tri|tri.*\b2\b|pci.*2\b|segunda|q2\b/i.test(trabajo))     tipo = 'Q2';
-    else if (/\b3[er°º]?\b.*tri|tri.*\b3\b|pci.*3\b|tercera|q3\b/i.test(trabajo))     tipo = 'Q3';
-    else if (/\b4[to°º]?\b.*tri|tri.*\b4\b|pci.*4\b|cuarta|anual.*pci|q4\b/i.test(trabajo)) tipo = 'Q4';
+  // PARA REVERTIR: quitar |\btrim de la primera regex para volver a no reconocer "MTO 2 Trimestre"
+  if (/pci|incendio|extintor|detector|pulsador|rev.*trim|trim.*rev|\btrim|mto.*pci|pci.*mto|recarga/i.test(trabajo)) {
+    if      (/\b1[er°º]?\b.*tri|tri.*\b1\b|pci.*1\b|primera|1er|q1\b|mto[\s_]*1\b/i.test(trabajo)) tipo = 'Q1';
+    else if (/\b2[do°º]?\b.*tri|tri.*\b2\b|pci.*2\b|segunda|q2\b|mto[\s_]*2\b/i.test(trabajo))     tipo = 'Q2';
+    else if (/\b3[er°º]?\b.*tri|tri.*\b3\b|pci.*3\b|tercera|q3\b|mto[\s_]*3\b/i.test(trabajo))     tipo = 'Q3';
+    else if (/\b4[to°º]?\b.*tri|tri.*\b4\b|pci.*4\b|cuarta|anual.*pci|q4\b|mto[\s_]*4\b/i.test(trabajo)) tipo = 'Q4';
     else tipo = '_PCI_LIBRE'; // buscar slot libre
   } else if (/\bint\b|intrusi|mto.*seg|seg.*mto|mto.*alarm|mto.*anual|revision.*anual|anual.*seg|mantenimiento.*seg/i.test(trabajo)) {
     tipo = 'INT';
@@ -8325,7 +8306,7 @@ function renderResultadosFiltrados() {
           ${hintHtml(last.hint||'')}
           <div class="res-actions">
             ${last.ot?`<button class="res-act copy" onclick="copiarTexto('${escH(last.ot)}',this)">📋 ${escH(last.ot)}</button>`:''}
-            ${extra>0?`<button class="res-act nav" onclick="toggleHisGrupo(${JSON.stringify(cliente)})">${expandido?'▲ Ocultar':'▼ '+extra+' visita'+(extra>1?'s':'')+' más'}</button>`:''}
+            ${extra>0?`<button class="res-act nav" data-cli="${escH(cliente)}" onclick="toggleHisGrupo(this.dataset.cli)">${expandido?'▲ Ocultar':'▼ '+extra+' visita'+(extra>1?'s':'')+' más'}</button>`:''}
           </div>
         </div>`;
       if (expandido) {
@@ -10251,12 +10232,18 @@ function checkTareasHoy() {
   const tareas  = loadArr(K_TAREAS);
   const hoy     = new Date().toISOString().slice(0,10);
   const urgHoy  = tareas.filter(t => t.prioridad==='urgente' && t.estado==='pendiente' && (!t.fecha || t.fecha <= hoy));
-  if (urgHoy.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
-    setTimeout(() => {
-      new Notification('PycLibreta — ' + urgHoy.length + ' tarea(s) urgentes', {
-        body: urgHoy.map(t => '• ' + t.titulo).join('\n')
-      });
-    }, 2000);
+  if (urgHoy.length > 0) {
+    // PARA REVERTIR: quitar este setTimeout para eliminar el aviso visual en pantalla
+    const n = urgHoy.length;
+    setTimeout(() => tareasToast('🔴 ' + n + ' tarea' + (n>1?'s':'') + ' urgente' + (n>1?'s':'') + ' pendiente' + (n>1?'s':''), 6000), 1500);
+    // Notificación nativa del sistema si hay permiso concedido
+    if ('Notification' in window && Notification.permission === 'granted') {
+      setTimeout(() => {
+        new Notification('PycLibreta — ' + n + ' tarea(s) urgentes', {
+          body: urgHoy.map(t => '• ' + t.titulo).join('\n')
+        });
+      }, 2000);
+    }
   }
 }
 
