@@ -1872,6 +1872,23 @@ body { font-size: 14px; }
 .bu-n span{font-weight:400;color:var(--ink-mid);font-size:12px}
 .bu-arr{font-size:16px;color:rgba(220,38,38,.35)}
 
+/* ── BANNERS AVISO MATUTINO ─────────────────────────────────────── */
+/* PARA REVERTIR: eliminar todo desde aquí hasta el comentario de cierre */
+.bav-stack{position:fixed;top:108px;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:90;display:flex;flex-direction:column;gap:4px;padding:0 10px;pointer-events:none}
+.bav-stack>*{pointer-events:all}
+.banner-aviso{border-radius:var(--r-md);padding:11px 13px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(10,18,35,.15);animation:bavIn .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes bavIn{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+.bav-almacen{background:linear-gradient(135deg,rgba(249,115,22,.14),rgba(249,115,22,.08));border:1.5px solid rgba(249,115,22,.4)}
+.bav-eventos{background:linear-gradient(135deg,rgba(2,132,199,.14),rgba(2,132,199,.08));border:1.5px solid rgba(2,132,199,.35)}
+.bav-ico{font-size:22px;flex-shrink:0}
+.bav-txt{flex:1;min-width:0}
+.bav-title{font-size:14px;font-weight:900;line-height:1.2}
+.bav-almacen .bav-title{color:var(--orange-deep)}
+.bav-eventos .bav-title{color:var(--cyan)}
+.bav-sub{font-size:11px;color:var(--ink-mid);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bav-close{background:rgba(26,39,68,.1);border:none;border-radius:50%;width:27px;height:27px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent;line-height:1}
+/* ── FIN BANNERS AVISO ──────────────────────────────────────────── */
+
 /* Cabecera módulo */
 .mod-head{display:flex;align-items:center;justify-content:space-between}
 .mod-title{font-size:20px;font-weight:900;color:var(--navy);letter-spacing:-.02em}
@@ -1914,7 +1931,7 @@ body { font-size: 14px; }
 .tarea.seleccionada .t-sel-circle{background:var(--orange);border-color:var(--orange)}
 .t-sel-left{padding:10px 0 10px 10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .t-check{width:36px;height:36px;border-radius:50%;border:2.5px solid;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .2s;flex-shrink:0}
-.tc-urg{border-color:var(--error);color:var(--error)}
+.tc-urg{border-color:var(--orange);color:var(--orange)}
 .tc-nor{border-color:var(--warn);color:var(--warn)}
 .tc-done{background:var(--ok);border-color:var(--ok);color:white}
 .tarea.done{opacity:.45}
@@ -1924,7 +1941,7 @@ body { font-size: 14px; }
 .det-overlay.open{opacity:1;pointer-events:all}
 .det-box{background:var(--paper);border-radius:var(--r-xl) var(--r-xl) 0 0;width:100%;max-width:480px;margin:0 auto;max-height:88dvh;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
 .det-overlay.open .det-box{transform:translateY(0)}
-.det-banner{background:linear-gradient(135deg,var(--error),#c41a1a);padding:16px;display:flex;flex-direction:column;gap:6px}
+.det-banner{background:linear-gradient(135deg,var(--orange),var(--orange-deep));padding:16px;display:flex;flex-direction:column;gap:6px}
 .det-badge{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,.65);letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:5px}
 .det-titulo{font-size:16px;font-weight:900;color:white;line-height:1.3}
 .det-desc{font-size:11px;color:rgba(255,255,255,.8);line-height:1.5}
@@ -2880,11 +2897,11 @@ body { font-size: 14px; }
             <button class="btn-add-tarea" onclick="abrirNuevaTarea()">+</button>
           </div>
 
-          <!-- Banner urgentes -->
+          <!-- Banner Almacén -->
           <div class="banner-urg" id="banner-urg" style="display:none" onclick="verUrgentes()">
-            <span class="bu-ico">🔔</span>
+            <span class="bu-ico">📦</span>
             <div class="bu-txt">
-              <div class="bu-n"><span id="n-urgentes">0</span> <span>urgentes pendientes</span></div>
+              <div class="bu-n"><span id="n-urgentes">0</span> <span>en Almacén</span></div>
             </div>
             <span class="bu-arr">›</span>
           </div>
@@ -2893,7 +2910,7 @@ body { font-size: 14px; }
           <div class="notif-bar" id="notif-bar" style="display:none">
             <div class="nb-content">
               <div class="nb-t">🔔 Activar alertas</div>
-              <div class="nb-s">Aviso cuando llegue una tarea urgente</div>
+              <div class="nb-s">Aviso cuando haya cosas en Almacén</div>
             </div>
             <button class="nb-activate" onclick="pedirNotificaciones()">Activar</button>
           </div>
@@ -3412,7 +3429,7 @@ body { font-size: 14px; }
       <div>
         <span class="fl">Prioridad</span>
         <div class="prio-btns">
-          <button class="prio-btn pb-urg" id="pb-urg" onclick="selPrio('urgente')">🔴 Urgente</button>
+          <button class="prio-btn pb-urg" id="pb-urg" onclick="selPrio('urgente')">📦 Almacén</button>
           <button class="prio-btn pb-nor sel" id="pb-nor" onclick="selPrio('normal')">🟡 Normal</button>
         </div>
       </div>
@@ -3430,7 +3447,7 @@ body { font-size: 14px; }
 <div class="det-overlay" id="det-overlay" onclick="if(event.target===this)cerrarDetalle()">
   <div class="det-box">
     <div class="det-banner">
-      <div class="det-badge" id="det-badge">🔴 Tarea urgente</div>
+      <div class="det-badge" id="det-badge">📦 ALMACÉN</div>
       <div class="det-titulo" id="det-titulo">—</div>
       <div class="det-desc" id="det-desc">—</div>
       <div class="det-chips" id="det-chips"></div>
@@ -3446,7 +3463,7 @@ body { font-size: 14px; }
         </div>
         <div class="prog-info">
           <div class="prog-lbl">Urgentes resueltas</div>
-          <div class="prog-sub" id="prog-sub">0 de 0 tareas urgentes hechas</div>
+          <div class="prog-sub" id="prog-sub">0 de 0 en Almacén hechos</div>
         </div>
       </div>
       <button class="btn-finalizar" id="btn-finalizar-det" onclick="finalizarDesdeDetalle()">✓ Marcar como resuelta</button>
@@ -3563,7 +3580,30 @@ body { font-size: 14px; }
 </div>
 
 <div class="tareas-toast" id="tareas-toast"></div>
-<div class="tareas-toast" id="tareas-toast"></div>
+
+<!-- ── BANNERS AVISO MATUTINO — fijos, visibles en cualquier módulo ── -->
+<!-- PARA REVERTIR: eliminar este bloque completo hasta el comentario de cierre -->
+<div class="bav-stack" id="bav-stack">
+  <!-- Banner Almacén -->
+  <div class="banner-aviso bav-almacen" id="bav-almacen" style="display:none">
+    <span class="bav-ico">📦</span>
+    <div class="bav-txt">
+      <div class="bav-title" id="bav-alm-titulo">Almacén — cosas pendientes</div>
+      <div class="bav-sub" id="bav-alm-sub">Revisa tu lista antes de salir</div>
+    </div>
+    <button class="bav-close" onclick="cerrarBavAlmacen()">✕</button>
+  </div>
+  <!-- Banner Eventos hoy -->
+  <div class="banner-aviso bav-eventos" id="bav-eventos" style="display:none">
+    <span class="bav-ico">📅</span>
+    <div class="bav-txt">
+      <div class="bav-title" id="bav-ev-titulo">Eventos hoy</div>
+      <div class="bav-sub" id="bav-ev-sub"></div>
+    </div>
+    <button class="bav-close" onclick="cerrarBavEventos()">✕</button>
+  </div>
+</div>
+<!-- ── FIN BANNERS AVISO ── -->
 
 <script>
 'use strict';
@@ -9170,7 +9210,7 @@ function renderTareas() {
   if (!lista) return;
 
   const renderTareaHTML = (t, showHint=true) => {
-    const bgPrio = t.prioridad==='urgente' ? 'var(--error)' : 'var(--warn)';
+    const bgPrio = t.prioridad==='urgente' ? 'var(--orange)' : 'var(--warn)';
     const isDone = t.estado === 'hecha';
     const isSel  = _selSet.has(t.id);
 
@@ -9184,7 +9224,7 @@ function renderTareas() {
             ${t.descripcion?`<div class="t-desc">${escHT(t.descripcion.slice(0,80))}</div>`:''}
             <div class="t-foot">
               ${t.fecha?`<div class="t-fecha">📅 ${formatFechaTarea(t.fecha)}</div>`:''}
-              ${!isDone?`<div class="t-prio" style="background:${t.prioridad==='urgente'?'rgba(220,38,38,.1)':'rgba(217,119,6,.1)'};color:${t.prioridad==='urgente'?'var(--error)':'var(--warn)'}">${t.prioridad==='urgente'?'🔴 Urgente':'🟡 Normal'}</div>`:'<div class="t-prio" style="background:rgba(22,163,74,.1);color:var(--ok)">✅ Hecha</div>'}
+              ${!isDone?`<div class="t-prio" style="background:${t.prioridad==='urgente'?'rgba(249,115,22,.12)':'rgba(217,119,6,.1)'};color:${t.prioridad==='urgente'?'var(--orange-deep)':'var(--warn)'}">${t.prioridad==='urgente'?'📦 Almacén':'🟡 Normal'}</div>`:'<div class="t-prio" style="background:rgba(22,163,74,.1);color:var(--ok)">✅ Hecha</div>'}
             </div>
           </div>
         </div>
@@ -9202,7 +9242,7 @@ function renderTareas() {
           ${t.descripcion?`<div class="t-desc">${escHT(t.descripcion.slice(0,80))}</div>`:''}
           <div class="t-foot">
             ${t.fecha?`<div class="t-fecha">📅 ${formatFechaTarea(t.fecha)}</div>`:''}
-            ${!isDone?`<div class="t-prio" style="background:${t.prioridad==='urgente'?'rgba(220,38,38,.1)':'rgba(217,119,6,.1)'};color:${t.prioridad==='urgente'?'var(--error)':'var(--warn)'}">${t.prioridad==='urgente'?'🔴 Urgente':'🟡 Normal'}</div>`:'<div class="t-prio" style="background:rgba(22,163,74,.1);color:var(--ok)">✅ Hecha</div>'}
+            ${!isDone?`<div class="t-prio" style="background:${t.prioridad==='urgente'?'rgba(249,115,22,.12)':'rgba(217,119,6,.1)'};color:${t.prioridad==='urgente'?'var(--orange-deep)':'var(--warn)'}">${t.prioridad==='urgente'?'📦 Almacén':'🟡 Normal'}</div>`:'<div class="t-prio" style="background:rgba(22,163,74,.1);color:var(--ok)">✅ Hecha</div>'}
             ${showHint&&!isDone?`<span class="t-hint">→ desliza para borrar</span>`:''}
           </div>
         </div>
@@ -9407,6 +9447,7 @@ function toggleTarea(id) {
   save(K_TAREAS, tareas);
   renderTareas();
   tareasToast(t.estado === 'hecha' ? '✅ Tarea completada' : '↩️ Marcada como pendiente');
+  checkAvisosMañana(); // actualizar banner Almacén si cambia el total
 }
 
 function eliminarTarea(id) {
@@ -9414,6 +9455,7 @@ function eliminarTarea(id) {
   save(K_TAREAS, tareas);
   renderTareas();
   tareasToast('🗑️ Tarea eliminada');
+  checkAvisosMañana(); // actualizar banner Almacén si cambia el total
 }
 
 /* ================================================================
@@ -9432,7 +9474,7 @@ function abrirDetalleTarea(id) {
     const pct = urgentes.length ? Math.round(hechasUrg/urgentes.length*100) : 0;
     const idx = urgentes.indexOf(t) + 1;
 
-    setText2T('det-badge', `🔴 Tarea urgente · ${idx} de ${urgentes.filter(u=>u.estado==='pendiente').length}`);
+    setText2T('det-badge', `📦 ALMACÉN · ${idx} de ${urgentes.filter(u=>u.estado==='pendiente').length}`);
     setText2T('det-titulo', t.titulo);
     setText2T('det-desc', t.descripcion || '');
     setText2T('prog-pct', pct + '%');
@@ -10229,23 +10271,96 @@ function programarNotificacion(titulo) {
 }
 
 function checkTareasHoy() {
-  const tareas  = loadArr(K_TAREAS);
-  const hoy     = new Date().toISOString().slice(0,10);
-  const urgHoy  = tareas.filter(t => t.prioridad==='urgente' && t.estado==='pendiente' && (!t.fecha || t.fecha <= hoy));
-  if (urgHoy.length > 0) {
-    // PARA REVERTIR: quitar este setTimeout para eliminar el aviso visual en pantalla
-    const n = urgHoy.length;
-    setTimeout(() => tareasToast('🔴 ' + n + ' tarea' + (n>1?'s':'') + ' urgente' + (n>1?'s':'') + ' pendiente' + (n>1?'s':''), 6000), 1500);
-    // Notificación nativa del sistema si hay permiso concedido
-    if ('Notification' in window && Notification.permission === 'granted') {
-      setTimeout(() => {
-        new Notification('PycLibreta — ' + n + ' tarea(s) urgentes', {
-          body: urgHoy.map(t => '• ' + t.titulo).join('\n')
-        });
-      }, 2000);
-    }
+  // Ya no se usa para toast — lo hace checkAvisoAlmacen con banner fijo
+}
+
+/* ================================================================
+   AVISOS MATUTINOS — Banner Almacén + Banner Eventos
+   PARA REVERTIR: eliminar desde aquí hasta el comentario de cierre
+   ================================================================ */
+const K_BAV_ALM_CERRADO = 'pyc_bav_alm_cerrado'; // clave: fecha ISO en que se cerró
+
+function _vibrar() {
+  try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch(e) {}
+}
+
+function _esFranjaAlmacen() {
+  const h = new Date();
+  const min = h.getHours() * 60 + h.getMinutes();
+  return min >= 7 * 60 && min < 7 * 60 + 30; // 07:00 – 07:30
+}
+
+function checkAvisoAlmacen() {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const cerradoHoy = localStorage.getItem(K_BAV_ALM_CERRADO) === hoy;
+  if (cerradoHoy) return;
+
+  const pendientes = loadArr(K_TAREAS).filter(t =>
+    t.prioridad === 'urgente' && t.estado === 'pendiente'
+  );
+  if (!pendientes.length) return;
+
+  const bav = document.getElementById('bav-almacen');
+  if (!bav) return;
+
+  const n = pendientes.length;
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setText('bav-alm-titulo', '📦 Almacén — ' + n + ' cosa' + (n > 1 ? 's' : '') + ' pendiente' + (n > 1 ? 's' : ''));
+  setText('bav-alm-sub', pendientes.map(t => t.titulo).join('  ·  ').slice(0, 80));
+
+  bav.style.display = 'flex';
+
+  if (_esFranjaAlmacen()) _vibrar();
+}
+
+function cerrarBavAlmacen() {
+  const bav = document.getElementById('bav-almacen');
+  if (bav) bav.style.display = 'none';
+  // Marcar como cerrado hoy para no volver a aparecer hasta mañana
+  localStorage.setItem(K_BAV_ALM_CERRADO, new Date().toISOString().slice(0, 10));
+}
+
+function checkAvisoEventosHoy() {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const eventos = loadArr(K_EVENTOS).filter(ev => {
+    const f = ev.fecha || '';
+    const ff = ev.fechaFin || '';
+    // Evento de un solo día o rango que incluye hoy
+    return f === hoy || (f <= hoy && ff >= hoy);
+  });
+  if (!eventos.length) return;
+
+  const bav = document.getElementById('bav-eventos');
+  if (!bav) return;
+
+  const n = eventos.length;
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setText('bav-ev-titulo', '📅 ' + n + ' evento' + (n > 1 ? 's' : '') + ' hoy');
+  setText('bav-ev-sub', eventos.map(ev => (ev.hora ? ev.hora + ' ' : '') + (ev.titulo || '')).join('  ·  ').slice(0, 80));
+
+  bav.style.display = 'flex';
+  _vibrar();
+}
+
+function cerrarBavEventos() {
+  const bav = document.getElementById('bav-eventos');
+  if (bav) bav.style.display = 'none';
+}
+
+function checkAvisosMañana() {
+  // Actualizar banner Almacén si hay cambios (tareas marcadas como hechas)
+  const hoy = new Date().toISOString().slice(0, 10);
+  const cerradoHoy = localStorage.getItem(K_BAV_ALM_CERRADO) === hoy;
+  if (!cerradoHoy) {
+    const pendientes = loadArr(K_TAREAS).filter(t =>
+      t.prioridad === 'urgente' && t.estado === 'pendiente'
+    );
+    const bav = document.getElementById('bav-almacen');
+    if (bav) bav.style.display = pendientes.length ? 'flex' : 'none';
   }
 }
+/* ── FIN AVISOS MATUTINOS ── */
+
 
 /* ================================================================
    HELPERS
@@ -10423,6 +10538,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ]);
   }
   irA('analisis');
+  // PARA REVERTIR: quitar las dos líneas siguientes
+  setTimeout(() => { checkAvisoAlmacen(); checkAvisoEventosHoy(); }, 1200);
   setTimeout(() => geocodificarPendientes().then(() => {
     const pend = loadArr(K_RUTA).filter(p => p.estado === 'pendiente');
     rellenarTiempos(pend);
