@@ -2392,6 +2392,18 @@ body { font-size: 14px; }
   margin-top: 28px; padding-top: 12px;
   border-top: 1.5px dashed rgba(26,39,68,.12);
 }
+/* Chips de etiqueta en modo edición */
+.it-etq-chip {
+  background: rgba(26,39,68,.07); color: var(--ink-mid);
+  border: 1px solid rgba(26,39,68,.15); border-radius: var(--r-pill);
+  padding: 3px 10px; font-size: 11px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: all .15s;
+}
+.it-etq-chip.act {
+  background: var(--purple-bg); color: var(--purple);
+  border-color: rgba(124,58,237,.35);
+}
 
 /* Campos en modo EDITAR */
 .it-edit-field {
@@ -2474,8 +2486,9 @@ body { font-size: 14px; }
           </svg></div>
         <span class="logo-txt">Pyc<em>Libreta</em></span>
       </div>
-      <div class="header-meta">
+      <div class="header-meta" style="display:flex;align-items:center;gap:8px">
         <span class="meta-date" id="fecha-hoy">—</span>
+        <button class="hdr-chat-btn" onclick="pycAbrirChat()" title="Asistente IA">💻</button>
       </div>
     </div>
   </div>
@@ -2584,22 +2597,61 @@ body { font-size: 14px; }
   <div class="module-wrap" id="mod-mto">
   <div class="mto-scroll" id="mto-scroll">
 
-    <!-- Stats -->
+    <!-- Stats — solo informativos, sin onclick -->
     <div class="stats-row">
-      <div class="stat-box stat-btn act" id="sbox-total" onclick="ciclarCliente()"><span class="stat-n" id="stat-total">—</span><span class="stat-l" id="lbl-cliente">Todos</span></div>
-      <div class="stat-box stat-btn" id="sbox-hechas" onclick="mtoFiltro==='hechas'?ciclarZona():setFiltro('hechas')"><span class="stat-n ok" id="stat-hechas">0</span><span class="stat-l" id="lbl-zona">Hechas</span></div>
-      <div class="stat-box stat-btn" id="sbox-pend" onclick="mtoFiltro==='pend'?ciclarRevision():setFiltro('pend')"><span class="stat-n warn" id="stat-pend">—</span><span class="stat-l" id="lbl-revision">Pendientes</span></div>
+      <div class="stat-box"><span class="stat-n" id="stat-total">—</span><span class="stat-l">Total</span></div>
+      <div class="stat-box"><span class="stat-n ok" id="stat-hechas">0</span><span class="stat-l">Hechas</span></div>
+      <div class="stat-box"><span class="stat-n warn" id="stat-pend">—</span><span class="stat-l">Pend.</span></div>
     </div>
 
-    <!-- PDF · Buscar · ⋮ -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <button onclick="abrirPdfFotos()" style="flex-shrink:0;background:var(--orange);color:white;border:none;border-radius:var(--r-pill);padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 10px rgba(249,115,22,.35)">📷 PDF</button>
+    <!-- Barra de filtros compacta — PARA REVERTIR: restaurar stats-row clicable y fila de botones original -->
+    <div style="display:flex;gap:6px;align-items:center">
+      <button onclick="abrirPdfFotos()" style="flex-shrink:0;background:var(--orange);color:white;border:none;border-radius:var(--r-pill);padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 3px 10px rgba(249,115,22,.35)">📷</button>
       <div class="busq-wrap" style="flex:1;margin:0">
         <span class="busq-ico">🔍</span>
         <input class="busq-input" id="mto-busq" type="text" placeholder="Buscar…" oninput="onBusq(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
         <button class="busq-clear" id="busq-clear" onclick="limpiarBusq()">✕</button>
       </div>
       <button class="fil-btn fil-more" id="mto-more-btn" onclick="toggleMtoMenu()" style="flex-shrink:0">⋮</button>
+    </div>
+
+    <!-- Selectores de filtro nativos -->
+    <div style="display:flex;gap:6px">
+      <select id="mto-sel-cliente" onchange="setCliente(this.value)"
+        style="flex:1;border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+               font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
+               background:white;outline:none;cursor:pointer;-webkit-appearance:none;
+               background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
+               background-repeat:no-repeat;background-position:right 8px center">
+        <option value="todos">👥 Todos</option>
+        <option value="bbva">🔵 BBVA</option>
+        <option value="caj">🟢 CAJAMAR</option>
+        <option value="repsol">🟠 Repsol</option>
+        <option value="otros">⚫ Otros</option>
+      </select>
+      <select id="mto-sel-zona" onchange="setZona(this.value)"
+        style="flex:1;border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+               font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
+               background:white;outline:none;cursor:pointer;-webkit-appearance:none;
+               background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
+               background-repeat:no-repeat;background-position:right 8px center">
+        <option value="todas">📍 Todas</option>
+      </select>
+      <select id="mto-sel-tipo" onchange="mtoSelTipo(this.value)"
+        style="flex:1;border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+               font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
+               background:white;outline:none;cursor:pointer;-webkit-appearance:none;
+               background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
+               background-repeat:no-repeat;background-position:right 8px center">
+        <option value="todos">🔧 Todos</option>
+        <option value="hechas">✅ Hechas</option>
+        <option value="pend">⏳ Pend.</option>
+        <option value="INT">🛡️ Anual</option>
+        <option value="Q1">🔥 PCI 1</option>
+        <option value="Q2">🔥 PCI 2</option>
+        <option value="Q3">🔥 PCI 3</option>
+        <option value="Q4">🔥 PCI 4</option>
+      </select>
     </div>
 
     <!-- Menú acciones ocasionales -->
@@ -2868,6 +2920,23 @@ body { font-size: 14px; }
           <div class="ci-list" id="ci-pend-list">
             <div style="text-align:center;padding:12px;color:var(--ink-xl);font-style:italic;font-size:12px">Sin pendientes</div>
           </div>
+
+          <!-- PARA REVERTIR: eliminar este bloque hasta el comentario de cierre -->
+          <div style="margin-top:8px;padding-top:8px;border-top:1.5px dashed rgba(26,39,68,.1)">
+            <button id="btn-cerrar-dia"
+              onclick="confirmarCerrarDia()"
+              style="width:100%;background:var(--navy);color:white;border:none;border-radius:var(--r-pill);
+                     padding:14px 20px;font-size:14px;font-weight:800;cursor:pointer;
+                     display:flex;align-items:center;justify-content:center;gap:8px;
+                     box-shadow:0 4px 16px rgba(26,39,68,.25);-webkit-tap-highlight-color:transparent">
+              🌙 Cerrar y limpiar día
+            </button>
+            <div style="text-align:center;font-family:var(--font-mono);font-size:9px;
+                        color:var(--ink-xl);margin-top:7px;letter-spacing:.04em">
+              Borra análisis y ruta · El historial queda guardado
+            </div>
+          </div>
+          <!-- FIN CERRAR DÍA -->
 
         </div>
       </div>
@@ -3153,10 +3222,29 @@ body { font-size: 14px; }
   <div class="modal-overlay" id="modal-limpiar" onclick="if(event.target===this)cerrarModal()">
     <div class="modal-box">
       <div class="modal-title">¿Limpiar el análisis?</div>
-      <div class="modal-desc">Se eliminarán todos los partes (<span id="modal-count">0</span>). Esta acción no se puede deshacer.</div>
+      <div class="modal-desc">Se eliminarán todos los partes (<span id="modal-count">0</span>). La ruta del día no se borra. Esta acción no se puede deshacer.</div>
       <div class="modal-btns">
         <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
-        <button class="btn-confirm-del" onclick="limpiarTodo()">🗑️ Limpiar todo</button>
+        <button class="btn-confirm-del" onclick="limpiarTodo()">🗑️ Limpiar análisis</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Cerrar día — PARA REVERTIR: eliminar este bloque -->
+  <div class="modal-overlay" id="modal-cerrar-dia" onclick="if(event.target===this)cerrarModalCerrarDia()">
+    <div class="modal-box">
+      <div class="modal-title">🌙 Cerrar día</div>
+      <div class="modal-desc" id="modal-cerrar-desc">
+        Se borrarán los partes de análisis y la ruta.<br>
+        <strong>El historial queda guardado.</strong>
+      </div>
+      <div id="modal-cerrar-resumen" style="background:var(--paper-warm);border-radius:var(--r-md);
+           padding:10px 14px;font-family:var(--font-mono);font-size:11px;color:var(--ink-mid);
+           line-height:1.8;margin-bottom:4px"></div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="cerrarModalCerrarDia()">Cancelar</button>
+        <button class="btn-confirm-del" style="background:var(--navy)"
+          onclick="ejecutarCerrarDia()">🌙 Cerrar día</button>
       </div>
     </div>
   </div>
@@ -4384,7 +4472,46 @@ function crearRuta() {
    ================================================================ */
 function confirmarLimpiar() { const n=cargarPartes().length; if(!n) return; setText('modal-count',n); document.getElementById('modal-limpiar').classList.add('visible'); }
 function cerrarModal()  { document.getElementById('modal-limpiar').classList.remove('visible'); }
-function limpiarTodo()  { guardarPartes([]); localStorage.removeItem(OTS_VISTOS_KEY); localStorage.removeItem('pyc_ruta_paradas'); cerrarModal(); if(modoSeleccion) toggleModoSeleccion(); renderizar(); }
+
+/* ── CERRAR DÍA — PARA REVERTIR: eliminar estas tres funciones ── */
+function confirmarCerrarDia() {
+  const partes  = cargarPartes();
+  const ruta    = loadArr('pyc_ruta_paradas');
+  const fin     = ruta.filter(r => r.estado === 'completada').length;
+  const pend    = ruta.filter(r => r.estado === 'pendiente').length;
+  const total   = partes.length;
+
+  const res = document.getElementById('modal-cerrar-resumen');
+  if (res) res.innerHTML =
+    `📋 Partes en análisis: <strong>${total}</strong>\n` +
+    `✅ Paradas completadas: <strong>${fin}</strong>\n` +
+    `⏳ Paradas pendientes:  <strong>${pend}</strong>`;
+
+  document.getElementById('modal-cerrar-dia').classList.add('visible');
+}
+function cerrarModalCerrarDia() {
+  document.getElementById('modal-cerrar-dia').classList.remove('visible');
+}
+function ejecutarCerrarDia() {
+  guardarPartes([]);
+  localStorage.removeItem(OTS_VISTOS_KEY);
+  localStorage.removeItem('pyc_ruta_paradas');
+  cerrarModalCerrarDia();
+  if (modoSeleccion) toggleModoSeleccion();
+  renderizar();
+  if (typeof renderLista === 'function') try { renderLista(); } catch(e) {}
+  tareasToast('🌙 Día cerrado · Historial guardado', 4000);
+}
+/* ── FIN CERRAR DÍA ── */
+function limpiarTodo()  {
+  // PARA REVERTIR: añadir localStorage.removeItem('pyc_ruta_paradas') aquí
+  // La ruta ya NO se borra — solo se limpia análisis
+  guardarPartes([]);
+  localStorage.removeItem(OTS_VISTOS_KEY);
+  cerrarModal();
+  if(modoSeleccion) toggleModoSeleccion();
+  renderizar();
+}
 function borrarParte(id,e) { if(e)e.stopPropagation(); guardarPartes(cargarPartes().filter(p=>p.id!==id)); renderizar(); }
 
 /* ================================================================
@@ -6791,25 +6918,26 @@ function _actualizarLabels() {
 }
 
 function ciclarCliente() {
-  const idx = _CLI_CICLO.indexOf(mtoCliente);
-  mtoCliente = _CLI_CICLO[(idx + 1) % _CLI_CICLO.length];
-  setFiltro('todos');
+  // Ya no se usa — sustituido por select nativo mto-sel-cliente
 }
-
 function ciclarZona() {
-  const zonas = ['todas'];
-  const sel = document.getElementById('fil-zona-sel');
-  if (sel) Array.from(sel.options).forEach(o => { if (o.value !== 'todas') zonas.push(o.value); });
-  const idx = zonas.indexOf(mtoZona);
-  mtoZona = zonas[(idx + 1) % zonas.length];
-  renderMTO();
+  // Ya no se usa — sustituido por select nativo mto-sel-zona
+}
+function ciclarRevision() {
+  // Ya no se usa — sustituido por select nativo mto-sel-tipo
 }
 
-function ciclarRevision() {
-  const idx = _TIPO_CICLO.indexOf(mtoTipo);
-  mtoTipo = _TIPO_CICLO[(idx + 1) % _TIPO_CICLO.length];
-  const sel = document.getElementById('fil-tipo-sel');
-  if (sel) sel.value = mtoTipo;
+// Nueva función: select tipo/filtro unificado
+// PARA REVERTIR: eliminar esta función y restaurar ciclarZona/ciclarRevision originales
+function mtoSelTipo(val) {
+  if (val === 'hechas' || val === 'pend' || val === 'todos') {
+    mtoFiltro = val;
+    mtoTipo   = 'todos';
+  } else {
+    // Tipo concreto (INT, Q1..Q4) → mostrar pendientes de ese tipo
+    mtoFiltro = 'pend';
+    mtoTipo   = val;
+  }
   renderMTO();
 }
 let _delKey     = null;    // key de la oficina a borrar
@@ -6935,14 +7063,15 @@ function popularZonas() {
     const na=parseInt(a), nb=parseInt(b);
     return (!isNaN(na)&&!isNaN(nb)) ? na-nb : a.localeCompare(b);
   });
-  const sel = document.getElementById('fil-zona-sel');
+  // PARA REVERTIR: cambiar 'mto-sel-zona' por 'fil-zona-sel'
+  const sel = document.getElementById('mto-sel-zona');
   if (!sel) return;
-  sel.innerHTML = '<option value="todas">Zona: Todas</option>';
+  sel.innerHTML = '<option value="todas">📍 Todas</option>';
   const zonaNames = {'1':'Valencia Ciudad','2':'Valencia Norte','3':'Valencia Oeste','4':'Valencia Sur','5':'Ribera·Safor','6':'Castellón','7':'Alicante','8':'Murcia','9':'Valencia Este'};
   zonas.forEach(z => {
     const opt = document.createElement('option');
     opt.value = z;
-    opt.textContent = z + (zonaNames[z] ? ' — ' + zonaNames[z] : '');
+    opt.textContent = '📍 ' + z + (zonaNames[z] ? ' ' + zonaNames[z] : '');
     sel.appendChild(opt);
   });
 }
@@ -6952,10 +7081,6 @@ function popularZonas() {
    ================================================================ */
 function setFiltro(f) {
   mtoFiltro = f;
-  ['sbox-total','sbox-hechas','sbox-pend'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove('act'); });
-  const smap = {todos:'sbox-total', hechas:'sbox-hechas', pend:'sbox-pend'};
-  if (smap[f]) { const el=document.getElementById(smap[f]); if(el) el.classList.add('act'); }
-  _actualizarLabels();
   renderMTO();
 }
 function setTipo(t) { mtoTipo = t; renderMTO(); }
@@ -8959,52 +9084,190 @@ function _renderItVer(item) {
     `<div class="ntag" style="background:rgba(124,58,237,.1);color:var(--purple)">${escH(t)}</div>`
   ).join('');
 
+  // ── Opción C: renderizado inteligente del detalle ──
+  // PARA REVERTIR: sustituir itDetalleHtml(item.detalle) por escH(item.detalle||'')
+  const detalleHtml = _itFormatDetalle(item.detalle || '');
+
   document.getElementById('it-content').innerHTML = `
     <div class="it-entidad">${escH(entidad)}</div>
     ${partes ? `<div class="it-meta-row">${escH(partes)}</div>` : ''}
     ${item.tipoDato ? `<div style="margin-bottom:14px"><span class="it-tipo-chip">${escH(item.tipoDato)}</span></div>` : ''}
-    <div class="it-detalle">${escH(item.detalle||'')}</div>
+    <div class="it-detalle-smart">${detalleHtml}</div>
     ${etqs ? `<div class="it-tags">${etqs}</div>` : ''}
   `;
 }
 
+/* ── Formateador inteligente del detalle ── */
+function _itFormatDetalle(txt) {
+  if (!txt) return '';
+  const lines = txt.split('\n');
+  let html = '';
+
+  // Patrones de detección automática
+  const PATRONES = [
+    { re:/^(IP|GATEWAY|GW|MASK|MÁSCARA|DNS|LAN|WAN|RED)[\s:]+(.+)/i,   ico:'🌐', color:'var(--cyan)'    },
+    { re:/^(C[OÓ]DIGO|CODE|PIN|CLAVE|KEY|ACCESO|ACCESS)[\s:]+(.+)/i,   ico:'🔑', color:'var(--orange)'  },
+    { re:/^(PASS(WORD)?|CONTRASEÑA|CONTRASE|PWD|PASSWORD)[\s:]+(.+)/i, ico:'🔒', color:'var(--error)'   },
+    { re:/^(USUARIO|USER|LOGIN|USR|ADMIN)[\s:]+(.+)/i,                  ico:'👤', color:'var(--ink-mid)' },
+    { re:/^(HORARIO|HORA|SCHEDULE|TURNO|APERTURA|CIERRE)[\s:]+(.+)/i,  ico:'🕐', color:'var(--ok)'      },
+    { re:/^(TF|TEL[EÉ]FONO?|PHONE|MÓVIL|MOVIL|CONTACTO)[\s:]+(.+)/i,  ico:'📞', color:'var(--navy)'    },
+    { re:/^(MAC|S\/N|SN|SERIE|SERIAL|NUM)[\s:]+(.+)/i,                  ico:'🖥️', color:'var(--ink-mid)' },
+    { re:/^(NOTA|OBS|OBSERVACI[OÓ]N|AVISO|NOTA)[\s:]+(.+)/i,           ico:'📝', color:'var(--warn)'    },
+    { re:/^([^:]{2,20}):\s*(.+)/,                                        ico:'•',  color:'var(--ink-mid)' }, // cualquier Label: valor
+  ];
+
+  // Patrones inline para texto libre
+  const IP_RE   = /\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g;
+  const PIN_RE  = /\b(\d{4,6})\b/g;
+  const MAC_RE  = /\b([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}\b/g;
+
+  const copyBtn = (val) =>
+    `<button onclick="event.stopPropagation();_itCopiar(this,'${escH(val).replace(/'/g,'&#39;')}')"
+      style="margin-left:6px;background:rgba(26,39,68,.08);border:none;border-radius:4px;
+             padding:1px 7px;font-size:10px;cursor:pointer;color:var(--ink-mid);
+             font-family:var(--font-mono);-webkit-tap-highlight-color:transparent">📋</button>`;
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) { html += '<div style="height:8px"></div>'; return; }
+
+    // Intentar match estructurado
+    let matched = false;
+    for (const p of PATRONES) {
+      const m = trimmed.match(p.re);
+      if (m) {
+        const label = m[1];
+        const valor = m[2].trim();
+        html += `
+          <div style="display:flex;align-items:baseline;gap:8px;padding:5px 0;
+                      border-bottom:1px solid rgba(26,39,68,.05)">
+            <span style="font-size:14px;flex-shrink:0">${p.ico}</span>
+            <span style="font-family:var(--font-mono);font-size:9px;color:var(--ink-xl);
+                         text-transform:uppercase;letter-spacing:.06em;min-width:60px;flex-shrink:0">${escH(label)}</span>
+            <span style="font-size:13px;font-weight:700;color:${p.color};
+                         word-break:break-all;flex:1">${escH(valor)}</span>
+            ${copyBtn(valor)}
+          </div>`;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      // Texto libre — resaltar IPs, PINs, MACs inline
+      let lineHtml = escH(trimmed)
+        .replace(IP_RE.source ? new RegExp(IP_RE.source,'g') : IP_RE, m =>
+          `<span style="background:rgba(2,132,199,.1);color:var(--cyan);border-radius:3px;
+                         padding:0 4px;font-family:var(--font-mono);font-size:12px;font-weight:700">${m}</span>`)
+        .replace(/\b(\d{4,6})\b/g, (m,p1) =>
+          `<span style="background:rgba(249,115,22,.1);color:var(--orange-deep);border-radius:3px;
+                         padding:0 4px;font-family:var(--font-mono);font-size:12px;font-weight:700">${p1}</span>`);
+      html += `<div style="font-size:14px;line-height:28px;color:var(--ink-dark)">${lineHtml}</div>`;
+    }
+  });
+
+  return html || `<div style="color:var(--ink-xl);font-style:italic">Sin información</div>`;
+}
+
+function _itCopiar(btn, txt) {
+  navigator.clipboard.writeText(txt).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓';
+    btn.style.color = 'var(--ok)';
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+  }).catch(() => buscarToast('⚠️ No se pudo copiar'));
+}
+
 function _renderItEdit(item) {
   document.getElementById('it-nav-titulo').textContent = 'Editando…';
+
+  // Etiquetas disponibles para sugerencias
+  const etqsDisp = typeof getEtiquetas === 'function' ? getEtiquetas().slice(0,12) : [];
+  const etqsAct  = new Set(item.etiquetas || []);
+  const etqChips = etqsDisp.map(t =>
+    `<div class="it-etq-chip ${etqsAct.has(t)?'act':''}" onclick="_itToggleEtq(this,'${escH(t)}')">${escH(t)}</div>`
+  ).join('');
+
   document.getElementById('it-content').innerHTML = `
     <label class="it-edit-label">Entidad</label>
     <input class="it-edit-field it-edit-entidad" id="ite-entidad" value="${escH(item.entidad||'')}" placeholder="BBVA, CAJAMAR…" autocomplete="off">
 
-    <label class="it-edit-label">Código</label>
-    <input class="it-edit-field" id="ite-codigo" value="${escH(item.codigo||'')}" placeholder="0577…" autocomplete="off">
-
-    <label class="it-edit-label">Población</label>
-    <input class="it-edit-field" id="ite-poblacion" value="${escH(item.poblacion||'')}" placeholder="Valencia…" autocomplete="off">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
+      <div>
+        <label class="it-edit-label">Código</label>
+        <input class="it-edit-field" id="ite-codigo" value="${escH(item.codigo||'')}" placeholder="0577…" autocomplete="off">
+      </div>
+      <div>
+        <label class="it-edit-label">Población</label>
+        <input class="it-edit-field" id="ite-poblacion" value="${escH(item.poblacion||'')}" placeholder="Valencia…" autocomplete="off">
+      </div>
+    </div>
 
     <label class="it-edit-label">Sistema</label>
-    <input class="it-edit-field" id="ite-sistema" value="${escH(item.sistema||'')}" placeholder="Spider Pro…" autocomplete="off">
+    <input class="it-edit-field" id="ite-sistema" value="${escH(item.sistema||'')}" placeholder="Spider Pro, Galaxy…" autocomplete="off">
 
     <label class="it-edit-label">Tipo de dato</label>
-    <input class="it-edit-field" id="ite-tipodato" value="${escH(item.tipoDato||'')}" placeholder="Código acceso, IP…" autocomplete="off">
+    <select class="it-edit-field" id="ite-tipodato"
+      style="cursor:pointer;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');background-repeat:no-repeat;background-position:right 2px center">
+      ${['','🔑 Código acceso','🌐 IP / Red','🔒 Contraseña','🕐 Horario','🗝️ Llaves / Portal','📞 Contacto','📋 Protocolo','📝 Notas generales']
+        .map(v => `<option value="${v}" ${(item.tipoDato||''===v)?'selected':''}>${v||'— Selecciona tipo —'}</option>`).join('')}
+    </select>
 
-    <label class="it-edit-label">Información / Detalle</label>
+    <label class="it-edit-label">Información · usa "Clave: valor" para mejor presentación</label>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+      ${['IP:','Gateway:','Código:','Pass:','Usuario:','Horario:','Tel:','MAC:','Nota:'].map(p=>
+        `<button onclick="_itInsertar('ite-detalle','${p} ')"
+          style="background:rgba(249,115,22,.1);color:var(--orange-deep);border:1px solid rgba(249,115,22,.3);
+                 border-radius:var(--r-pill);padding:3px 10px;font-size:11px;font-weight:700;
+                 cursor:pointer;font-family:var(--font-mono);-webkit-tap-highlight-color:transparent">${p}</button>`
+      ).join('')}
+    </div>
     <textarea class="it-edit-field it-edit-detalle" id="ite-detalle">${escH(item.detalle||'')}</textarea>
 
-    <label class="it-edit-label">Etiquetas (separadas por espacio)</label>
-    <input class="it-edit-field" id="ite-etiquetas" value="${escH((item.etiquetas||[]).join(' '))}" placeholder="#PCI #BBVA…" autocomplete="off">
+    <label class="it-edit-label">Etiquetas</label>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px" id="it-etq-chips">
+      ${etqChips}
+    </div>
+    <input class="it-edit-field" id="ite-etiquetas" value="${escH((item.etiquetas||[]).join(' '))}"
+      placeholder="#PCI #BBVA… (o toca los chips)" autocomplete="off"
+      style="font-size:11px">
 
     <button class="it-save-btn" onclick="guardarEdicionInfoTec()">💾 Guardar cambios</button>
   `;
+
   setTimeout(() => {
     const ta = document.getElementById('ite-detalle');
     if (ta) {
       const grow = () => { ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; };
       grow();
       ta.addEventListener('input', grow);
-      ta.focus();
     } else {
       document.getElementById('ite-entidad')?.focus();
     }
   }, 100);
+}
+
+function _itInsertar(id, txt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const s = el.selectionStart, e = el.selectionEnd;
+  const val = el.value;
+  // Añadir en nueva línea si hay contenido
+  const prefix = val && !val.endsWith('\n') ? '\n' : '';
+  el.value = val.slice(0,s) + prefix + txt + val.slice(e);
+  el.selectionStart = el.selectionEnd = s + prefix.length + txt.length;
+  el.focus();
+  el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
+}
+
+function _itToggleEtq(chip, etq) {
+  chip.classList.toggle('act');
+  // Actualizar el campo de texto de etiquetas
+  const input = document.getElementById('ite-etiquetas');
+  if (!input) return;
+  const actuales = new Set(input.value.trim().split(/\s+/).filter(Boolean));
+  if (chip.classList.contains('act')) actuales.add(etq);
+  else actuales.delete(etq);
+  input.value = [...actuales].join(' ');
 }
 
 function toggleEditInfoTec() {
@@ -9462,60 +9725,9 @@ function eliminarTarea(id) {
    DETALLE URGENTE
    ================================================================ */
 function abrirDetalleTarea(id) {
-  const tareas = loadArr(K_TAREAS);
-  const t = tareas.find(t => t.id === id);
-  if (!t) return;
-  _detTareaId = id;
-
-  // Si es urgente → detalle
-  if (t.prioridad === 'urgente' && t.estado === 'pendiente') {
-    const urgentes = tareas.filter(u => u.prioridad === 'urgente');
-    const hechasUrg = urgentes.filter(u => u.estado === 'hecha').length;
-    const pct = urgentes.length ? Math.round(hechasUrg/urgentes.length*100) : 0;
-    const idx = urgentes.indexOf(t) + 1;
-
-    setText2T('det-badge', `📦 ALMACÉN · ${idx} de ${urgentes.filter(u=>u.estado==='pendiente').length}`);
-    setText2T('det-titulo', t.titulo);
-    setText2T('det-desc', t.descripcion || '');
-    setText2T('prog-pct', pct + '%');
-    setText2T('prog-sub', hechasUrg + ' de ' + urgentes.length + ' tareas urgentes hechas');
-    setText2T('det-chips', '');
-
-    const chips = document.getElementById('det-chips');
-    if (chips) {
-      chips.innerHTML = [
-        t.fecha ? `<div class="det-chip">📅 ${formatFechaTarea(t.fecha)}</div>` : '',
-        t.etiquetas ? `<div class="det-chip">${escHT(t.etiquetas)}</div>` : ''
-      ].join('');
-    }
-
-    // Anillo progreso
-    const fill = document.getElementById('pr-fill');
-    if (fill) {
-      const circ = 147;
-      fill.style.strokeDashoffset = circ - (circ * pct / 100);
-    }
-
-    // Restantes
-    const restantes = tareas.filter(u => u.id !== id && u.estado === 'pendiente').slice(0,3);
-    const rWrap = document.getElementById('det-restantes-wrap');
-    if (rWrap) {
-      if (restantes.length) {
-        const bgPrioMap = { urgente:'var(--error)', normal:'var(--warn)' };
-        rWrap.innerHTML = `<div class="sec-hdr" style="margin-top:4px">Otras pendientes</div>` +
-          restantes.map(r => `<div class="tarea" style="margin-bottom:6px">
-            <div class="t-bar" style="background:${bgPrioMap[r.prioridad]||'var(--warn)'}"></div>
-            <div class="t-body"><div class="t-titulo">${escHT(r.titulo)}</div>
-            ${r.descripcion?`<div class="t-desc">${escHT(r.descripcion.slice(0,60))}</div>`:''}
-            <div class="t-foot">${r.fecha?`<div class="t-fecha">📅 ${formatFechaTarea(r.fecha)}</div>`:''}</div></div>
-          </div>`).join('');
-      } else {
-        rWrap.innerHTML = '';
-      }
-    }
-
-    document.getElementById('det-overlay').classList.add('open');
-  }
+  // PARA REVERTIR: descomentar el bloque de abajo y borrar el return
+  // Las tareas Almacén ahora se gestionan igual que las normales (check + swipe)
+  return;
 }
 
 function verUrgentes() {
@@ -10551,6 +10763,403 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 </script>
+
+<!-- ══════════════════════════════════════════════════════════════
+     🤖 ASISTENTE IA — PycChat
+     PARA REVERTIR: eliminar este bloque completo hasta el comentario de cierre
+     ══════════════════════════════════════════════════════════════ -->
+<style>
+/* ── Botón chat en header (sustituye al FAB flotante) ── */
+.hdr-chat-btn {
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
+  border-radius: 10px; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; cursor: pointer; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent; transition: background .15s;
+}
+.hdr-chat-btn:active { background: rgba(255,255,255,.2); }
+
+/* ── Panel / bottom sheet ── */
+.pyc-overlay {
+  position: fixed; inset: 0; background: rgba(10,18,35,.55);
+  z-index: 150; opacity: 0; pointer-events: none; transition: opacity .22s;
+}
+.pyc-overlay.open { opacity: 1; pointer-events: all; }
+
+.pyc-panel {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
+  width: 100%; max-width: 480px; z-index: 160;
+  background: var(--paper); border-radius: 22px 22px 0 0;
+  box-shadow: 0 -8px 40px rgba(10,18,35,.25);
+  display: flex; flex-direction: column;
+  max-height: 82dvh; transition: transform .3s cubic-bezier(.4,0,.2,1);
+}
+.pyc-panel.open { transform: translateX(-50%) translateY(0); }
+
+/* Cabecera panel */
+.pyc-hdr {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px 10px; flex-shrink: 0;
+  border-bottom: 1px solid rgba(26,39,68,.07);
+}
+.pyc-hdr-ico { font-size: 22px; }
+.pyc-hdr-txt { flex: 1; }
+.pyc-hdr-title { font-size: 15px; font-weight: 900; color: var(--navy); }
+.pyc-hdr-sub { font-family: var(--font-mono); font-size: 9px; color: var(--ink-xl); letter-spacing: .05em; margin-top: 1px; }
+.pyc-close {
+  background: rgba(26,39,68,.07); border: none; border-radius: 50%;
+  width: 30px; height: 30px; font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mensajes */
+.pyc-msgs {
+  flex: 1; overflow-y: auto; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.pyc-msg { display: flex; gap: 8px; align-items: flex-end; }
+.pyc-msg.user { flex-direction: row-reverse; }
+.pyc-bubble {
+  max-width: 78%; padding: 10px 13px; border-radius: 16px;
+  font-size: 13px; line-height: 1.5; color: var(--ink-dark);
+}
+.pyc-msg.ai   .pyc-bubble { background: white; border: 1px solid rgba(26,39,68,.1); border-bottom-left-radius: 4px; }
+.pyc-msg.user .pyc-bubble { background: var(--navy); color: white; border-bottom-right-radius: 4px; }
+.pyc-bubble.thinking { color: var(--ink-xl); font-style: italic; }
+.pyc-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display:flex; align-items:center; justify-content:center; font-size:14px; }
+.pyc-msg.ai   .pyc-avatar { background: linear-gradient(135deg,var(--navy),var(--navy-mid)); }
+.pyc-msg.user .pyc-avatar { background: var(--orange); }
+
+/* Config key */
+.pyc-key-box {
+  margin: 6px 14px; background: rgba(249,115,22,.07);
+  border: 1.5px dashed rgba(249,115,22,.35); border-radius: 12px;
+  padding: 12px; display: flex; flex-direction: column; gap: 8px;
+}
+.pyc-key-lbl { font-size: 12px; font-weight: 700; color: var(--orange-deep); }
+.pyc-key-desc { font-size: 11px; color: var(--ink-mid); line-height: 1.4; }
+.pyc-key-row { display: flex; gap: 8px; }
+.pyc-key-input {
+  flex: 1; border: 1.5px solid rgba(26,39,68,.15); border-radius: 8px;
+  padding: 8px 10px; font-family: var(--font-mono); font-size: 11px;
+  background: white; outline: none; color: var(--ink-dark);
+}
+.pyc-key-input:focus { border-color: var(--orange); }
+.pyc-key-save {
+  background: var(--orange); color: white; border: none;
+  border-radius: 8px; padding: 8px 14px; font-size: 12px;
+  font-weight: 700; cursor: pointer; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Input area */
+.pyc-input-area {
+  display: flex; gap: 8px; align-items: flex-end;
+  padding: 10px 14px 28px; flex-shrink: 0;
+  border-top: 1px solid rgba(26,39,68,.07);
+}
+.pyc-textarea {
+  flex: 1; border: 1.5px solid rgba(26,39,68,.12); border-radius: 20px;
+  padding: 9px 14px; font-family: var(--font-ui); font-size: 13px;
+  resize: none; outline: none; background: white; line-height: 1.4;
+  max-height: 80px; overflow-y: auto; color: var(--ink-dark);
+  -webkit-appearance: none;
+}
+.pyc-textarea:focus { border-color: var(--orange); }
+.pyc-mic {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(26,39,68,.08); border: none; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background .15s;
+}
+.pyc-mic.active { background: #dc2626; animation: micPulse .8s ease-in-out infinite; }
+@keyframes micPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
+.pyc-send {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  background: var(--orange); border: none; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 3px 10px rgba(249,115,22,.35); transition: all .15s;
+}
+.pyc-send:disabled { background: var(--ink-xl); box-shadow: none; }
+.pyc-send:active { transform: scale(.93); }
+</style>
+
+<!-- Overlay oscuro -->
+<div class="pyc-overlay" id="pyc-overlay" onclick="pycCerrarChat()"></div>
+
+<!-- Panel chat -->
+<div class="pyc-panel" id="pyc-panel">
+  <div class="pyc-hdr">
+    <div class="pyc-hdr-ico">🤖</div>
+    <div class="pyc-hdr-txt">
+      <div class="pyc-hdr-title">Asistente PycLibreta</div>
+      <div class="pyc-hdr-sub" id="pyc-status">Listo · Gemini AI</div>
+    </div>
+    <button class="pyc-close" onclick="pycCerrarChat()">✕</button>
+  </div>
+
+  <!-- Configurar API key (se muestra hasta que hay key) -->
+  <div class="pyc-key-box" id="pyc-key-box" style="display:none">
+    <div class="pyc-key-lbl">🔑 Configura tu API key de Google</div>
+    <div class="pyc-key-desc">Obtén tu key gratis en <strong>aistudio.google.com</strong> → Get API key. Se guarda solo en tu móvil.</div>
+    <div class="pyc-key-row">
+      <input class="pyc-key-input" id="pyc-key-input" type="password" placeholder="AIza..." autocomplete="off">
+      <button class="pyc-key-save" onclick="pycGuardarKey()">Guardar</button>
+    </div>
+  </div>
+
+  <div class="pyc-msgs" id="pyc-msgs"></div>
+
+  <div class="pyc-input-area">
+    <textarea class="pyc-textarea" id="pyc-ta" rows="1"
+      placeholder="Escribe o pulsa el micrófono…"
+      oninput="pycAutoResize(this)"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();pycEnviar()}"
+    ></textarea>
+    <button class="pyc-mic" id="pyc-mic" onclick="pycToggleVoz()" title="Voz">🎙️</button>
+    <button class="pyc-send" id="pyc-send" onclick="pycEnviar()">➤</button>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   🤖 PYCCHAT — Asistente IA con Gemini
+   PARA REVERTIR: eliminar este bloque <script> completo
+   ================================================================ */
+'use strict';
+
+const PYC_KEY_STORE  = 'pyc_gemini_key';
+const PYC_HIST_MAX   = 8; // máx. mensajes que se envían a Gemini como contexto
+let _pycHist         = []; // { role:'user'|'model', text }
+let _pycRecognition  = null;
+let _pycHablando     = false;
+let _pycThinking     = false;
+
+/* ── Abrir / cerrar ── */
+function pycAbrirChat() {
+  document.getElementById('pyc-overlay').classList.add('open');
+  document.getElementById('pyc-panel').classList.add('open');
+  pycCheckKey();
+  if (!_pycHist.length) pycMsgIA('Hola 👋 Soy tu asistente. Pregúntame sobre tus tareas, ruta, avisos o eventos. También puedo añadir cosas al Almacén.');
+  setTimeout(() => document.getElementById('pyc-ta').focus(), 350);
+}
+
+function pycCerrarChat() {
+  document.getElementById('pyc-overlay').classList.remove('open');
+  document.getElementById('pyc-panel').classList.remove('open');
+  pycPararVoz();
+}
+
+/* ── API Key ── */
+function pycGetKey()  { return localStorage.getItem(PYC_KEY_STORE) || ''; }
+function pycCheckKey() {
+  const box = document.getElementById('pyc-key-box');
+  if (box) box.style.display = pycGetKey() ? 'none' : 'flex';
+}
+function pycGuardarKey() {
+  const v = document.getElementById('pyc-key-input').value.trim();
+  if (!v) return;
+  localStorage.setItem(PYC_KEY_STORE, v);
+  pycCheckKey();
+  pycMsgIA('✅ Key guardada. Ya puedo conectarme a Gemini. ¿En qué te ayudo?');
+}
+
+/* ── Mensajes ── */
+function pycMsgIA(txt, thinking=false) {
+  _pycHist.push({ role:'model', text: txt });
+  pycRenderMsgs();
+  if (!thinking && txt && !txt.startsWith('✅')) pycHablar(txt);
+}
+function pycMsgUser(txt) {
+  _pycHist.push({ role:'user', text: txt });
+  pycRenderMsgs();
+}
+
+function pycRenderMsgs() {
+  const el = document.getElementById('pyc-msgs');
+  if (!el) return;
+  el.innerHTML = _pycHist.map(m => `
+    <div class="pyc-msg ${m.role==='user'?'user':'ai'}">
+      <div class="pyc-avatar">${m.role==='user'?'👤':'🤖'}</div>
+      <div class="pyc-bubble${m.thinking?' thinking':''}">${m.text.replace(/\n/g,'<br>')}</div>
+    </div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ── Recoger estado de la app ── */
+function pycContexto() {
+  const hoy = new Date().toISOString().slice(0,10);
+  const tareas   = (() => { try { return JSON.parse(localStorage.getItem('pyc_tareas')||'[]'); } catch{return[];} })();
+  const notas    = (() => { try { return JSON.parse(localStorage.getItem('pyc_notas')||'[]'); } catch{return[];} })();
+  const eventos  = (() => { try { return JSON.parse(localStorage.getItem('pyc_eventos')||'[]'); } catch{return[];} })();
+  const ruta     = (() => { try { return JSON.parse(localStorage.getItem('pyc_ruta_paradas')||'[]'); } catch{return[];} })();
+
+  const tPend    = tareas.filter(t=>t.estado==='pendiente');
+  const tAlmacen = tPend.filter(t=>t.prioridad==='urgente');
+  const tNormal  = tPend.filter(t=>t.prioridad!=='urgente');
+  const tHoy     = tPend.filter(t=>t.fecha===hoy);
+  const evHoy    = eventos.filter(ev=>ev.fecha===hoy||(ev.fecha<=hoy&&(ev.fechaFin||'')>=hoy));
+  const rutaPend = ruta.filter(r=>r.estado==='pendiente');
+
+  return `ESTADO ACTUAL DE LA APP (hoy: ${hoy}):
+
+ALMACÉN (tareas prioritarias): ${tAlmacen.length} pendiente(s)
+${tAlmacen.map(t=>`  - ${t.titulo}${t.descripcion?' ('+t.descripcion+')':''}`).join('\n')||'  (ninguna)'}
+
+TAREAS NORMALES: ${tNormal.length} pendiente(s)
+${tNormal.map(t=>`  - ${t.titulo}${t.fecha?' · '+t.fecha:''}`).join('\n')||'  (ninguna)'}
+
+TAREAS DE HOY: ${tHoy.length}
+${tHoy.map(t=>`  - ${t.titulo}`).join('\n')||'  (ninguna)'}
+
+EVENTOS DE HOY: ${evHoy.length}
+${evHoy.map(ev=>`  - ${ev.titulo}${ev.hora?' a las '+ev.hora:''}`).join('\n')||'  (ninguno)'}
+
+RUTA PENDIENTE: ${rutaPend.length} aviso(s)
+${rutaPend.slice(0,5).map(r=>`  - ${r.cliente||''} · ${r.localidad||''} · ${r.trabajo||''}`).join('\n')||'  (ninguno)'}
+
+NOTAS GUARDADAS: ${notas.length}
+${notas.slice(0,3).map(n=>`  - ${n.titulo}`).join('\n')||'  (ninguna)'}`;
+}
+
+/* ── Llamada a Gemini ── */
+async function pycGemini(userMsg) {
+  const key = pycGetKey();
+  if (!key) {
+    pycMsgIA('⚠️ Primero configura tu API key de Google Gemini arriba.');
+    return;
+  }
+
+  const sistemPrompt = `Eres el asistente personal integrado en PycLibreta, una app de gestión diaria para un técnico de campo de seguridad (alarmas, CCTV, PCI). 
+Recibirás el estado actual de la app y las preguntas del usuario.
+Responde SIEMPRE en español, de forma breve y directa (máx 3-4 frases). 
+Usa los datos reales que te proporciono. No inventes datos.
+Si el usuario quiere añadir o modificar algo, confírmalo claramente.
+No uses markdown, asteriscos ni formato — solo texto plano.`;
+
+  const contexto = pycContexto();
+  const mensajes = _pycHist
+    .filter(m=>!m.thinking)
+    .slice(-PYC_HIST_MAX)
+    .map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+
+  // Añadir contexto al último mensaje del usuario
+  const ultimoIdx = [...mensajes].reverse().findIndex(m=>m.role==='user');
+  if (ultimoIdx >= 0) {
+    const idx = mensajes.length - 1 - ultimoIdx;
+    mensajes[idx].parts[0].text = contexto + '\n\nPREGUNTA DEL USUARIO: ' + mensajes[idx].parts[0].text;
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  const body = {
+    system_instruction: { parts: [{ text: sistemPrompt }] },
+    contents: mensajes
+  };
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(()=>({}));
+    throw new Error(err?.error?.message || 'Error ' + resp.status);
+  }
+
+  const data = await resp.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || '(Sin respuesta)';
+}
+
+/* ── Enviar mensaje ── */
+async function pycEnviar() {
+  if (_pycThinking) return;
+  const ta = document.getElementById('pyc-ta');
+  const txt = (ta.value || '').trim();
+  if (!txt) return;
+
+  ta.value = '';
+  pycAutoResize(ta);
+  pycMsgUser(txt);
+  _pycThinking = true;
+
+  // Indicador "pensando"
+  _pycHist.push({ role:'model', text:'⏳ Pensando…', thinking:true });
+  pycRenderMsgs();
+
+  try {
+    const respuesta = await pycGemini(txt);
+    // Quitar indicador thinking
+    _pycHist = _pycHist.filter(m=>!m.thinking);
+    pycMsgIA(respuesta);
+  } catch(e) {
+    _pycHist = _pycHist.filter(m=>!m.thinking);
+    pycMsgIA('⚠️ Error al conectar con Gemini: ' + e.message);
+  } finally {
+    _pycThinking = false;
+  }
+}
+
+/* ── Voz → texto (Web Speech API) ── */
+function pycToggleVoz() {
+  if (_pycRecognition) { pycPararVoz(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('Tu navegador no soporta reconocimiento de voz. Usa Chrome en Android.'); return; }
+
+  const rec = new SR();
+  rec.lang = 'es-ES';
+  rec.continuous = false;
+  rec.interimResults = false;
+
+  rec.onstart = () => {
+    _pycRecognition = rec;
+    document.getElementById('pyc-mic').classList.add('active');
+    document.getElementById('pyc-status').textContent = '🎙️ Escuchando…';
+  };
+  rec.onresult = e => {
+    const txt = e.results[0][0].transcript;
+    document.getElementById('pyc-ta').value = txt;
+    pycAutoResize(document.getElementById('pyc-ta'));
+    pycPararVoz();
+    pycEnviar();
+  };
+  rec.onerror = () => pycPararVoz();
+  rec.onend   = () => pycPararVoz();
+  rec.start();
+}
+
+function pycPararVoz() {
+  if (_pycRecognition) { try { _pycRecognition.stop(); } catch(e){} _pycRecognition = null; }
+  const mic = document.getElementById('pyc-mic');
+  const st  = document.getElementById('pyc-status');
+  if (mic) mic.classList.remove('active');
+  if (st)  st.textContent = 'Listo · Gemini AI';
+}
+
+/* ── Texto → voz (Web Speech Synthesis) ── */
+function pycHablar(txt) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  // Limitar a las primeras 200 chars para no leer párrafos enteros
+  const u = new SpeechSynthesisUtterance(txt.slice(0,200));
+  u.lang = 'es-ES'; u.rate = 1.05; u.pitch = 1;
+  _pycHablando = true;
+  u.onend = () => { _pycHablando = false; };
+  window.speechSynthesis.speak(u);
+}
+
+/* ── Helpers ── */
+function pycAutoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 80) + 'px';
+}
+/* ── FIN PYCCHAT ── */
+</script>
+<!-- ── FIN ASISTENTE IA ── -->
 
 <!-- ── PWA: Service Worker ── -->
 <script>
