@@ -11095,7 +11095,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="pyc-hdr-ico">💻</div>
     <div class="pyc-hdr-txt">
       <div class="pyc-hdr-title"><em>Iram</em></div>
-      <div class="pyc-hdr-sub"><div class="pyc-hdr-dot"></div><span id="pyc-status">Listo · Gemini AI</span></div>
+      <div class="pyc-hdr-sub"><div class="pyc-hdr-dot"></div><span id="pyc-status">Listo · Gemini 2.5</span></div>
     </div>
     <button class="pyc-close" onclick="pycCerrarChat()">✕</button>
   </div>
@@ -11252,7 +11252,7 @@ No uses markdown, asteriscos ni formato — solo texto plano.`;
     mensajes[idx].parts[0].text = contexto + '\n\nPREGUNTA DEL USUARIO: ' + mensajes[idx].parts[0].text;
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=${key}`;
   const body = {
     system_instruction: { parts: [{ text: sistemPrompt }] },
     contents: mensajes
@@ -11335,7 +11335,7 @@ function pycPararVoz() {
   const mic = document.getElementById('pyc-mic');
   const st  = document.getElementById('pyc-status');
   if (mic) mic.classList.remove('active');
-  if (st)  st.textContent = 'Listo · Gemini AI';}
+  if (st)  st.textContent = 'Listo · Gemini 2.5';}
 
 /* ── Texto → voz (Web Speech Synthesis) ── */
 function pycHablar(txt) {
