@@ -2615,10 +2615,10 @@ body { font-size: 14px; }
       <button class="fil-btn fil-more" id="mto-more-btn" onclick="toggleMtoMenu()" style="flex-shrink:0">⋮</button>
     </div>
 
-    <!-- Selectores de filtro nativos -->
-    <div style="display:flex;gap:6px">
+    <!-- Selectores de filtro — dos filas, Estado y Tipo separados PARA REVERTIR: volver a un solo select mto-sel-tipo -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
       <select id="mto-sel-cliente" onchange="setCliente(this.value)"
-        style="flex:1;border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+        style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
                font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
                background:white;outline:none;cursor:pointer;-webkit-appearance:none;
                background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
@@ -2630,22 +2630,30 @@ body { font-size: 14px; }
         <option value="otros">⚫ Otros</option>
       </select>
       <select id="mto-sel-zona" onchange="setZona(this.value)"
-        style="flex:1;border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+        style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
                font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
                background:white;outline:none;cursor:pointer;-webkit-appearance:none;
                background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
                background-repeat:no-repeat;background-position:right 8px center">
         <option value="todas">📍 Todas</option>
       </select>
-      <select id="mto-sel-tipo" onchange="mtoSelTipo(this.value)"
-        style="flex:1;border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+      <select id="mto-sel-estado" onchange="mtoSelEstado(this.value)"
+        style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+               font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
+               background:white;outline:none;cursor:pointer;-webkit-appearance:none;
+               background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
+               background-repeat:no-repeat;background-position:right 8px center">
+        <option value="todos">📋 Todos</option>
+        <option value="hechas">✅ Hechas</option>
+        <option value="pend">⏳ Pendientes</option>
+      </select>
+      <select id="mto-sel-tipo" onchange="mtoSelTipoPuro(this.value)"
+        style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
                font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
                background:white;outline:none;cursor:pointer;-webkit-appearance:none;
                background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
                background-repeat:no-repeat;background-position:right 8px center">
         <option value="todos">🔧 Todos</option>
-        <option value="hechas">✅ Hechas</option>
-        <option value="pend">⏳ Pend.</option>
         <option value="INT">🛡️ Anual</option>
         <option value="Q1">🔥 PCI 1</option>
         <option value="Q2">🔥 PCI 2</option>
@@ -2762,22 +2770,16 @@ body { font-size: 14px; }
               </div>
             </div>
 
-            <!-- Tipo de dato — chips fijos -->
+            <!-- Tipo de dato — chips editables PARA REVERTIR: poner chips hardcodeados -->
             <div>
-              <span class="fl">Tipo de dato</span>
-              <div class="tipo-chips" id="tipo-chips">
-                <div class="tc" onclick="selTipo(this,'Código acceso')">Código acceso</div>
-                <div class="tc" onclick="selTipo(this,'IP / Red')">IP / Red</div>
-                <div class="tc" onclick="selTipo(this,'Programación')">Programación</div>
-                <div class="tc" onclick="selTipo(this,'Horario')">Horario</div>
-                <div class="tc" onclick="selTipo(this,'Baterías')">Baterías</div>
-                <div class="tc" onclick="selTipo(this,'Llaves')">Llaves</div>
-                <div class="tc" onclick="selTipo(this,'CCTV')">CCTV</div>
-                <div class="tc" onclick="selTipo(this,'Protocolo')">Protocolo</div>
-                <div class="tc" onclick="selTipo(this,'Comunicaciones')">Comunicaciones</div>
-                <div class="tc" onclick="selTipo(this,'Diagnóstico')">Diagnóstico</div>
-                <div class="tc" onclick="selTipo(this,'PCI / Extintores')">PCI / Extintores</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                <span class="fl" style="margin-bottom:0">Tipo de dato</span>
+                <button onclick="abrirEditarTipos()"
+                  style="background:none;border:none;font-size:11px;color:var(--orange);
+                         font-family:var(--font-mono);cursor:pointer;padding:2px 6px;
+                         border-radius:4px;-webkit-tap-highlight-color:transparent">✏️ Editar</button>
               </div>
+              <div class="tipo-chips" id="tipo-chips"></div>
             </div>
 
             <!-- Detalle -->
@@ -3111,6 +3113,28 @@ body { font-size: 14px; }
       <div class="etq-nueva-row">
         <input class="etq-nueva-input" id="etq-nueva-input" type="text" placeholder="#NuevaEtiqueta" autocomplete="off">
         <button class="etq-nueva-btn" onclick="añadirEtiqueta()">Añadir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal gestión tipos de dato — PARA REVERTIR: eliminar este bloque -->
+<div class="etq-modal-overlay" id="tipos-overlay" onclick="if(event.target===this)cerrarEditarTipos()">
+  <div class="etq-modal-box">
+    <div class="etq-modal-hdr">
+      <span class="etq-modal-title">✏️ Tipos de dato</span>
+      <button class="etq-modal-close" onclick="cerrarEditarTipos()">✕</button>
+    </div>
+    <div class="etq-modal-body">
+      <div style="font-family:var(--font-mono);font-size:8px;color:var(--ink-xl);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Tipos actuales</div>
+      <div class="etq-all" id="tipos-all-list"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;margin-bottom:4px">
+        <div style="font-family:var(--font-mono);font-size:8px;color:var(--ink-xl);letter-spacing:.08em;text-transform:uppercase">Añadir nuevo</div>
+        <button onclick="restaurarTipos()" style="font-family:var(--font-mono);font-size:7px;color:var(--ink-xl);background:none;border:1px solid rgba(26,39,68,.15);border-radius:20px;padding:3px 8px;cursor:pointer">↺ Restaurar originales</button>
+      </div>
+      <div class="etq-nueva-row">
+        <input class="etq-nueva-input" id="tipos-nueva-input" type="text" placeholder="Nuevo tipo…" autocomplete="off">
+        <button class="etq-nueva-btn" onclick="añadirTipo()">Añadir</button>
       </div>
     </div>
   </div>
@@ -6929,15 +6953,13 @@ function ciclarRevision() {
 
 // Nueva función: select tipo/filtro unificado
 // PARA REVERTIR: eliminar esta función y restaurar ciclarZona/ciclarRevision originales
-function mtoSelTipo(val) {
-  if (val === 'hechas' || val === 'pend' || val === 'todos') {
-    mtoFiltro = val;
-    mtoTipo   = 'todos';
-  } else {
-    // Tipo concreto (INT, Q1..Q4) → mostrar pendientes de ese tipo
-    mtoFiltro = 'pend';
-    mtoTipo   = val;
-  }
+// PARA REVERTIR: eliminar estas dos funciones y restaurar mtoSelTipo original
+function mtoSelEstado(val) {
+  mtoFiltro = val; // 'todos' | 'hechas' | 'pend'
+  renderMTO();
+}
+function mtoSelTipoPuro(val) {
+  mtoTipo = val; // 'todos' | 'INT' | 'Q1' | 'Q2' | 'Q3' | 'Q4'
   renderMTO();
 }
 let _delKey     = null;    // key de la oficina a borrar
@@ -7178,13 +7200,14 @@ function renderMTO() {
       if (!hay.includes(mtoBusq)) return false;
     }
 
-    // Filtro por tipo de revisión
+    // Filtro por tipo de revisión — solo muestra oficinas que tienen ese tipo
     if (mtoTipo !== 'todos') {
       const tipos = getMtoTipos(cli);
       if (!tipos.includes(mtoTipo)) return false;
     }
 
-    // Filtro hechas (todas completas) / pendientes (alguna incompleta)
+    // Filtro estado: hechas / pendientes
+    // Si hay tipo seleccionado → solo evalúa ese tipo; si no → evalúa todos
     if (mtoFiltro === 'hechas') {
       const key = mtoKey(c); const man = mtoMan[key] || {};
       const tipos = getMtoTipos(cli);
@@ -7193,15 +7216,11 @@ function renderMTO() {
       if (!todosOk) return false;
     }
     if (mtoFiltro === 'pend') {
-      const key  = mtoKey(c);
-      const man  = mtoMan[key] || {};
+      const key = mtoKey(c); const man = mtoMan[key] || {};
       const tipos = getMtoTipos(cli);
-      const todosHechos = tipos.every(t => man[t] || c.INT && t==='INT' || c.Q1 && t==='Q1' || c.Q2 && t==='Q2' || c.Q3 && t==='Q3' || c.Q4 && t==='Q4');
-      const hechosFn = (t) => {
-        const excelDate = getExcelDate(c, t);
-        return !!(man[t] || excelDate);
-      };
-      const algoPend = tipos.some(t => !hechosFn(t));
+      const tiposCheck = (mtoTipo !== 'todos' && tipos.includes(mtoTipo)) ? [mtoTipo] : tipos;
+      const hechosFn = t => { const ex=getExcelDate(c,t); return !!(man[t]||ex); };
+      const algoPend = tiposCheck.some(t => !hechosFn(t));
       if (!algoPend) return false;
     }
 
@@ -7775,6 +7794,7 @@ let _buscarIniciado = false;
 
 function buscarInit() {
   renderTagsArea();
+  renderTiposChips();
   renderInfoSaved();
   renderRecientes();
   renderCierre();
@@ -8079,10 +8099,8 @@ function eliminarEtiqueta(tag) {
   const custom  = loadArr(K_ETIQUETAS);
   const deleted = loadArr(K_ETIQUETAS_DEL);
   if (custom.includes(tag)) {
-    // Era custom → simplemente quitar
     save(K_ETIQUETAS, custom.filter(t => t !== tag));
   } else {
-    // Era builtin → añadir a lista de eliminadas
     if (!deleted.includes(tag)) {
       deleted.push(tag);
       save(K_ETIQUETAS_DEL, deleted);
@@ -8092,6 +8110,80 @@ function eliminarEtiqueta(tag) {
   renderEtqAll();
   renderTagsArea();
 }
+
+/* ── TIPOS DE DATO editables — PARA REVERTIR: eliminar desde aquí hasta FIN TIPOS ── */
+const K_TIPOS_DATO     = 'pyc_tipos_dato';
+const K_TIPOS_DATO_DEL = 'pyc_tipos_dato_del';
+const TIPOS_BUILTIN = [
+  '🔑 Acceso','🌐 IP / Red','🔒 Contraseña','🕐 Horario',
+  '🗝️ Llaves','📞 Contacto','📋 Protocolo','📝 Nota general'
+];
+
+function getTiposDato() {
+  const custom  = loadArr(K_TIPOS_DATO);
+  const deleted = new Set(loadArr(K_TIPOS_DATO_DEL));
+  const all = TIPOS_BUILTIN.filter(t => !deleted.has(t));
+  custom.forEach(t => { if (!all.includes(t)) all.push(t); });
+  return all;
+}
+
+function renderTiposChips() {
+  const el = document.getElementById('tipo-chips');
+  if (!el) return;
+  el.innerHTML = getTiposDato().map(t =>
+    `<div class="tc ${tipoSeleccionado===t?'sel':''}" onclick="selTipo(this,'${t.replace(/'/g,"&#39;")}')">${t}</div>`
+  ).join('');
+}
+
+function abrirEditarTipos() {
+  renderTiposAll();
+  document.getElementById('tipos-overlay').classList.add('open');
+}
+function cerrarEditarTipos() {
+  document.getElementById('tipos-overlay').classList.remove('open');
+}
+function renderTiposAll() {
+  const el = document.getElementById('tipos-all-list');
+  if (!el) return;
+  el.innerHTML = getTiposDato().map(t =>
+    `<div class="etq-tag-item"><span>${t}</span>
+     <button class="etq-tag-del" onclick="eliminarTipo('${t.replace(/'/g,"&#39;")}')">✕</button></div>`
+  ).join('');
+}
+function restaurarTipos() {
+  localStorage.removeItem(K_TIPOS_DATO);
+  localStorage.removeItem(K_TIPOS_DATO_DEL);
+  renderTiposAll();
+  renderTiposChips();
+  buscarToast('↺ Tipos restaurados');
+}
+function añadirTipo() {
+  const input = document.getElementById('tipos-nueva-input');
+  const val = (input.value || '').trim();
+  if (!val) return;
+  const custom = loadArr(K_TIPOS_DATO);
+  const todos  = getTiposDato();
+  if (todos.includes(val)) { buscarToast('Ya existe: ' + val); return; }
+  custom.push(val);
+  save(K_TIPOS_DATO, custom);
+  input.value = '';
+  renderTiposAll();
+  renderTiposChips();
+  buscarToast('✓ Tipo añadido: ' + val);
+}
+function eliminarTipo(tipo) {
+  const custom  = loadArr(K_TIPOS_DATO);
+  const deleted = loadArr(K_TIPOS_DATO_DEL);
+  if (custom.includes(tipo)) {
+    save(K_TIPOS_DATO, custom.filter(t => t !== tipo));
+  } else {
+    if (!deleted.includes(tipo)) { deleted.push(tipo); save(K_TIPOS_DATO_DEL, deleted); }
+  }
+  if (tipoSeleccionado === tipo) tipoSeleccionado = '';
+  renderTiposAll();
+  renderTiposChips();
+}
+/* ── FIN TIPOS DE DATO ── */
 
 /* ================================================================
    PANTALLA BUSCAR — lógica
@@ -10765,23 +10857,24 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <!-- ══════════════════════════════════════════════════════════════
-     🤖 ASISTENTE IA — PycChat
+     💻 IRAM — Asistente IA PycLibreta
      PARA REVERTIR: eliminar este bloque completo hasta el comentario de cierre
      ══════════════════════════════════════════════════════════════ -->
 <style>
-/* ── Botón chat en header (sustituye al FAB flotante) ── */
+/* ── Botón chat en header ── */
 .hdr-chat-btn {
-  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
   border-radius: 10px; width: 36px; height: 36px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 18px; cursor: pointer; flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent; transition: background .15s;
+  font-size: 17px; cursor: pointer; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent; transition: all .15s;
+  box-shadow: 0 2px 6px rgba(0,0,0,.15);
 }
-.hdr-chat-btn:active { background: rgba(255,255,255,.2); }
+.hdr-chat-btn:active { background: rgba(255,255,255,.25); transform: scale(.93); }
 
-/* ── Panel / bottom sheet ── */
+/* ── Overlay + Panel ── */
 .pyc-overlay {
-  position: fixed; inset: 0; background: rgba(10,18,35,.55);
+  position: fixed; inset: 0; background: rgba(10,18,35,.6);
   z-index: 150; opacity: 0; pointer-events: none; transition: opacity .22s;
 }
 .pyc-overlay.open { opacity: 1; pointer-events: all; }
@@ -10789,53 +10882,88 @@ document.addEventListener('DOMContentLoaded', () => {
 .pyc-panel {
   position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
   width: 100%; max-width: 480px; z-index: 160;
-  background: var(--paper); border-radius: 22px 22px 0 0;
-  box-shadow: 0 -8px 40px rgba(10,18,35,.25);
+  background: var(--paper); border-radius: 24px 24px 0 0;
+  box-shadow: 0 -12px 50px rgba(10,18,35,.3);
   display: flex; flex-direction: column;
-  max-height: 82dvh; transition: transform .3s cubic-bezier(.4,0,.2,1);
+  max-height: 85dvh; transition: transform .32s cubic-bezier(.4,0,.2,1);
 }
 .pyc-panel.open { transform: translateX(-50%) translateY(0); }
 
-/* Cabecera panel */
+/* ── Header Iram ── */
 .pyc-hdr {
-  display: flex; align-items: center; gap: 10px;
-  padding: 14px 16px 10px; flex-shrink: 0;
-  border-bottom: 1px solid rgba(26,39,68,.07);
+  background: linear-gradient(135deg, var(--navy-deep) 0%, var(--navy) 60%, var(--navy-mid) 100%);
+  border-radius: 24px 24px 0 0;
+  padding: 14px 16px 12px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 3px 12px rgba(0,0,0,.2), 0 1px 0 rgba(249,115,22,.15);
 }
-.pyc-hdr-ico { font-size: 22px; }
+.pyc-hdr-ico {
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(249,115,22,.3), rgba(249,115,22,.15));
+  border: 1.5px solid rgba(249,115,22,.5);
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+  box-shadow: 0 0 12px rgba(249,115,22,.2);
+}
 .pyc-hdr-txt { flex: 1; }
-.pyc-hdr-title { font-size: 15px; font-weight: 900; color: var(--navy); }
-.pyc-hdr-sub { font-family: var(--font-mono); font-size: 9px; color: var(--ink-xl); letter-spacing: .05em; margin-top: 1px; }
-.pyc-close {
-  background: rgba(26,39,68,.07); border: none; border-radius: 50%;
-  width: 30px; height: 30px; font-size: 14px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  -webkit-tap-highlight-color: transparent;
+.pyc-hdr-title { font-size: 17px; font-weight: 900; color: white; letter-spacing: -.01em; }
+.pyc-hdr-title em { color: var(--orange-light); font-style: normal; }
+.pyc-hdr-sub {
+  font-family: var(--font-mono); font-size: 9px;
+  color: rgba(255,255,255,.45); letter-spacing: .06em; margin-top: 2px;
+  display: flex; align-items: center; gap: 5px;
 }
+.pyc-hdr-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ok); box-shadow: 0 0 4px rgba(22,163,74,.6);
+  animation: blink 2s ease-in-out infinite;
+}
+.pyc-close {
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
+  border-radius: 50%; width: 32px; height: 32px; font-size: 14px;
+  color: rgba(255,255,255,.7); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent; transition: background .15s;
+}
+.pyc-close:active { background: rgba(255,255,255,.25); }
 
-/* Mensajes */
+/* ── Mensajes ── */
 .pyc-msgs {
-  flex: 1; overflow-y: auto; padding: 12px 14px;
+  flex: 1; overflow-y: auto; padding: 14px 14px 8px;
   display: flex; flex-direction: column; gap: 10px;
   -webkit-overflow-scrolling: touch;
 }
 .pyc-msg { display: flex; gap: 8px; align-items: flex-end; }
 .pyc-msg.user { flex-direction: row-reverse; }
 .pyc-bubble {
-  max-width: 78%; padding: 10px 13px; border-radius: 16px;
-  font-size: 13px; line-height: 1.5; color: var(--ink-dark);
+  max-width: 80%; padding: 10px 14px; border-radius: 18px;
+  font-size: 13px; line-height: 1.55; color: var(--ink-dark);
 }
-.pyc-msg.ai   .pyc-bubble { background: white; border: 1px solid rgba(26,39,68,.1); border-bottom-left-radius: 4px; }
-.pyc-msg.user .pyc-bubble { background: var(--navy); color: white; border-bottom-right-radius: 4px; }
+.pyc-msg.ai   .pyc-bubble {
+  background: white; border: 1px solid rgba(26,39,68,.09);
+  border-bottom-left-radius: 5px;
+  box-shadow: 0 1px 4px rgba(26,39,68,.07);
+}
+.pyc-msg.user .pyc-bubble {
+  background: linear-gradient(135deg, var(--navy), var(--navy-mid));
+  color: white; border-bottom-right-radius: 5px;
+  box-shadow: 0 2px 8px rgba(26,39,68,.2);
+}
 .pyc-bubble.thinking { color: var(--ink-xl); font-style: italic; }
-.pyc-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display:flex; align-items:center; justify-content:center; font-size:14px; }
-.pyc-msg.ai   .pyc-avatar { background: linear-gradient(135deg,var(--navy),var(--navy-mid)); }
+.pyc-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.pyc-msg.ai   .pyc-avatar {
+  background: linear-gradient(135deg,var(--navy-deep),var(--navy));
+  border: 1.5px solid rgba(249,115,22,.3);
+  box-shadow: 0 0 8px rgba(249,115,22,.15);
+}
 .pyc-msg.user .pyc-avatar { background: var(--orange); }
 
-/* Config key */
+/* ── Config key ── */
 .pyc-key-box {
-  margin: 6px 14px; background: rgba(249,115,22,.07);
-  border: 1.5px dashed rgba(249,115,22,.35); border-radius: 12px;
+  margin: 8px 14px; background: rgba(249,115,22,.07);
+  border: 1.5px dashed rgba(249,115,22,.35); border-radius: 14px;
   padding: 12px; display: flex; flex-direction: column; gap: 8px;
 }
 .pyc-key-lbl { font-size: 12px; font-weight: 700; color: var(--orange-deep); }
@@ -10894,10 +11022,10 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- Panel chat -->
 <div class="pyc-panel" id="pyc-panel">
   <div class="pyc-hdr">
-    <div class="pyc-hdr-ico">🤖</div>
+    <div class="pyc-hdr-ico">💻</div>
     <div class="pyc-hdr-txt">
-      <div class="pyc-hdr-title">Asistente PycLibreta</div>
-      <div class="pyc-hdr-sub" id="pyc-status">Listo · Gemini AI</div>
+      <div class="pyc-hdr-title"><em>Iram</em></div>
+      <div class="pyc-hdr-sub"><div class="pyc-hdr-dot"></div><span id="pyc-status">Listo · Gemini AI</span></div>
     </div>
     <button class="pyc-close" onclick="pycCerrarChat()">✕</button>
   </div>
@@ -10927,7 +11055,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script>
 /* ================================================================
-   🤖 PYCCHAT — Asistente IA con Gemini
+   💻 IRAM — Asistente IA PycLibreta
    PARA REVERTIR: eliminar este bloque <script> completo
    ================================================================ */
 'use strict';
@@ -10944,7 +11072,7 @@ function pycAbrirChat() {
   document.getElementById('pyc-overlay').classList.add('open');
   document.getElementById('pyc-panel').classList.add('open');
   pycCheckKey();
-  if (!_pycHist.length) pycMsgIA('Hola 👋 Soy tu asistente. Pregúntame sobre tus tareas, ruta, avisos o eventos. También puedo añadir cosas al Almacén.');
+  if (!_pycHist.length) pycMsgIA('Hola 👋 Soy Iram, tu asistente. Pregúntame sobre tus tareas, ruta, avisos o eventos. También puedo añadir cosas al Almacén.');
   setTimeout(() => document.getElementById('pyc-ta').focus(), 350);
 }
 
@@ -10984,7 +11112,7 @@ function pycRenderMsgs() {
   if (!el) return;
   el.innerHTML = _pycHist.map(m => `
     <div class="pyc-msg ${m.role==='user'?'user':'ai'}">
-      <div class="pyc-avatar">${m.role==='user'?'👤':'🤖'}</div>
+      <div class="pyc-avatar">${m.role==='user'?'👤':'💻'}</div>
       <div class="pyc-bubble${m.thinking?' thinking':''}">${m.text.replace(/\n/g,'<br>')}</div>
     </div>`).join('');
   el.scrollTop = el.scrollHeight;
@@ -11034,7 +11162,7 @@ async function pycGemini(userMsg) {
     return;
   }
 
-  const sistemPrompt = `Eres el asistente personal integrado en PycLibreta, una app de gestión diaria para un técnico de campo de seguridad (alarmas, CCTV, PCI). 
+  const sistemPrompt = `Eres Iram, el asistente personal integrado en PycLibreta, una app de gestión diaria para un técnico de campo de seguridad (alarmas, CCTV, PCI). 
 Recibirás el estado actual de la app y las preguntas del usuario.
 Responde SIEMPRE en español, de forma breve y directa (máx 3-4 frases). 
 Usa los datos reales que te proporciono. No inventes datos.
@@ -11137,8 +11265,7 @@ function pycPararVoz() {
   const mic = document.getElementById('pyc-mic');
   const st  = document.getElementById('pyc-status');
   if (mic) mic.classList.remove('active');
-  if (st)  st.textContent = 'Listo · Gemini AI';
-}
+  if (st)  st.textContent = 'Listo · Gemini AI';}
 
 /* ── Texto → voz (Web Speech Synthesis) ── */
 function pycHablar(txt) {
@@ -11157,7 +11284,7 @@ function pycAutoResize(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 80) + 'px';
 }
-/* ── FIN PYCCHAT ── */
+/* ── FIN IRAM ── */
 </script>
 <!-- ── FIN ASISTENTE IA ── -->
 
