@@ -8509,6 +8509,7 @@ function renderResultadosFiltrados() {
     }
     if (r.tipo==='hor') {
       if (r.horario) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.horario)},this)">📋 Copiar horario</button>`;
+      btns += `<button class="res-act nav" onclick="event.stopPropagation();editarHorario('${escH(r.codigo)}',${JSON.stringify(r.horario)},this)">✏️ Editar</button>`;
     }
     if (r.tipo==='equ') {
       if (r.codigo) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
@@ -8601,6 +8602,65 @@ function renderResultadosFiltrados() {
     _renderFestivosLista(listaFes, label);
   }
 }
+
+/* ── EDITAR HORARIO INLINE — PARA REVERTIR: eliminar esta función ── */
+function editarHorario(codigo, horarioActual, btn) {
+  // Buscar la tarjeta padre
+  const card = btn.closest('.res-card');
+  if (!card) return;
+
+  // Si ya hay un editor abierto en esta tarjeta, cerrarlo
+  const existing = card.querySelector('.hor-edit-row');
+  if (existing) { existing.remove(); return; }
+
+  // Crear fila de edición inline
+  const row = document.createElement('div');
+  row.className = 'hor-edit-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid rgba(26,39,68,.08)';
+  row.innerHTML = `
+    <input id="hor-edit-input" type="text" value="${escH(horarioActual)}"
+      style="flex:1;border:1.5px solid var(--orange);border-radius:8px;padding:7px 10px;
+             font-family:var(--font-mono);font-size:12px;outline:none;background:white;
+             color:var(--ink-dark)" autocomplete="off" autocorrect="off">
+    <button onclick="guardarHorario('${escH(codigo)}',this)"
+      style="background:var(--ok);color:white;border:none;border-radius:8px;
+             padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;
+             -webkit-tap-highlight-color:transparent">✓</button>
+    <button onclick="this.closest('.hor-edit-row').remove()"
+      style="background:rgba(26,39,68,.08);color:var(--ink-mid);border:none;
+             border-radius:8px;padding:7px 10px;font-size:13px;cursor:pointer;
+             -webkit-tap-highlight-color:transparent">✕</button>
+  `;
+  card.appendChild(row);
+  row.querySelector('#hor-edit-input').focus();
+}
+
+function guardarHorario(codigo, btn) {
+  const input = btn.parentElement.querySelector('#hor-edit-input');
+  const nuevoHorario = (input?.value || '').trim();
+  if (!nuevoHorario) { buscarToast('⚠️ Escribe un horario'); return; }
+
+  const clientes = loadArr(K_EXCEL_B);
+  const nrm = s => String(s||'').replace(/[\s.\-]/g,'').toLowerCase();
+  let actualizado = false;
+
+  clientes.forEach(c => {
+    if (nrm(c.CODIGO||c.codigo||'') === nrm(codigo)) {
+      c.HORARIO = nuevoHorario;
+      actualizado = true;
+    }
+  });
+
+  if (!actualizado) { buscarToast('⚠️ Cliente no encontrado'); return; }
+
+  save(K_EXCEL_B, clientes);
+  btn.closest('.hor-edit-row').remove();
+  buscarToast('✅ Horario actualizado · Recuerda exportar el Excel');
+
+  // Relanzar búsqueda para refrescar el resultado
+  if (searchQuery) ejecutarBusqueda(searchQuery);
+}
+/* ── FIN EDITAR HORARIO ── */
 
 function toggleHisGrupo(cliente) {
   if (_hisExpandidos.has(cliente)) _hisExpandidos.delete(cliente);
@@ -9616,6 +9676,14 @@ function renderTareas() {
 
   let html = '';
 
+  // Vencidas — fecha anterior a hoy (antes se perdían, no aparecían en ninguna sección)
+  // PARA REVERTIR: eliminar este bloque de vencidas
+  const vencidas = pend.filter(t => t.fecha && t.fecha < hoy);
+  if (vencidas.length) {
+    html += `<div class="sec-hdr" style="color:var(--error)">⚠️ Vencidas</div>`;
+    html += vencidas.map(t => renderTareaHTML(t)).join('');
+  }
+
   // Hoy
   const hoyTareas = pend.filter(t => t.fecha && t.fecha === hoy);
   if (hoyTareas.length) {
@@ -9823,9 +9891,11 @@ function abrirDetalleTarea(id) {
 }
 
 function verUrgentes() {
-  const tareas = loadArr(K_TAREAS);
-  const urgente = tareas.find(t => t.prioridad === 'urgente' && t.estado === 'pendiente');
-  if (urgente) abrirDetalleTarea(urgente.id);
+  // PARA REVERTIR: restaurar abrirDetalleTarea con el modal
+  // Ahora simplemente hace scroll al inicio de la lista de tareas
+  const scroll = document.getElementById('tareas-scroll');
+  if (scroll) scroll.scrollTo({ top: 0, behavior: 'smooth' });
+  tareasIrVista('tareas');
 }
 
 function cerrarDetalle() {
