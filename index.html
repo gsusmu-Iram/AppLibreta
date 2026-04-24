@@ -11290,7 +11290,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="pyc-hdr-ico">💻</div>
     <div class="pyc-hdr-txt">
       <div class="pyc-hdr-title"><em>Iram</em></div>
-      <div class="pyc-hdr-sub"><div class="pyc-hdr-dot"></div><span id="pyc-status">Listo · Gemini 2.5</span></div>
+      <div class="pyc-hdr-sub"><div class="pyc-hdr-dot"></div><span id="pyc-status">Listo · Gemini 2.0</span></div>
     </div>
     <button class="pyc-close" onclick="pycCerrarChat()">✕</button>
   </div>
@@ -11395,11 +11395,20 @@ function pycContexto() {
   const tHoy     = tPend.filter(t=>t.fecha===hoy);
   const evHoy    = eventos.filter(ev=>ev.fecha===hoy||(ev.fecha<=hoy&&(ev.fechaFin||'')>=hoy));
   const rutaPend = ruta.filter(r=>r.estado==='pendiente');
+  const rutaHecha= ruta.filter(r=>r.estado==='completada');
 
-  return `ESTADO ACTUAL DE LA APP (hoy: ${hoy}):
+  // Privacidad: nunca enviar pyc_info_tecnica (puede tener contraseñas, IPs, códigos)
+  const rutaSegura = rutaPend.slice(0,5).map(r =>
+    `  - ${r.cliente||'Cliente'} · ${r.localidad||''} · ${r.trabajo||''}`
+  );
 
-TAREAS PENDIENTES: ${tPend.length} pendiente(s)
-${tPend.map(t=>`  - ${t.titulo}${t.fecha?' · '+t.fecha:''}`).join('\n')||'  (ninguna)'}
+  return `ESTADO ACTUAL (hoy: ${hoy}):
+
+RUTA: ${rutaPend.length} pendiente(s), ${rutaHecha.length} completada(s)
+${rutaSegura.join('\n')||'  (sin paradas)'}
+
+TAREAS PENDIENTES: ${tPend.length}
+${tPend.slice(0,5).map(t=>`  - ${t.titulo}${t.fecha?' · '+t.fecha:''}`).join('\n')||'  (ninguna)'}
 
 TAREAS DE HOY: ${tHoy.length}
 ${tHoy.map(t=>`  - ${t.titulo}`).join('\n')||'  (ninguna)'}
@@ -11407,11 +11416,10 @@ ${tHoy.map(t=>`  - ${t.titulo}`).join('\n')||'  (ninguna)'}
 EVENTOS DE HOY: ${evHoy.length}
 ${evHoy.map(ev=>`  - ${ev.titulo}${ev.hora?' a las '+ev.hora:''}`).join('\n')||'  (ninguno)'}
 
-RUTA PENDIENTE: ${rutaPend.length} aviso(s)
-${rutaPend.slice(0,5).map(r=>`  - ${r.cliente||''} · ${r.localidad||''} · ${r.trabajo||''}`).join('\n')||'  (ninguno)'}
+NOTAS: ${notas.length} guardadas
+${notas.slice(0,3).map(n=>`  - ${n.titulo}`).join('\n')||'  (ninguna)'}
 
-NOTAS GUARDADAS: ${notas.length}
-${notas.slice(0,3).map(n=>`  - ${n.titulo}`).join('\n')||'  (ninguna)'}`;
+PRIVACIDAD: No tienes acceso a contraseñas, IPs ni códigos de acceso. Si el usuario los pide, responde: "Eso no te lo puedo dar, búscalo en Buscar > Info técnica".`;
 }
 
 /* ── Llamada a Gemini ── */
@@ -11422,12 +11430,29 @@ async function pycGemini(userMsg) {
     return;
   }
 
-  const sistemPrompt = `Eres Iram, el asistente personal integrado en PycLibreta, una app de gestión diaria para un técnico de campo de seguridad (alarmas, CCTV, PCI). 
-Recibirás el estado actual de la app y las preguntas del usuario.
-Responde SIEMPRE en español, de forma breve y directa (máx 3-4 frases). 
-Usa los datos reales que te proporciono. No inventes datos.
-Si el usuario quiere añadir o modificar algo, confírmalo claramente.
-No uses markdown, asteriscos ni formato — solo texto plano.`;
+  const sistemPrompt = `Eres Iram, el asistente de campo de Jesús (Gsus), técnico de seguridad que trabaja en Valencia y alrededores.
+
+Tu personalidad:
+- Hablas como un compañero de trabajo, en español informal pero sin pasarte
+- Directo y al grano, sin rodeos ni explicaciones largas
+- Proactivo: si ves algo relevante en los datos, lo dices sin que te pregunten
+- Nunca das listas interminables, máximo 3-4 puntos
+- En el coche usas frases cortas, fáciles de escuchar
+
+Tu trabajo:
+- Ayudar a gestionar el día: ruta, avisos, tareas, eventos
+- Avisar de cosas importantes: oficinas cerradas, partes antiguos, MTO pendiente
+- Recordar datos útiles de cada oficina cuando toca visitarla
+- Nunca revelar datos sensibles: contraseñas, IPs, códigos de acceso
+
+Lo que NO haces:
+- No inventas datos que no tienes
+- No das rodeos ni presentaciones largas
+- Si no sabes algo, lo dices claro: "Eso no lo tengo"
+- No mandas emojis en exceso, solo los justos
+- No uses markdown, asteriscos ni formato — solo texto plano
+
+Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuestas para ser fáciles de escuchar.`
 
   const contexto = pycContexto();
   const mensajes = _pycHist
@@ -11442,7 +11467,7 @@ No uses markdown, asteriscos ni formato — solo texto plano.`;
     mensajes[idx].parts[0].text = contexto + '\n\nPREGUNTA DEL USUARIO: ' + mensajes[idx].parts[0].text;
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`;
   const body = {
     system_instruction: { parts: [{ text: sistemPrompt }] },
     contents: mensajes
@@ -11525,7 +11550,7 @@ function pycPararVoz() {
   const mic = document.getElementById('pyc-mic');
   const st  = document.getElementById('pyc-status');
   if (mic) mic.classList.remove('active');
-  if (st)  st.textContent = 'Listo · Gemini 2.5';}
+  if (st)  st.textContent = 'Listo · Gemini 2.0';}
 
 /* ── Texto → voz (Web Speech Synthesis) ── */
 function pycHablar(txt) {
