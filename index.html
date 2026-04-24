@@ -554,6 +554,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .equip-sel:focus { border-color: var(--orange); }
 .equip-sel.filled { border-color: var(--ok); background-color: rgba(22,163,74,.04); color: var(--navy); font-weight:700; }
 
+.equip-acord-hdr {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 12px; background: white;
   border: 1.5px solid rgba(26,39,68,.12); border-radius: var(--r-sm);
@@ -921,7 +922,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .card-parada.open .parada-expand, .card-activa.open .parada-expand { max-height: 300px; border-top-width: 1px; }
 .expand-inner { padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
 .expand-addr  { font-size: 13px; font-weight: 700; color: var(--navy); line-height: 1.4; }
-.expand-aviso { font-family: var(--font-mono); font-size: 9px; color: var(--ink-light); letter-spacing: .06em; }
+.expand-aviso { font-family: var(--font-mono); font-size: 12px; font-weight: 800; color: var(--navy); letter-spacing: .04em; margin-top: 2px; }
 .expand-tiempo { display: flex; flex-direction: column; gap: 4px; }
 .tiempo-row { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-mid); font-weight: 500; }
 .tiempo-row .t-ico { font-size: 13px; flex-shrink: 0; }
@@ -5843,7 +5844,7 @@ function abrirFinalizarPara(id) {
       setText('modal-subtitulo', `${p.localidad||''}${p.direccion?' · '+p.direccion:''}`);
 
       // Trabajo del parte en cabecera
-      const trabajoParte = p.aviso || p.trabajo || '';
+      const trabajoParte = p.trabajo || '';
       const elTrabajoParte = document.getElementById('modal-trabajo-parte');
       if (elTrabajoParte) {
         if (trabajoParte) {
@@ -5867,7 +5868,7 @@ function abrirFinalizarPara(id) {
       const campoTrabajo = document.getElementById('campo-trabajo');
       if (campoTrabajo) {
         campoTrabajo.value = p.trabajoRealizado || '';
-        campoTrabajo.placeholder = p.aviso || p.trabajo || 'Describe el trabajo realizado…';
+        campoTrabajo.placeholder = p.trabajo || 'Describe el trabajo realizado…';
       }
 
       // Campo observaciones — cargar desde Excel
@@ -6115,6 +6116,16 @@ function guardarFinalizar() {
     hist[idxHist] = nuevaFila;
   } else {
     hist.unshift(nuevaFila);
+    // Límite de 20 visitas por oficina (por KEY individual)
+    const clave = nuevaFila.KEY;
+    const deEstaOficina = hist.filter(h => h.KEY === clave);
+    if (deEstaOficina.length > 20) {
+      // Eliminar la más antigua de esta oficina (la última en el array filtrado)
+      const idxAntiguo = hist.map((h,i) => h.KEY === clave ? i : -1)
+                             .filter(i => i !== -1)
+                             .pop();
+      if (idxAntiguo !== undefined) hist.splice(idxAntiguo, 1);
+    }
   }
   save(K_HIST, hist);
 
@@ -11431,7 +11442,7 @@ No uses markdown, asteriscos ni formato — solo texto plano.`;
     mensajes[idx].parts[0].text = contexto + '\n\nPREGUNTA DEL USUARIO: ' + mensajes[idx].parts[0].text;
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=${key}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
   const body = {
     system_instruction: { parts: [{ text: sistemPrompt }] },
     contents: mensajes
