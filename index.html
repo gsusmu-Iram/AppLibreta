@@ -16,6 +16,8 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror="this.disabled=true">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
 <style>
 
 
@@ -537,7 +539,21 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .obs-chip:active { background: var(--paper-warm); }
 
 /* Acordeón equipos */
-.equip-acord-hdr {
+.equip-otro { width:100%; border:1.5px solid var(--orange); border-radius:var(--r-sm);
+  padding:7px 10px; font-size:12px; color:var(--navy); background:white;
+  outline:none; margin-top:4px; box-sizing:border-box; }
+.equip-otro::placeholder { color:var(--ink-xl); font-size:11px; }
+
+  width: 100%; border: 1.5px solid rgba(26,39,68,.15); border-radius: var(--r-sm);
+  padding: 8px 10px; font-family: var(--font-ui); font-size: 12px; color: var(--navy);
+  background: white; outline: none; -webkit-appearance: none; appearance: none;
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%235a6a8a"/></svg>');
+  background-repeat: no-repeat; background-position: right 8px center;
+  cursor: pointer;
+}
+.equip-sel:focus { border-color: var(--orange); }
+.equip-sel.filled { border-color: var(--ok); background-color: rgba(22,163,74,.04); color: var(--navy); font-weight:700; }
+
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 12px; background: white;
   border: 1.5px solid rgba(26,39,68,.12); border-radius: var(--r-sm);
@@ -984,11 +1000,11 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 /* ================================================================
 /* Últimas visitas en modal finalizar */
 .ult-vis-hdr { display:flex; align-items:center; justify-content:space-between;
-  padding:9px 12px; background:rgba(26,39,68,.04);
-  border:1.5px solid rgba(26,39,68,.1); border-radius:var(--r-sm);
+  padding:10px 12px; background:white;
+  border:1.5px solid rgba(26,39,68,.12); border-radius:var(--r-sm);
   cursor:pointer; -webkit-tap-highlight-color:transparent; }
-.ult-vis-lbl { font-size:11px; font-weight:700; color:var(--navy); }
-.ult-vis-arr { font-size:11px; color:var(--ink-xl); transition:transform .2s; }
+.ult-vis-lbl { font-size:12px; font-weight:700; color:var(--navy); }
+.ult-vis-arr { font-size:12px; color:var(--ink-xl); transition:transform .2s; }
 .ult-vis-arr.open { transform:rotate(180deg); }
 .ult-vis-body { display:none; padding:8px 0 0; flex-direction:column; gap:6px; }
 .ult-vis-body.open { display:flex; }
@@ -1003,7 +1019,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 
 /* ── BOTTOM SHEET ── */
 
-  position: fixed; inset: 0; z-index: 300;
+  position: fixed; inset: 0; z-index: 9999;
   background: rgba(10,18,35,.5);
   display: flex; align-items: flex-end;
   opacity: 0; pointer-events: none; transition: opacity .2s;
@@ -2044,20 +2060,32 @@ body { font-size: 14px; }
 .nota-btn-del{padding:7px 14px;background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.2);border-radius:var(--r-pill);font-size:10px;font-weight:700;color:var(--error);cursor:pointer;-webkit-tap-highlight-color:transparent}
 
 /* Modal nueva nota */
-.nnota-overlay{position:fixed;inset:0;z-index:200;background:rgba(10,18,35,.55);display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s}
+.nnota-overlay{position:fixed;inset:0;z-index:200;background:var(--paper-warm);display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .2s}
 .nnota-overlay.open{opacity:1;pointer-events:all}
-.nnota-box{background:white;border-radius:var(--r-xl) var(--r-xl) 0 0;width:100%;max-width:480px;margin:0 auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
-.nnota-overlay.open .nnota-box{transform:translateY(0)}
-.nnota-hdr{background:var(--navy);padding:14px 16px;border-radius:var(--r-xl) var(--r-xl) 0 0;display:flex;align-items:center;justify-content:space-between}
+.nnota-box{display:flex;flex-direction:column;height:100dvh;width:100%;max-width:480px;margin:0 auto;overflow:hidden}
+.nnota-hdr{background:var(--navy);padding:14px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
 .nnota-title{font-size:15px;font-weight:900;color:white}
-.nnota-close{background:rgba(255,255,255,.15);border:none;border-radius:50%;width:28px;height:28px;color:rgba(255,255,255,.8);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.nnota-body{padding:14px;display:flex;flex-direction:column;gap:10px}
-.fi-nota{width:100%;border:1.5px solid rgba(26,39,68,.12);border-radius:var(--r-sm);padding:10px;font-family:var(--font-ui);font-size:13px;color:var(--ink-dark);background:var(--paper-warm);outline:none;resize:none;height:100px;line-height:1.6;-webkit-appearance:none}
-.fi-nota:focus{border-color:var(--orange)}
-.fi-nota::placeholder{color:var(--ink-xl);font-size:11px}
-.nnota-btns{display:flex;gap:8px;padding:0 14px 24px}
-.btn-nn-cancel{flex:1;padding:13px;background:var(--paper-warm);border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-pill);font-size:13px;font-weight:700;color:var(--ink-mid);cursor:pointer}
-.btn-nn-add{flex:2;padding:13px;background:var(--orange);color:white;border:none;border-radius:var(--r-pill);font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(249,115,22,.3)}
+.nnota-close{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:5px 10px;color:white;font-size:14px;cursor:pointer}
+.nnota-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+/* Quill editor en notas */
+#quill-editor { border:1.5px solid rgba(26,39,68,.12); border-radius:var(--r-sm);
+  background:white; font-family:var(--font-ui); font-size:13px; color:var(--navy); }
+#quill-editor .ql-editor { min-height:220px; font-family:var(--font-ui); font-size:13px;
+  line-height:1.6; color:var(--navy); padding:10px; }
+#quill-editor .ql-editor.ql-blank::before { color:var(--ink-xl); font-style:normal;
+  font-size:11px; }
+.ql-toolbar.ql-snow { border:none; border-bottom:1.5px solid rgba(26,39,68,.1);
+  padding:6px 8px; border-radius:var(--r-sm) var(--r-sm) 0 0; background:var(--paper-warm); }
+.ql-container.ql-snow { border:none; }
+.ql-snow .ql-picker { color:var(--navy); }
+.ql-snow .ql-stroke { stroke:var(--navy); }
+.ql-snow .ql-fill { fill:var(--navy); }
+/* Fuente cursiva disponible en Quill */
+.ql-font-cursiva { font-family:'Georgia', serif; font-style:italic; }
+
+.nnota-btns{display:flex;gap:8px;padding:12px 14px;border-top:1px solid rgba(26,39,68,.08);background:white;flex-shrink:0}
+.btn-nn-cancel{padding:12px 14px;background:var(--paper-warm);border:1px solid rgba(26,39,68,.15);border-radius:var(--r-pill);font-size:13px;font-weight:600;color:var(--ink-mid);cursor:pointer}
+.btn-nn-add{flex:1;padding:13px;background:var(--orange);color:white;border:none;border-radius:var(--r-pill);font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 3px 10px rgba(249,115,22,.3)}
 
 /* ════════════════════════════════════
    PANTALLA 3 · EVENTOS / CALENDARIO
@@ -3317,7 +3345,7 @@ body { font-size: 14px; }
       <div class="field-group">
         <div class="field-lbl">Trabajo realizado</div>
         <textarea class="field-ta" id="campo-trabajo" rows="3"
-          placeholder="Ej: Fallo GSM restaurado, GPRS comprobado…"></textarea>
+          id="campo-trabajo-ph"></textarea>
       </div>
 
       <!-- Notas de oficina -->
@@ -3325,13 +3353,6 @@ body { font-size: 14px; }
         <div class="field-lbl">Datos de oficina <span class="field-lbl-opt">(se guardan en el Excel)</span></div>
         <textarea class="field-ta" id="campo-obs" rows="2"
           placeholder="Los martes hay mercado · Llaves en oficina de al lado…"></textarea>
-        <div class="obs-chips">
-          <button class="obs-chip" onclick="addObsChip('📅 Martes: mercado')">📅 Mercado</button>
-          <button class="obs-chip" onclick="addObsChip('🔑 Llaves en oficina de al lado')">🔑 Llaves</button>
-          <button class="obs-chip" onclick="addObsChip('🚗 Aparcamiento complicado')">🚗 Aparcar</button>
-          <button class="obs-chip" onclick="addObsChip('📵 Sin señal GSM interior')">📵 Sin GSM</button>
-          <button class="obs-chip" onclick="addObsChip('🔒 Pedir a recepción')">🔒 Recepción</button>
-        </div>
       </div>
 
       <!-- Horario compacto -->
@@ -3355,10 +3376,18 @@ body { font-size: 14px; }
           <div class="equip-grid">
             <div class="equip-item">
               <span class="equip-lbl">Central intrusión</span>
-              <button class="sel-btn" id="sb-central" onclick="abrirSheet('central')">
-                <span class="sel-val" id="sv-central">— Seleccionar —</span>
-                <span class="sel-arrow">▾</span>
-              </button>
+              <select class="equip-sel" id="eq-central" onchange="onEquipChange('central',this)">
+                <option value="">— Seleccionar —</option>
+                <option>Galaxy Flex</option>
+                <option>Galaxy Dimensión</option>
+                <option>Ajax</option>
+                <option>PACOM</option>
+                <option>Texecom</option>
+                <option>SPC</option>
+                <option>Vesta</option>
+                <option value="__otro__">Otro…</option>
+              </select>
+              <input class="equip-otro" id="eq-central-otro" type="text" placeholder="Especifica cuál…" style="display:none" oninput="vals.central=this.value;actualizarBadgeEquipos()">
             </div>
             <div class="equip-item">
               <span class="equip-lbl">Instalación</span>
@@ -3366,31 +3395,54 @@ body { font-size: 14px; }
             </div>
             <div class="equip-item">
               <span class="equip-lbl">Grabador</span>
-              <button class="sel-btn" id="sb-grabador" onclick="abrirSheet('grabador')">
-                <span class="sel-val" id="sv-grabador">— Seleccionar —</span>
-                <span class="sel-arrow">▾</span>
-              </button>
+              <select class="equip-sel" id="eq-grabador" onchange="onEquipChange('grabador',this)">
+                <option value="">— Seleccionar —</option>
+                <option>Hikvision</option>
+                <option>Scati</option>
+                <option>Dahua</option>
+                <option>Axis</option>
+                <option value="__otro__">Otro…</option>
+              </select>
+              <input class="equip-otro" id="eq-grabador-otro" type="text" placeholder="Especifica cuál…" style="display:none" oninput="vals.grabador=this.value;actualizarBadgeEquipos()">
             </div>
             <div class="equip-item">
               <span class="equip-lbl">Comunicación</span>
-              <button class="sel-btn" id="sb-com" onclick="abrirSheet('com')">
-                <span class="sel-val" id="sv-com">— Seleccionar —</span>
-                <span class="sel-arrow">▾</span>
-              </button>
+              <select class="equip-sel" id="eq-com" onchange="onEquipChange('com',this)">
+                <option value="">— Seleccionar —</option>
+                <option>2G con antena</option>
+                <option>2G sin antena</option>
+                <option>4G omnidireccional</option>
+                <option>4G antena pequeña</option>
+                <option>Ethernet</option>
+                <option>Fibra</option>
+                <option>ADSL</option>
+                <option>ALWON</option>
+                <option value="__otro__">Otro…</option>
+              </select>
+              <input class="equip-otro" id="eq-com-otro" type="text" placeholder="Especifica cuál…" style="display:none" oninput="vals.com=this.value;actualizarBadgeEquipos()">
             </div>
             <div class="equip-item">
               <span class="equip-lbl">Central incendio</span>
-              <button class="sel-btn" id="sb-incendio" onclick="abrirSheet('incendio')">
-                <span class="sel-val" id="sv-incendio">— Seleccionar —</span>
-                <span class="sel-arrow">▾</span>
-              </button>
+              <select class="equip-sel" id="eq-incendio" onchange="onEquipChange('incendio',this)">
+                <option value="">— Seleccionar —</option>
+                <option>Visión</option>
+                <option>Morley</option>
+                <option>Honeywell</option>
+                <option>Aritech</option>
+                <option>Notifier</option>
+                <option value="__otro__">Otro…</option>
+              </select>
+              <input class="equip-otro" id="eq-incendio-otro" type="text" placeholder="Especifica cuál…" style="display:none" oninput="vals.incendio=this.value;actualizarBadgeEquipos()">
             </div>
             <div class="equip-item">
               <span class="equip-lbl">Control acceso</span>
-              <button class="sel-btn" id="sb-acceso" onclick="abrirSheet('acceso')">
-                <span class="sel-val" id="sv-acceso">— Seleccionar —</span>
-                <span class="sel-arrow">▾</span>
-              </button>
+              <select class="equip-sel" id="eq-acceso" onchange="onEquipChange('acceso',this)">
+                <option value="">— Seleccionar —</option>
+                <option>Salto</option>
+                <option>Honeywell</option>
+                <option value="__otro__">Otro…</option>
+              </select>
+              <input class="equip-otro" id="eq-acceso-otro" type="text" placeholder="Especifica cuál…" style="display:none" oninput="vals.acceso=this.value;actualizarBadgeEquipos()">
             </div>
           </div>
         </div>
@@ -3422,14 +3474,6 @@ body { font-size: 14px; }
 <!-- ================================================================
      BOTTOM SHEET — selector de equipos
      ================================================================ -->
-<div class="sheet-overlay" id="sheet-ov" onclick="if(event.target===this)cerrarSheet()">
-  <div class="sheet-box">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title" id="sheet-titulo">Seleccionar</div>
-    <div id="sheet-opts"></div>
-    <input class="sheet-otro" id="sheet-otro" type="text" placeholder="Escribe aquí…">
-  </div>
-</div>
 
 
 <!-- ================================================================
@@ -3611,16 +3655,26 @@ body { font-size: 14px; }
 
 
 <!-- Modal nueva nota -->
-<div class="nnota-overlay" id="nnota-overlay" onclick="if(event.target===this)cerrarNuevaNota()">
+<div class="nnota-overlay" id="nnota-overlay">
   <div class="nnota-box">
     <div class="nnota-hdr">
-      <span class="nnota-title">Nueva nota</span>
-      <button class="nnota-close" onclick="cerrarNuevaNota()">✕</button>
+      <button class="nnota-close" onclick="cerrarNuevaNota()">← Volver</button>
+      <span class="nnota-title" id="nnota-title-lbl">Nueva nota</span>
+      <div style="width:64px"></div>
     </div>
     <div class="nnota-body">
-      <div><span class="fl">Título</span><input class="fi" id="nn-titulo" type="text" placeholder="Título de la nota" autocomplete="off"></div>
-      <div><span class="fl">Texto</span><textarea class="fi-nota" id="nn-texto" placeholder="Escribe aquí…"></textarea></div>
-      <div><span class="fl">Etiquetas <span style="color:var(--ink-xl);font-weight:400">(opcional)</span></span><input class="fi" id="nn-etiquetas" type="text" placeholder="#Personal #Spider…" autocomplete="off"></div>
+      <div class="field-group">
+        <div class="field-lbl">Título</div>
+        <input class="field-input" id="nn-titulo" type="text" placeholder="Título de la nota" autocomplete="off">
+      </div>
+      <div class="field-group" style="flex:1;display:flex;flex-direction:column">
+        <div class="field-lbl">Texto</div>
+        <div id="quill-editor" style="flex:1;min-height:220px"></div>
+      </div>
+      <div class="field-group">
+        <div class="field-lbl">Etiquetas <span style="color:var(--ink-xl);font-weight:400">(opcional)</span></div>
+        <input class="field-input" id="nn-etiquetas" type="text" placeholder="#Personal #Spider…" autocomplete="off">
+      </div>
     </div>
     <div class="nnota-btns">
       <button class="btn-nn-cancel" onclick="cerrarNuevaNota()">Cancelar</button>
@@ -5809,9 +5863,12 @@ function abrirFinalizarPara(id) {
       if (modalHdr)  modalHdr.classList.remove('finalizado');
       if (btnGuardar) btnGuardar.classList.remove('ok');
 
-      // Campo trabajo
+      // Campo trabajo — placeholder con el aviso del parte
       const campoTrabajo = document.getElementById('campo-trabajo');
-      if (campoTrabajo) campoTrabajo.value = p.trabajoRealizado || '';
+      if (campoTrabajo) {
+        campoTrabajo.value = p.trabajoRealizado || '';
+        campoTrabajo.placeholder = p.aviso || p.trabajo || 'Describe el trabajo realizado…';
+      }
 
       // Campo observaciones — cargar desde Excel
       const campoObs = document.getElementById('campo-obs');
@@ -5976,22 +6033,37 @@ function toggleFin() {
   btn.textContent = finActivo ? '✓ Finalizado' : '✓ Marcar como Finalizado';
 }
 
+function onEquipChange(campo, sel) {
+  const otroPendiente = document.getElementById('eq-' + campo + '-otro');
+  if (sel.value === '__otro__') {
+    if (otroPendiente) { otroPendiente.style.display = 'block'; otroPendiente.focus(); }
+    vals[campo] = '';
+  } else {
+    if (otroPendiente) otroPendiente.style.display = 'none';
+    vals[campo] = sel.value;
+  }
+  actualizarBadgeEquipos();
+}
+
 function refrescarSels() {
-  const campos = ['central','grabador','com','incendio','acceso'];
-  campos.forEach(c => {
-    const v   = vals[c];
-    const btn = document.getElementById('sb-' + c);
-    const sp  = document.getElementById('sv-' + c);
-    if (!btn || !sp) return;
-    if (v) {
-      btn.classList.add('filled');
-      sp.textContent = v;
-      sp.classList.add('filled');
+  const mapa = { central:'eq-central', grabador:'eq-grabador', com:'eq-com',
+                 incendio:'eq-incendio', acceso:'eq-acceso' };
+  Object.entries(mapa).forEach(([campo, id]) => {
+    const sel   = document.getElementById(id);
+    const otro  = document.getElementById(id + '-otro');
+    if (!sel) return;
+    const v = vals[campo] || '';
+    // Ver si el valor está en las opciones estándar
+    const enOpciones = [...sel.options].some(o => o.value === v && o.value !== '__otro__' && o.value !== '');
+    if (v && !enOpciones) {
+      // Valor custom (Otro) — mostrar input
+      sel.value = '__otro__';
+      if (otro) { otro.style.display = 'block'; otro.value = v; }
     } else {
-      btn.classList.remove('filled');
-      sp.textContent = '— Seleccionar —';
-      sp.classList.remove('filled');
+      sel.value = v;
+      if (otro) otro.style.display = 'none';
     }
+    sel.classList.toggle('filled', !!v);
   });
   actualizarBadgeEquipos();
 }
@@ -7845,13 +7917,7 @@ const K_HORARIOS_B= 'pyc_horarios';
    ETIQUETAS — lista editable
    ================================================================ */
 const ETIQUETAS_BUILTIN = [
-  '#Cajamar','#BBVA','#CaixaRural','#Repsol','#ABANCA','#Solvia','#Orange',
-  '#Spider','#SpiderPro','#SpiderProCom','#SpiderTouch',
-  '#Galaxy','#GalaxyFlex','#GalaxyDimension',
-  '#ALWON','#Vesta','#Ajax','#PACOM','#Hikvision','#Scati','#Teltonika','#Salto',
-  '#Códigos','#IPRed','#Horarios','#Llaves','#Protocolo',
-  '#Baterías','#Alimentación','#Antena','#Comunicaciones',
-  '#CCTV','#Incendio','#PCI','#Diagnóstico','#ControlAcceso'
+  // El usuario gestiona sus propias etiquetas con "+ Añadir"
 ];
 
 const TAG_RULES = [
@@ -8243,8 +8309,8 @@ function eliminarEtiqueta(tag) {
 const K_TIPOS_DATO     = 'pyc_tipos_dato';
 const K_TIPOS_DATO_DEL = 'pyc_tipos_dato_del';
 const TIPOS_BUILTIN = [
-  '🔑 Acceso','🌐 IP / Red','🔒 Contraseña','🕐 Horario',
-  '🗝️ Llaves','📞 Contacto','📋 Protocolo','📝 Nota general'
+  '🗝️ Llaves','🌐 IP / Red','🔒 Contraseña','🕐 Horario',
+  '📞 Contacto','📋 Datos','📝 Info'
 ];
 
 function getTiposDato() {
@@ -9490,7 +9556,7 @@ function _renderItEdit(item) {
     <label class="it-edit-label">Tipo de dato</label>
     <select class="it-edit-field" id="ite-tipodato"
       style="cursor:pointer;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');background-repeat:no-repeat;background-position:right 2px center">
-      ${['','🔑 Código acceso','🌐 IP / Red','🔒 Contraseña','🕐 Horario','🗝️ Llaves / Portal','📞 Contacto','📋 Protocolo','📝 Notas generales']
+      ${['','🗝️ Llaves','🌐 IP / Red','🔒 Contraseña','🕐 Horario','📞 Contacto','📋 Datos','📝 Info']
         .map(v => `<option value="${v}" ${(item.tipoDato||''===v)?'selected':''}>${v||'— Selecciona tipo —'}</option>`).join('')}
     </select>
 
@@ -10110,7 +10176,8 @@ function abrirVerNota(id) {
   document.getElementById('np-nav-titulo').textContent = n.titulo || 'Nota';
   document.getElementById('np-titulo').textContent     = n.titulo || '(sin título)';
   document.getElementById('np-fecha').textContent      = n.fecha  || '';
-  document.getElementById('np-body').textContent       = n.texto  || '';
+  document.getElementById('np-body').innerHTML = (n.texto || '')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>'); // compatibilidad notas antiguas
 
   const colorEtq = t => {
     if (t.includes('Cajamar')||t.includes('cajamar')) return 'background:rgba(42,103,115,.1);color:#2a6773';
@@ -10142,13 +10209,43 @@ function np_confirmarBorrar() {
 }
 /* ── FIN PÁGINA NOTA JS ─────────────────────────────────────── */
 
+/* ── QUILL — instancia global ── */
+let _quill = null;
+
+function _initQuill() {
+  if (_quill) return;
+  if (typeof Quill === 'undefined') return; // CDN no cargado
+  const Font = Quill.import('formats/font');
+  Font.whitelist = ['cursiva'];
+  Quill.register(Font, true);
+  _quill = new Quill('#quill-editor', {
+    theme: 'snow',
+    placeholder: 'Escribe aquí…',
+    modules: {
+      toolbar: [
+        ['bold', 'italic', 'underline'],
+        [{ size: ['small', false, 'large', 'huge'] }],
+        [{ font: ['', 'cursiva'] }],
+        ['clean']
+      ]
+    }
+  });
+}
+
 function abrirNuevaNota() {
   _editNotaId = null;
-  ['nn-titulo','nn-texto','nn-etiquetas'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
-  const tit = document.getElementById('nnota-title');
-  if (tit) tit.textContent = 'Nueva nota';
+  const tit = document.getElementById('nn-titulo');
+  const etq = document.getElementById('nn-etiquetas');
+  if (tit) tit.value = '';
+  if (etq) etq.value = '';
+  const lbl = document.getElementById('nnota-title-lbl');
+  if (lbl) lbl.textContent = 'Nueva nota';
   document.getElementById('nnota-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('nn-titulo')?.focus(), 350);
+  setTimeout(() => {
+    _initQuill();
+    if (_quill) _quill.setText('');
+    document.getElementById('nn-titulo')?.focus();
+  }, 350);
 }
 
 function abrirEditarNota(id) {
@@ -10156,41 +10253,57 @@ function abrirEditarNota(id) {
   const n = notas.find(n => n.id === id);
   if (!n) return;
   _editNotaId = id;
-  const t = document.getElementById('nn-titulo'); if(t) t.value = n.titulo || '';
-  const tx = document.getElementById('nn-texto'); if(tx) tx.value = n.texto || '';
-  const et = document.getElementById('nn-etiquetas'); if(et) et.value = n.etiquetas || '';
-  const tit = document.getElementById('nnota-title');
-  if (tit) tit.textContent = 'Editar nota';
+  const tit = document.getElementById('nn-titulo'); if (tit) tit.value = n.titulo || '';
+  const etq = document.getElementById('nn-etiquetas'); if (etq) etq.value = n.etiquetas || '';
+  const lbl = document.getElementById('nnota-title-lbl');
+  if (lbl) lbl.textContent = 'Editar nota';
   document.getElementById('nnota-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('nn-texto')?.focus(), 350);
+  setTimeout(() => {
+    _initQuill();
+    if (_quill) {
+      // Migración: si el texto es plano (no HTML), convertirlo
+      const texto = n.texto || '';
+      if (texto.startsWith('<') && texto.includes('</')) {
+        _quill.root.innerHTML = texto;
+      } else {
+        // Texto plano — convertir ** negrita ** si existe
+        const html = texto
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+          .replace(/\n/g,'<br>');
+        _quill.root.innerHTML = html;
+      }
+    }
+  }, 350);
 }
 
 function cerrarNuevaNota() {
   document.getElementById('nnota-overlay').classList.remove('open');
-  _notaEditId = null;
-  const title = document.querySelector('.nnota-title');
-  if (title) title.textContent = 'Nueva nota';
+  _editNotaId = null;
 }
 
 function guardarNota() {
   const titulo = document.getElementById('nn-titulo')?.value.trim();
-  const texto  = document.getElementById('nn-texto')?.value.trim();
+  let texto = '';
+  if (_quill) {
+    const delta = _quill.getContents();
+    const plain = _quill.getText().trim();
+    texto = plain ? _quill.root.innerHTML : '';
+  }
   if (!texto) { tareasToast('⚠️ Escribe el texto de la nota'); return; }
   const notas = loadArr(K_NOTAS);
   if (_editNotaId) {
-    // Editar existente
     const idx = notas.findIndex(n => n.id === _editNotaId);
     if (idx >= 0) {
-      notas[idx].titulo    = titulo || texto.slice(0,40);
+      notas[idx].titulo    = titulo || _quill.getText().trim().slice(0,40);
       notas[idx].texto     = texto;
       notas[idx].etiquetas = document.getElementById('nn-etiquetas')?.value.trim() || '';
     }
     tareasToast('✏️ Nota actualizada');
   } else {
-    // Nueva nota
     notas.unshift({
       id:        'N_' + Date.now(),
-      titulo:    titulo || texto.slice(0,40),
+      titulo:    titulo || _quill.getText().trim().slice(0,40),
       texto,
       fecha:     new Date().toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}),
       etiquetas: document.getElementById('nn-etiquetas')?.value.trim() || '',
@@ -10202,23 +10315,6 @@ function guardarNota() {
   renderNotas();
 }
 
-function editarNota(id) {
-  const notas = loadArr(K_NOTAS);
-  const n = notas.find(n => n.id === id);
-  if (!n) return;
-  _notaEditId = id;
-  const tit = document.getElementById('nn-titulo');
-  const txt = document.getElementById('nn-texto');
-  const etq = document.getElementById('nn-etiquetas');
-  if (tit) tit.value = n.titulo || '';
-  if (txt) txt.value = n.texto  || '';
-  if (etq) etq.value = n.etiquetas || '';
-  // Cambiar título del modal
-  const title = document.querySelector('.nnota-title');
-  if (title) title.textContent = '✏️ Editar nota';
-  document.getElementById('nnota-overlay').classList.add('open');
-  setTimeout(() => txt?.focus(), 350);
-}
 
 function borrarNota(id) {
   const notas = loadArr(K_NOTAS).filter(n => n.id !== id);
@@ -11456,5 +11552,15 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+<!-- ── SHEET EQUIPOS — al final del DOM para evitar stacking context ── -->
+<div class="sheet-overlay" id="sheet-ov" onclick="if(event.target===this)cerrarSheet()">
+  <div class="sheet-box">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="sheet-titulo">Seleccionar</div>
+    <div id="sheet-opts"></div>
+    <input class="sheet-otro" id="sheet-otro" type="text" placeholder="Escribe aquí…">
+  </div>
+</div>
+
 </body>
 </html>
