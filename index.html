@@ -11122,8 +11122,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <!-- ══════════════════════════════════════════════════════════════
-     💻 IRAM — Asistente IA PycLibreta
-     PARA REVERTIR: eliminar este bloque completo hasta el comentario de cierre
+     💻 IRAM — Asistente IA
      ══════════════════════════════════════════════════════════════ -->
 <style>
 /* ── Botón chat en header ── */
@@ -11133,257 +11132,689 @@ document.addEventListener('DOMContentLoaded', () => {
   display: flex; align-items: center; justify-content: center;
   font-size: 17px; cursor: pointer; flex-shrink: 0;
   -webkit-tap-highlight-color: transparent; transition: all .15s;
-  box-shadow: 0 2px 6px rgba(0,0,0,.15);
 }
 .hdr-chat-btn:active { background: rgba(255,255,255,.25); transform: scale(.93); }
 
-/* ── Overlay + Panel ── */
-.pyc-overlay {
-  position: fixed; inset: 0; background: rgba(10,18,35,.6);
-  z-index: 150; opacity: 0; pointer-events: none; transition: opacity .22s;
-}
-.pyc-overlay.open { opacity: 1; pointer-events: all; }
-
-.pyc-panel {
-  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
-  width: 100%; max-width: 480px; z-index: 160;
-  background: var(--paper); border-radius: 24px 24px 0 0;
-  box-shadow: 0 -12px 50px rgba(10,18,35,.3);
+/* ── IRAM PANTALLA COMPLETA ── */
+.iram-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: #060a14;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
   display: flex; flex-direction: column;
-  max-height: 85dvh; transition: transform .32s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
 }
-.pyc-panel.open { transform: translateX(-50%) translateY(0); }
+.iram-overlay.open { opacity: 1; pointer-events: all; }
 
-/* ── Header Iram ── */
-.pyc-hdr {
-  background: linear-gradient(135deg, var(--navy-deep) 0%, var(--navy) 60%, var(--navy-mid) 100%);
-  border-radius: 24px 24px 0 0;
-  padding: 14px 16px 12px; flex-shrink: 0;
-  display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 3px 12px rgba(0,0,0,.2), 0 1px 0 rgba(249,115,22,.15);
+/* Contenedor que ocupa todo menos la barra inferior */
+.iram-body {
+  flex: 1; position: relative; overflow: hidden; min-height: 0;
 }
-.pyc-hdr-ico {
-  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
-  background: linear-gradient(135deg, rgba(249,115,22,.3), rgba(249,115,22,.15));
-  border: 1.5px solid rgba(249,115,22,.5);
-  display: flex; align-items: center; justify-content: center; font-size: 20px;
-  box-shadow: 0 0 12px rgba(249,115,22,.2);
+
+.iram-screen {
+  position: absolute !important; inset: 0 !important;
+  display: none !important; flex-direction: column;
+  overflow: hidden; background: #060a14;
 }
-.pyc-hdr-txt { flex: 1; }
-.pyc-hdr-title { font-size: 17px; font-weight: 900; color: white; letter-spacing: -.01em; }
-.pyc-hdr-title em { color: var(--orange-light); font-style: normal; }
-.pyc-hdr-sub {
-  font-family: var(--font-mono); font-size: 9px;
-  color: rgba(255,255,255,.45); letter-spacing: .06em; margin-top: 2px;
-  display: flex; align-items: center; gap: 5px;
+.iram-screen.active { display: flex !important; }
+
+/* ── HEADER ── */
+.iram-hdr {
+  padding: 14px 20px 12px; flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 10px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
 }
-.pyc-hdr-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--ok); box-shadow: 0 0 4px rgba(22,163,74,.6);
-  animation: blink 2s ease-in-out infinite;
+.iram-hdr-top {
+  display: flex; align-items: center; justify-content: space-between;
 }
-.pyc-close {
-  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
-  border-radius: 50%; width: 32px; height: 32px; font-size: 14px;
-  color: rgba(255,255,255,.7); cursor: pointer;
+.iram-hdr-center { flex: 1; text-align: center; }
+.iram-hdr-name {
+  font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 800;
+  color: white; letter-spacing: .14em;
+}
+.iram-hdr-sub {
+  font-size: 8px; color: rgba(255,255,255,.3);
+  letter-spacing: .2em; font-family: monospace; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.iram-hdr-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: #4ade80;
+  box-shadow: 0 0 5px #4ade80; animation: blink 2s ease-in-out infinite;
+}
+.iram-close {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  color: rgba(255,255,255,.5); font-size: 13px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  -webkit-tap-highlight-color: transparent; transition: background .15s;
+  -webkit-tap-highlight-color: transparent;
 }
-.pyc-close:active { background: rgba(255,255,255,.25); }
+.iram-status-ico {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
 
-/* ── Mensajes ── */
-.pyc-msgs {
-  flex: 1; overflow-y: auto; padding: 14px 14px 8px;
+/* Toggle IAs */
+.ia-toggle {
+  display: flex; gap: 2px;
+  background: rgba(255,255,255,.04); border-radius: 10px; padding: 3px;
+  border: 1px solid rgba(255,255,255,.07);
+}
+.ia-btn {
+  flex: 1; padding: 7px 4px; border-radius: 8px; border: none;
+  font-size: 10px; font-weight: 700; cursor: pointer; letter-spacing: .03em;
+  color: rgba(255,255,255,.3); background: transparent; transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  font-family: monospace;
+}
+.ia-btn.on { color: white; }
+.ia-btn.groq.on   { background: rgba(249,115,22,.18); color: #fb923c; }
+.ia-btn.mistral.on{ background: rgba(251,191,36,.12); color: #fbbf24; }
+.ia-btn.gemini.on { background: rgba(99,102,241,.18); color: #a5b4fc; }
+
+/* ── MODO CHAT ── */
+#iram-chat {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* Zona voz */
+.iram-voice-zone {
+  flex-shrink: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 20px 20px 14px; gap: 10px;
+  position: relative;
+}
+.iram-voice-status {
+  font-size: 13px; color: rgba(255,255,255,.4); font-family: 'DM Sans', sans-serif;
+}
+.iram-wave-wrap {
+  position: relative; width: 100%; height: 100px;
+  display: flex; align-items: center; justify-content: center;
+}
+.iram-wave-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid rgba(124,58,237,.2);
+  animation: iramRing 3s ease-in-out infinite;
+}
+.iram-wave-ring:nth-child(1) { width:70px; height:70px; animation-delay:0s; }
+.iram-wave-ring:nth-child(2) { width:110px; height:110px; animation-delay:.4s; opacity:.7; }
+.iram-wave-ring:nth-child(3) { width:150px; height:150px; animation-delay:.8s; opacity:.4; }
+.iram-wave-ring:nth-child(4) { width:190px; height:190px; animation-delay:1.2s; opacity:.2; }
+@keyframes iramRing {
+  0%,100%{transform:scale(1);border-color:rgba(124,58,237,.2)}
+  50%{transform:scale(1.06);border-color:rgba(124,58,237,.45)}
+}
+.iram-mic-ring.listening .iram-wave-ring { border-color: rgba(168,85,247,.4); }
+
+.iram-mic-big {
+  width: 62px; height: 62px; border-radius: 50%; position: relative; z-index: 2;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 24px rgba(124,58,237,.5);
+  -webkit-tap-highlight-color: transparent; transition: all .2s;
+}
+.iram-mic-big.listening {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  box-shadow: 0 6px 32px rgba(168,85,247,.6);
+  animation: micPulse .9s ease-in-out infinite;
+}
+@keyframes micPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+
+/* Área de mensajes */
+.iram-msgs {
+  flex: 1; overflow-y: auto; padding: 12px 16px;
   display: flex; flex-direction: column; gap: 10px;
   -webkit-overflow-scrolling: touch;
 }
 .pyc-msg { display: flex; gap: 8px; align-items: flex-end; }
 .pyc-msg.user { flex-direction: row-reverse; }
 .pyc-bubble {
-  max-width: 80%; padding: 10px 14px; border-radius: 18px;
-  font-size: 13px; line-height: 1.55; color: var(--ink-dark);
+  max-width: 82%; padding: 10px 13px; border-radius: 16px;
+  font-size: 13px; line-height: 1.55;
 }
-.pyc-msg.ai   .pyc-bubble {
-  background: white; border: 1px solid rgba(26,39,68,.09);
-  border-bottom-left-radius: 5px;
-  box-shadow: 0 1px 4px rgba(26,39,68,.07);
+.pyc-msg.ai .pyc-bubble {
+  background: rgba(255,255,255,.08); color: rgba(255,255,255,.9);
+  border: 1px solid rgba(255,255,255,.08); border-bottom-left-radius: 4px;
 }
 .pyc-msg.user .pyc-bubble {
-  background: linear-gradient(135deg, var(--navy), var(--navy-mid));
-  color: white; border-bottom-right-radius: 5px;
-  box-shadow: 0 2px 8px rgba(26,39,68,.2);
+  background: rgba(124,58,237,.3); color: white;
+  border: 1px solid rgba(124,58,237,.35); border-bottom-right-radius: 4px;
 }
-.pyc-bubble.thinking { color: var(--ink-xl); font-style: italic; }
+.pyc-bubble.thinking { color: rgba(255,255,255,.4); font-style: italic; }
 .pyc-avatar {
-  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; font-size: 15px;
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
 }
-.pyc-msg.ai   .pyc-avatar {
-  background: linear-gradient(135deg,var(--navy-deep),var(--navy));
-  border: 1.5px solid rgba(249,115,22,.3);
-  box-shadow: 0 0 8px rgba(249,115,22,.15);
-}
-.pyc-msg.user .pyc-avatar { background: var(--orange); }
+.pyc-msg.user .pyc-avatar { background: rgba(249,115,22,.8); }
 
-/* ── Config key ── */
+/* Config key */
 .pyc-key-box {
-  margin: 8px 14px; background: rgba(249,115,22,.07);
-  border: 1.5px dashed rgba(249,115,22,.35); border-radius: 14px;
-  padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  margin: 8px 16px; background: rgba(124,58,237,.08);
+  border: 1.5px dashed rgba(124,58,237,.3); border-radius: 12px;
+  padding: 12px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
 }
-.pyc-key-lbl { font-size: 12px; font-weight: 700; color: var(--orange-deep); }
-.pyc-key-desc { font-size: 11px; color: var(--ink-mid); line-height: 1.4; }
+.pyc-key-lbl { font-size: 12px; font-weight: 700; color: #a5b4fc; }
+.pyc-key-desc { font-size: 11px; color: rgba(255,255,255,.45); line-height: 1.4; }
 .pyc-key-row { display: flex; gap: 8px; }
 .pyc-key-input {
-  flex: 1; border: 1.5px solid rgba(26,39,68,.15); border-radius: 8px;
-  padding: 8px 10px; font-family: var(--font-mono); font-size: 11px;
-  background: white; outline: none; color: var(--ink-dark);
+  flex: 1; border: 1px solid rgba(124,58,237,.3); border-radius: 8px;
+  padding: 8px 10px; font-family: monospace; font-size: 11px;
+  background: rgba(255,255,255,.06); outline: none; color: white;
 }
-.pyc-key-input:focus { border-color: var(--orange); }
+.pyc-key-input:focus { border-color: #7c3aed; }
 .pyc-key-save {
-  background: var(--orange); color: white; border: none;
+  background: #7c3aed; color: white; border: none;
   border-radius: 8px; padding: 8px 14px; font-size: 12px;
-  font-weight: 700; cursor: pointer; white-space: nowrap;
-  -webkit-tap-highlight-color: transparent;
+  font-weight: 700; cursor: pointer;
 }
 
-/* Input area */
-.pyc-input-area {
+/* Input texto */
+.iram-input-area {
   display: flex; gap: 8px; align-items: flex-end;
-  padding: 10px 14px 28px; flex-shrink: 0;
-  border-top: 1px solid rgba(26,39,68,.07);
+  padding: 10px 16px 16px; flex-shrink: 0;
+  border-top: 1px solid rgba(255,255,255,.06);
 }
-.pyc-textarea {
-  flex: 1; border: 1.5px solid rgba(26,39,68,.12); border-radius: 20px;
-  padding: 9px 14px; font-family: var(--font-ui); font-size: 13px;
-  resize: none; outline: none; background: white; line-height: 1.4;
-  max-height: 80px; overflow-y: auto; color: var(--ink-dark);
-  -webkit-appearance: none;
+.iram-textarea {
+  flex: 1; border: 1px solid rgba(255,255,255,.12); border-radius: 20px;
+  padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 13px;
+  resize: none; outline: none; background: rgba(255,255,255,.06);
+  line-height: 1.4; max-height: 80px; overflow-y: auto;
+  color: white; -webkit-appearance: none;
 }
-.pyc-textarea:focus { border-color: var(--orange); }
+.iram-textarea::placeholder { color: rgba(255,255,255,.25); }
+.iram-textarea:focus { border-color: rgba(124,58,237,.5); }
 .pyc-mic {
-  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
-  background: rgba(26,39,68,.08); border: none; font-size: 18px;
-  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  font-size: 17px; display: flex; align-items: center; justify-content: center;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: background .15s;
 }
-.pyc-mic.active { background: #dc2626; animation: micPulse .8s ease-in-out infinite; }
-@keyframes micPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.12)} }
+.pyc-mic.active { background: #dc2626; border-color: #dc2626; }
 .pyc-send {
-  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
-  background: var(--orange); border: none; font-size: 18px;
-  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5); border: none;
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
-  box-shadow: 0 3px 10px rgba(249,115,22,.35); transition: all .15s;
+  box-shadow: 0 3px 12px rgba(124,58,237,.4);
 }
-.pyc-send:disabled { background: var(--ink-xl); box-shadow: none; }
-.pyc-send:active { transform: scale(.93); }
+.pyc-send:disabled { background: rgba(255,255,255,.1); box-shadow: none; }
+
+/* ── MODO CONDUCCIÓN ── */
+#iram-drive {
+  flex: 1; display: flex; flex-direction: column;
+  overflow-y: auto; padding: 16px; gap: 12px;
+}
+
+/* Stats */
+.drive-stats {
+  display: flex; gap: 8px; flex-shrink: 0;
+}
+.drive-stat {
+  flex: 1; background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 14px;
+  padding: 14px 10px; text-align: center;
+}
+.drive-stat-n {
+  font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800;
+  color: white; line-height: 1;
+}
+.drive-stat-l {
+  font-size: 8px; color: rgba(255,255,255,.3); letter-spacing: .08em;
+  text-transform: uppercase; margin-top: 6px; font-family: monospace;
+}
+
+/* Próxima parada */
+.drive-next {
+  background: rgba(124,58,237,.1); border: 1px solid rgba(124,58,237,.25);
+  border-radius: 16px; padding: 16px; flex-shrink: 0;
+}
+.drive-next-lbl {
+  font-size: 8px; font-weight: 700; color: rgba(124,58,237,.7);
+  font-family: monospace; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.drive-next-cliente {
+  font-size: 20px; font-weight: 800; color: white; font-family: 'Syne', sans-serif; line-height: 1.2;
+}
+.drive-next-dir { font-size: 12px; color: rgba(255,255,255,.45); margin-top: 5px; }
+.drive-next-work {
+  font-size: 13px; color: rgba(255,255,255,.75); margin-top: 10px;
+  padding-top: 10px; border-top: 1px solid rgba(124,58,237,.2); line-height: 1.45;
+}
+.drive-next-alerta {
+  margin-top: 8px; padding: 7px 11px; border-radius: 8px;
+  background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.2);
+  font-size: 12px; color: #fca5a5; display: flex; align-items: center; gap: 6px;
+}
+
+/* Botones acción conducción */
+.drive-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.drive-action {
+  flex: 1; background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 14px; padding: 16px 6px; text-align: center; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: all .15s;
+}
+.drive-action:active { background: rgba(255,255,255,.1); transform: scale(.97); }
+.drive-action-icon { font-size: 22px; margin-bottom: 6px; }
+.drive-action-lbl {
+  font-size: 10px; color: rgba(255,255,255,.55); font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Iram dice */
+.drive-response {
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px; padding: 14px; flex-shrink: 0;
+}
+.drive-response-lbl {
+  font-size: 8px; color: rgba(255,255,255,.25); font-family: monospace;
+  letter-spacing: .12em; margin-bottom: 8px;
+}
+.drive-response-txt {
+  font-size: 15px; line-height: 1.55; color: rgba(255,255,255,.9); font-weight: 500;
+}
+
+/* Mic zona conducción */
+.drive-mic-zone {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 8px 0 4px; flex-shrink: 0;
+}
+.drive-mic-hint {
+  font-size: 10px; color: rgba(255,255,255,.25); letter-spacing: .1em;
+  font-family: monospace; text-transform: uppercase;
+}
+.drive-mic-btn {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px;
+  box-shadow: 0 0 0 10px rgba(124,58,237,.1), 0 0 0 20px rgba(124,58,237,.05), 0 8px 32px rgba(124,58,237,.4);
+  -webkit-tap-highlight-color: transparent; transition: all .2s;
+}
+.drive-mic-btn.listening {
+  box-shadow: 0 0 0 14px rgba(168,85,247,.18), 0 0 0 28px rgba(168,85,247,.07), 0 8px 40px rgba(168,85,247,.5);
+  animation: micPulse .9s ease-in-out infinite;
+}
+
+/* ── BARRA INFERIOR ── */
+.iram-nav {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 24px 24px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  background: rgba(6,10,20,.98);
+  z-index: 10;
+}
+.iram-nav-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer; padding: 6px 16px;
+  border-radius: 10px; color: rgba(255,255,255,.3); font-size: 10px; font-weight: 500;
+  -webkit-tap-highlight-color: transparent; transition: all .2s; font-family: 'DM Sans', sans-serif;
+}
+.iram-nav-btn.active { color: rgba(255,255,255,.8); background: rgba(255,255,255,.06); }
+.iram-nav-btn svg { width: 20px; height: 20px; }
+.iram-nav-mic {
+  width: 58px; height: 58px; border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  border: none; cursor: pointer; margin-top: -12px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 8px rgba(124,58,237,.12), 0 6px 20px rgba(124,58,237,.45);
+  -webkit-tap-highlight-color: transparent; transition: all .2s;
+}
+.iram-nav-mic.listening {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  box-shadow: 0 0 0 10px rgba(168,85,247,.18), 0 6px 24px rgba(168,85,247,.5);
+  animation: micPulse .9s ease-in-out infinite;
+}
 </style>
 
-<!-- Overlay oscuro -->
-<div class="pyc-overlay" id="pyc-overlay" onclick="pycCerrarChat()"></div>
+<!-- IRAM pantalla completa -->
+<div class="iram-overlay" id="pyc-overlay">
 
-<!-- Panel chat -->
-<div class="pyc-panel" id="pyc-panel">
-  <div class="pyc-hdr">
-    <div class="pyc-hdr-ico">💻</div>
-    <div class="pyc-hdr-txt">
-      <div class="pyc-hdr-title"><em>Iram</em></div>
-      <div class="pyc-hdr-sub"><div class="pyc-hdr-dot"></div><span id="pyc-status">Listo · Gemini 2.0</span></div>
+  <!-- Config keys — 3 IAs -->
+  <div class="pyc-key-box" id="pyc-key-box" style="display:none;position:relative;z-index:10;margin:8px 16px 0;flex-shrink:0">
+    <div class="pyc-key-lbl">🔑 Configura tus API keys</div>
+    <div class="pyc-key-desc">Obtén tus keys gratis. Se guardan solo en tu móvil.</div>
+    
+    <!-- Groq -->
+    <div class="pyc-key-row" style="margin-top:8px">
+      <input class="pyc-key-input" id="pyc-key-groq" type="password" placeholder="Groq key (console.groq.com)" autocomplete="off" style="flex:1">
+      <button class="pyc-key-save" onclick="pycGuardarKey('groq')" style="margin-left:4px">✓</button>
     </div>
-    <button class="pyc-close" onclick="pycCerrarChat()">✕</button>
+    
+    <!-- Mistral -->
+    <div class="pyc-key-row" style="margin-top:6px">
+      <input class="pyc-key-input" id="pyc-key-mistral" type="password" placeholder="Mistral key (mistral.ai)" autocomplete="off" style="flex:1">
+      <button class="pyc-key-save" onclick="pycGuardarKey('mistral')" style="margin-left:4px">✓</button>
+    </div>
+    
+    <!-- Gemini -->
+    <div class="pyc-key-row" style="margin-top:6px">
+      <input class="pyc-key-input" id="pyc-key-gemini" type="password" placeholder="Gemini key (aistudio.google.com)" autocomplete="off" style="flex:1">
+      <button class="pyc-key-save" onclick="pycGuardarKey('gemini')" style="margin-left:4px">✓</button>
+    </div>
   </div>
 
-  <!-- Configurar API key (se muestra hasta que hay key) -->
-  <div class="pyc-key-box" id="pyc-key-box" style="display:none">
-    <div class="pyc-key-lbl">🔑 Configura tu API key de Google</div>
-    <div class="pyc-key-desc">Obtén tu key gratis en <strong>aistudio.google.com</strong> → Get API key. Se guarda solo en tu móvil.</div>
-    <div class="pyc-key-row">
-      <input class="pyc-key-input" id="pyc-key-input" type="password" placeholder="AIza..." autocomplete="off">
-      <button class="pyc-key-save" onclick="pycGuardarKey()">Guardar</button>
+  <div class="iram-body">
+
+    <!-- ── MODO CHAT ── -->
+    <div class="iram-screen active" id="iram-chat">
+
+    <!-- Header -->
+    <div class="iram-hdr">
+      <div class="iram-hdr-top">
+        <button class="iram-close" onclick="pycCerrarChat()">✕</button>
+        <div class="iram-hdr-center">
+          <div class="iram-hdr-name">IRAM</div>
+          <div class="iram-hdr-sub"><div class="iram-hdr-dot"></div><span id="pyc-status">Listo · Gemini 2.0</span></div>
+        </div>
+        <div class="iram-status-ico">🖥️</div>
+      </div>
+      <div class="ia-toggle">
+        <button class="ia-btn groq" onclick="iramSetIA('groq',this)">🟠 GROQ</button>
+        <button class="ia-btn mistral" onclick="iramSetIA('mistral',this)">🟡 MISTRAL</button>
+        <button class="ia-btn gemini on" onclick="iramSetIA('gemini',this)">🔷 GEMINI</button>
+      </div>
     </div>
+
+    <!-- Zona voz -->
+    <div class="iram-voice-zone">
+      <div class="iram-voice-status" id="iram-voice-status">Pulsa para hablar</div>
+      <div class="iram-wave-wrap" id="iram-mic-ring">
+        <div class="iram-wave-ring"></div>
+        <div class="iram-wave-ring"></div>
+        <div class="iram-wave-ring"></div>
+        <div class="iram-wave-ring"></div>
+        <button class="iram-mic-big" id="iram-mic-big" onclick="pycToggleVoz()">🎤</button>
+      </div>
+    </div>
+
+    <!-- Mensajes -->
+    <div class="iram-msgs" id="pyc-msgs"></div>
+
+    <!-- Input -->
+    <div class="iram-input-area">
+      <textarea class="iram-textarea" id="pyc-ta" rows="1"
+        placeholder="Escribe o pulsa el micrófono…"
+        oninput="pycAutoResize(this)"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();pycEnviar()}"
+      ></textarea>
+      <button class="pyc-mic" id="pyc-mic" onclick="pycToggleVoz()" title="Voz">🎙️</button>
+      <button class="pyc-send" id="pyc-send" onclick="pycEnviar()">➤</button>
+    </div>
+
   </div>
 
-  <div class="pyc-msgs" id="pyc-msgs"></div>
+  <!-- ── MODO CONDUCCIÓN ── -->
+  <div class="iram-screen" id="iram-drive">
 
-  <div class="pyc-input-area">
-    <textarea class="pyc-textarea" id="pyc-ta" rows="1"
-      placeholder="Escribe o pulsa el micrófono…"
-      oninput="pycAutoResize(this)"
-      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();pycEnviar()}"
-    ></textarea>
-    <button class="pyc-mic" id="pyc-mic" onclick="pycToggleVoz()" title="Voz">🎙️</button>
-    <button class="pyc-send" id="pyc-send" onclick="pycEnviar()">➤</button>
+    <div class="iram-hdr">
+      <div class="iram-hdr-top">
+        <button class="iram-close" onclick="pycCerrarChat()">✕</button>
+        <div class="iram-hdr-center">
+          <div class="iram-hdr-name">IRAM</div>
+          <div class="iram-hdr-sub">MODO CONDUCCIÓN</div>
+        </div>
+        <div class="iram-status-ico">🚗</div>
+      </div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px">
+
+      <!-- Stats -->
+      <div class="drive-stats" id="drive-stats">
+        <div class="drive-stat">
+          <div class="drive-stat-n" id="drive-n-pend">—</div>
+          <div class="drive-stat-l">Pendientes</div>
+        </div>
+        <div class="drive-stat">
+          <div class="drive-stat-n" style="color:#4ade80" id="drive-n-hecho">—</div>
+          <div class="drive-stat-l">Hecho</div>
+        </div>
+        <div class="drive-stat">
+          <div class="drive-stat-n" style="color:#f97316" id="drive-n-tareas">—</div>
+          <div class="drive-stat-l">Tareas</div>
+        </div>
+      </div>
+
+      <!-- Próxima parada -->
+      <div class="drive-next" id="drive-next">
+        <div class="drive-next-lbl">▶ Siguiente parada</div>
+        <div class="drive-next-cliente" id="drive-next-cliente">Sin paradas</div>
+        <div class="drive-next-dir" id="drive-next-dir"></div>
+        <div class="drive-next-work" id="drive-next-work"></div>
+        <div class="drive-next-alerta" id="drive-next-alerta" style="display:none"></div>
+      </div>
+
+      <!-- Acciones -->
+      <div class="drive-actions">
+        <div class="drive-action" onclick="iramWaze()">
+          <div class="drive-action-icon">🗺️</div>
+          <div class="drive-action-lbl">Waze</div>
+        </div>
+        <div class="drive-action" onclick="iramLlamar()">
+          <div class="drive-action-icon">📞</div>
+          <div class="drive-action-lbl">Llamar</div>
+        </div>
+        <div class="drive-action" onclick="pycCerrarChat();irA('tareas')">
+          <div class="drive-action-icon">✅</div>
+          <div class="drive-action-lbl">Tareas</div>
+        </div>
+        <div class="drive-action" onclick="pycCerrarChat();irA('analisis')">
+          <div class="drive-action-icon">📅</div>
+          <div class="drive-action-lbl">Eventos</div>
+        </div>
+      </div>
+
+      <!-- Iram dice -->
+      <div class="drive-response" id="drive-response">
+        <div class="drive-response-lbl">IRAM DICE</div>
+        <div class="drive-response-txt" id="drive-response-txt">Cuando hables, aquí verás la respuesta.</div>
+      </div>
+
+      <!-- Mic grande -->
+      <div class="drive-mic-zone">
+        <div class="drive-mic-hint">Pulsa para hablar</div>
+        <button class="drive-mic-btn" id="drive-mic-btn" onclick="pycToggleVoz()">🎤</button>
+      </div>
+
+    </div>
+  </div><!-- /iram-drive -->
+  </div><!-- /iram-body -->
+
+  <!-- Barra inferior -->
+  <div class="iram-nav">
+    <button class="iram-nav-btn active" id="iram-btn-chat" onclick="iramShowMode('chat')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Texto
+    </button>
+    <button class="iram-nav-mic" id="iram-nav-mic" onclick="pycToggleVoz()">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="white">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <line x1="12" y1="19" x2="12" y2="23" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        <line x1="8" y1="23" x2="16" y2="23" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <button class="iram-nav-btn" id="iram-btn-drive" onclick="iramShowMode('drive')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 8v4l3 3"/>
+      </svg>
+      Conducción
+    </button>
   </div>
 </div>
 
 <script>
 /* ================================================================
-   💻 IRAM — Asistente IA PycLibreta
-   PARA REVERTIR: eliminar este bloque <script> completo
+   💻 IRAM — Asistente IA
    ================================================================ */
 'use strict';
 
-const PYC_KEY_STORE  = 'pyc_gemini_key';
-const PYC_HIST_MAX   = 8; // máx. mensajes que se envían a Gemini como contexto
-let _pycHist         = []; // { role:'user'|'model', text }
-let _pycRecognition  = null;
-let _pycHablando     = false;
-let _pycThinking     = false;
+const PYC_KEY_GROQ    = 'pyc_groq_key';
+const PYC_KEY_MISTRAL = 'pyc_mistral_key';
+const PYC_KEY_GEMINI  = 'pyc_gemini_key';
+const PYC_HIST_MAX    = 8;
+let _pycHist        = [];
+let _pycRecognition = null;
+let _pycHablando    = false;
+let _pycThinking    = false;
+let _iramIA         = 'gemini'; // 'groq' | 'mistral' | 'gemini'
 
 /* ── Abrir / cerrar ── */
 function pycAbrirChat() {
   document.getElementById('pyc-overlay').classList.add('open');
-  document.getElementById('pyc-panel').classList.add('open');
+  iramShowMode('chat');
+  iramRellenarDrive();
   pycCheckKey();
-  if (!_pycHist.length) pycMsgIA('Hola 👋 Soy Iram, tu asistente. Pregúntame sobre tus tareas, ruta, avisos o eventos.');
-  setTimeout(() => document.getElementById('pyc-ta').focus(), 350);
+  if (!_pycHist.length) pycMsgIA('Buenas Gsus 👋 ¿En qué te ayudo?');
+  setTimeout(() => document.getElementById('pyc-ta')?.focus(), 350);
 }
 
 function pycCerrarChat() {
   document.getElementById('pyc-overlay').classList.remove('open');
-  document.getElementById('pyc-panel').classList.remove('open');
   pycPararVoz();
 }
 
-/* ── API Key ── */
-function pycGetKey()  { return localStorage.getItem(PYC_KEY_STORE) || ''; }
+/* ── Navegación modos ── */
+function iramShowMode(mode) {
+  document.querySelectorAll('.iram-screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.iram-nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('iram-' + mode).classList.add('active');
+  const btn = document.getElementById('iram-btn-' + mode);
+  if (btn) btn.classList.add('active');
+  if (mode === 'drive') iramRellenarDrive();
+}
+
+/* ── Toggle IA ── */
+function iramSetIA(ia, btn) {
+  _iramIA = ia;
+  btn.closest('.ia-toggle').querySelectorAll('.ia-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  const st = document.getElementById('pyc-status');
+  if (st) st.textContent = 'Listo · ' + ia.charAt(0).toUpperCase() + ia.slice(1);
+}
+
+/* ── Rellenar datos modo conducción ── */
+function iramRellenarDrive() {
+  try {
+    const ruta   = JSON.parse(localStorage.getItem('pyc_ruta_paradas') || '[]');
+    const tareas = JSON.parse(localStorage.getItem('pyc_tareas') || '[]');
+    const pend   = ruta.filter(r => r.estado === 'pendiente');
+    const hecho  = ruta.filter(r => r.estado === 'completada');
+    const tPend  = tareas.filter(t => t.estado === 'pendiente');
+
+    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setText('drive-n-pend',   pend.length);
+    setText('drive-n-hecho',  hecho.length);
+    setText('drive-n-tareas', tPend.length);
+
+    const sig = pend[0];
+    if (sig) {
+      setText('drive-next-cliente', `${sig.clienteReal || sig.cliente || '—'} · ${sig.codigo || ''}`);
+      setText('drive-next-dir', `📍 ${sig.direccion || ''} · ${sig.localidad || ''}`);
+      setText('drive-next-work', sig.trabajo || sig.aviso || '');
+      // Alerta horario
+      const alertEl = document.getElementById('drive-next-alerta');
+      if (alertEl && sig.horarioTxt) {
+        alertEl.textContent = '🔴 ' + sig.horarioTxt;
+        alertEl.style.display = 'flex';
+      } else if (alertEl) {
+        alertEl.style.display = 'none';
+      }
+    } else {
+      setText('drive-next-cliente', 'Sin paradas pendientes');
+      setText('drive-next-dir', '');
+      setText('drive-next-work', '');
+    }
+  } catch(e) {}
+}
+
+/* ── Waze / Llamar ── */
+function iramWaze() {
+  try {
+    const ruta = JSON.parse(localStorage.getItem('pyc_ruta_paradas') || '[]');
+    const sig = ruta.find(r => r.estado === 'pendiente');
+    if (!sig) return;
+    const dir = encodeURIComponent((sig.direccion || '') + ' ' + (sig.localidad || ''));
+    window.open(`https://waze.com/ul?q=${dir}&navigate=yes`, '_blank');
+  } catch(e) {}
+}
+
+function iramLlamar() {
+  // Placeholder — en Fase 5 conectará con hoja Contactos
+  pycMsgIA('La función de llamada se activará cuando configures tus contactos en el Excel.');
+}
+
+/* ── Key ── */
+/* ── Gestión de keys ── */
+function pycGetKey(ia) {
+  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
+  return localStorage.getItem(stores[ia] || PYC_KEY_GEMINI) || '';
+}
 function pycCheckKey() {
   const box = document.getElementById('pyc-key-box');
-  if (box) box.style.display = pycGetKey() ? 'none' : 'flex';
+  const hasAny = pycGetKey('groq') || pycGetKey('mistral') || pycGetKey('gemini');
+  if (box) box.style.display = hasAny ? 'none' : 'flex';
+  // Cargar keys en inputs
+  const kG = document.getElementById('pyc-key-groq');
+  const kM = document.getElementById('pyc-key-mistral');
+  const kGm = document.getElementById('pyc-key-gemini');
+  if (kG) kG.value = pycGetKey('groq');
+  if (kM) kM.value = pycGetKey('mistral');
+  if (kGm) kGm.value = pycGetKey('gemini');
 }
-function pycGuardarKey() {
-  const v = document.getElementById('pyc-key-input').value.trim();
+function pycGuardarKey(ia) {
+  const inputs = { groq: 'pyc-key-groq', mistral: 'pyc-key-mistral', gemini: 'pyc-key-gemini' };
+  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
+  const v = document.getElementById(inputs[ia])?.value.trim();
   if (!v) return;
-  localStorage.setItem(PYC_KEY_STORE, v);
+  localStorage.setItem(stores[ia], v);
   pycCheckKey();
-  pycMsgIA('✅ Key guardada. Ya puedo conectarme a Gemini. ¿En qué te ayudo?');
+  pycMsgIA(`✅ Key de ${ia} guardada.`);
 }
 
 /* ── Mensajes ── */
 function pycMsgIA(txt, thinking=false) {
-  _pycHist.push({ role:'model', text: txt });
+  _pycHist.push({ role:'model', text:txt, thinking });
   pycRenderMsgs();
-  if (!thinking && txt && !txt.startsWith('✅')) pycHablar(txt);
+  // Leer automáticamente (solo si no es thinking)
+  if (!thinking && txt && txt.length > 5) {
+    setTimeout(() => pycHablar(txt), 300);
+  }
 }
 function pycMsgUser(txt) {
-  _pycHist.push({ role:'user', text: txt });
+  _pycHist.push({ role:'user', text:txt });
   pycRenderMsgs();
 }
-
 function pycRenderMsgs() {
   const el = document.getElementById('pyc-msgs');
   if (!el) return;
-  el.innerHTML = _pycHist.map(m => `
-    <div class="pyc-msg ${m.role==='user'?'user':'ai'}">
-      <div class="pyc-avatar">${m.role==='user'?'👤':'💻'}</div>
-      <div class="pyc-bubble${m.thinking?' thinking':''}">${m.text.replace(/\n/g,'<br>')}</div>
-    </div>`).join('');
+  el.innerHTML = _pycHist.map(m => {
+    const cls = m.role === 'user' ? 'user' : 'ai';
+    const av  = m.role === 'user' ? '👤' : '✦';
+    return `<div class="pyc-msg ${cls}">
+      <div class="pyc-avatar">${av}</div>
+      <div class="pyc-bubble${m.thinking?' thinking':''}">${m.text}</div>
+    </div>`;
+  }).join('');
   el.scrollTop = el.scrollHeight;
+  // Si hay respuesta nueva, actualizar "Iram dice" en modo conducción
+  const last = _pycHist.filter(m=>m.role==='model' && !m.thinking).slice(-1)[0];
+  if (last) {
+    const rt = document.getElementById('drive-response-txt');
+    if (rt) rt.textContent = last.text;
+  }
 }
 
-/* ── Recoger estado de la app ── */
 function pycContexto() {
   const hoy = new Date().toISOString().slice(0,10);
   const tareas   = (() => { try { return JSON.parse(localStorage.getItem('pyc_tareas')||'[]'); } catch{return[];} })();
@@ -11424,9 +11855,9 @@ PRIVACIDAD: No tienes acceso a contraseñas, IPs ni códigos de acceso. Si el us
 
 /* ── Llamada a Gemini ── */
 async function pycGemini(userMsg) {
-  const key = pycGetKey();
+  const key = pycGetKey('gemini');
   if (!key) {
-    pycMsgIA('⚠️ Primero configura tu API key de Google Gemini arriba.');
+    pycMsgIA('⚠️ Configura tu API key de Gemini arriba.');
     return;
   }
 
@@ -11488,6 +11919,148 @@ Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuesta
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || '(Sin respuesta)';
 }
 
+/* ── Groq (OpenAI-compatible) ── */
+async function pycGroq(userMsg) {
+  const key = pycGetKey('groq');
+  if (!key) throw new Error('Sin key Groq');
+
+  const sistemPrompt = `Eres Iram, el asistente de campo de Jesús (Gsus), técnico de seguridad que trabaja en Valencia y alrededores.
+
+Tu personalidad:
+- Hablas como un compañero de trabajo, en español informal pero sin pasarte
+- Directo y al grano, sin rodeos ni explicaciones largas
+- Proactivo: si ves algo relevante en los datos, lo dices sin que te pregunten
+- Nunca das listas interminables, máximo 3-4 puntos
+- En el coche usas frases cortas, fáciles de escuchar
+
+Tu trabajo:
+- Ayudar a gestionar el día: ruta, avisos, tareas, eventos
+- Avisar de cosas importantes: oficinas cerradas, partes antiguos, MTO pendiente
+- Recordar datos útiles de cada oficina cuando toca visitarla
+- Nunca revelar datos sensibles: contraseñas, IPs, códigos de acceso
+
+Lo que NO haces:
+- No inventas datos que no tienes
+- No das rodeos ni presentaciones largas
+- Si no sabes algo, lo dices claro: "Eso no lo tengo"
+- No mandas emojis en exceso, solo los justos
+- No uses markdown, asteriscos ni formato — solo texto plano
+
+Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuestas para ser fáciles de escuchar.`;
+
+  const contexto = pycContexto();
+  const mensajes = _pycHist
+    .filter(m=>!m.thinking)
+    .slice(-PYC_HIST_MAX)
+    .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+
+  // Añadir contexto al último usuario
+  const ultimoIdx = [...mensajes].reverse().findIndex(m=>m.role==='user');
+  if (ultimoIdx >= 0) {
+    const idx = mensajes.length - 1 - ultimoIdx;
+    mensajes[idx].content = contexto + '\n\nPREGUNTA DEL USUARIO: ' + mensajes[idx].content;
+  }
+
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
+  const body = {
+    model: 'llama-3.3-70b-versatile',
+    messages: [
+      { role: 'system', content: sistemPrompt },
+      ...mensajes
+    ],
+    max_tokens: 500,
+    temperature: 0.7
+  };
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(()=>({}));
+    throw new Error(err?.error?.message || 'Error Groq ' + resp.status);
+  }
+
+  const data = await resp.json();
+  return data?.choices?.[0]?.message?.content || '(Sin respuesta)';
+}
+
+/* ── Mistral (OpenAI-compatible) ── */
+async function pycMistral(userMsg) {
+  const key = pycGetKey('mistral');
+  if (!key) throw new Error('Sin key Mistral');
+
+  const sistemPrompt = `Eres Iram, el asistente de campo de Jesús (Gsus), técnico de seguridad que trabaja en Valencia y alrededores.
+
+Tu personalidad:
+- Hablas como un compañero de trabajo, en español informal pero sin pasarte
+- Directo y al grano, sin rodeos ni explicaciones largas
+- Proactivo: si ves algo relevante en los datos, lo dices sin que te pregunten
+- Nunca das listas interminables, máximo 3-4 puntos
+- En el coche usas frases cortas, fáciles de escuchar
+
+Tu trabajo:
+- Ayudar a gestionar el día: ruta, avisos, tareas, eventos
+- Avisar de cosas importantes: oficinas cerradas, partes antiguos, MTO pendiente
+- Recordar datos útiles de cada oficina cuando toca visitarla
+- Nunca revelar datos sensibles: contraseñas, IPs, códigos de acceso
+
+Lo que NO haces:
+- No inventas datos que no tienes
+- No das rodeos ni presentaciones largas
+- Si no sabes algo, lo dices claro: "Eso no lo tengo"
+- No mandas emojis en exceso, solo los justos
+- No uses markdown, asteriscos ni formato — solo texto plano
+
+Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuestas para ser fáciles de escuchar.`;
+
+  const contexto = pycContexto();
+  const mensajes = _pycHist
+    .filter(m=>!m.thinking)
+    .slice(-PYC_HIST_MAX)
+    .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+
+  // Añadir contexto al último usuario
+  const ultimoIdx = [...mensajes].reverse().findIndex(m=>m.role==='user');
+  if (ultimoIdx >= 0) {
+    const idx = mensajes.length - 1 - ultimoIdx;
+    mensajes[idx].content = contexto + '\n\nPREGUNTA DEL USUARIO: ' + mensajes[idx].content;
+  }
+
+  const url = 'https://api.mistral.ai/v1/chat/completions';
+  const body = {
+    model: 'mistral-large-latest',
+    messages: [
+      { role: 'system', content: sistemPrompt },
+      ...mensajes
+    ],
+    max_tokens: 500,
+    temperature: 0.7
+  };
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(()=>({}));
+    throw new Error(err?.error?.message || 'Error Mistral ' + resp.status);
+  }
+
+  const data = await resp.json();
+  return data?.choices?.[0]?.message?.content || '(Sin respuesta)';
+}
+
 /* ── Enviar mensaje ── */
 async function pycEnviar() {
   if (_pycThinking) return;
@@ -11505,13 +12078,38 @@ async function pycEnviar() {
   pycRenderMsgs();
 
   try {
-    const respuesta = await pycGemini(txt);
+    // Intentar con la IA seleccionada, luego fallback automático
+    let respuesta = null;
+    const orden = _iramIA === 'groq' ? ['groq', 'mistral', 'gemini'] :
+                  _iramIA === 'mistral' ? ['mistral', 'groq', 'gemini'] :
+                  ['gemini', 'groq', 'mistral'];
+    
+    for (const ia of orden) {
+      try {
+        if (ia === 'groq') respuesta = await pycGroq(txt);
+        else if (ia === 'mistral') respuesta = await pycMistral(txt);
+        else respuesta = await pycGemini(txt);
+        
+        if (respuesta) {
+          // Si la IA cambió por fallback, actualizar indicador
+          if (ia !== _iramIA) {
+            const st = document.getElementById('pyc-status');
+            if (st) st.textContent = '✓ ' + ia.charAt(0).toUpperCase() + ia.slice(1);
+          }
+          break;
+        }
+      } catch(e) {
+        // Intentar con la siguiente
+        if (ia === orden[orden.length - 1]) throw e;
+      }
+    }
+    
     // Quitar indicador thinking
     _pycHist = _pycHist.filter(m=>!m.thinking);
-    pycMsgIA(respuesta);
+    pycMsgIA(respuesta || '⚠️ Sin respuesta');
   } catch(e) {
     _pycHist = _pycHist.filter(m=>!m.thinking);
-    pycMsgIA('⚠️ Error al conectar con Gemini: ' + e.message);
+    pycMsgIA('⚠️ Error: ' + e.message);
   } finally {
     _pycThinking = false;
   }
@@ -11550,7 +12148,8 @@ function pycPararVoz() {
   const mic = document.getElementById('pyc-mic');
   const st  = document.getElementById('pyc-status');
   if (mic) mic.classList.remove('active');
-  if (st)  st.textContent = 'Listo · Gemini 2.0';}
+  if (st)  st.textContent = 'Listo · ' + _iramIA.charAt(0).toUpperCase() + _iramIA.slice(1);
+}
 
 /* ── Texto → voz (Web Speech Synthesis) ── */
 function pycHablar(txt) {
@@ -11565,6 +12164,59 @@ function pycHablar(txt) {
 }
 
 /* ── Helpers ── */
+function pycAutoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 80) + 'px';
+}
+
+/* ── Voz: activar/desactivar ── */
+function pycToggleVoz() {
+  if (_pycHablando) { pycPararVoz(); return; }
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    pycMsgIA('⚠️ Tu navegador no soporta reconocimiento de voz. Usa Chrome.');
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  _pycRecognition = new SR();
+  _pycRecognition.lang = 'es-ES';
+  _pycRecognition.continuous = false;
+  _pycRecognition.interimResults = false;
+  _pycRecognition.onstart = () => {
+    _pycHablando = true;
+    ['pyc-mic','iram-mic-big','drive-mic-btn','iram-nav-mic'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.classList.add('active','listening');
+    });
+    const vs = document.getElementById('iram-voice-status');
+    if (vs) vs.textContent = 'Escuchando…';
+    const st = document.getElementById('pyc-status');
+    if (st) st.textContent = '🎙️ Escuchando…';
+  };
+  _pycRecognition.onresult = e => {
+    const txt = e.results[0][0].transcript;
+    pycPararVoz();
+    if (txt) {
+      const ta = document.getElementById('pyc-ta');
+      if (ta) ta.value = txt;
+      pycEnviar();
+    }
+  };
+  _pycRecognition.onerror = () => pycPararVoz();
+  _pycRecognition.onend   = () => pycPararVoz();
+  _pycRecognition.start();
+}
+
+function pycPararVoz() {
+  _pycHablando = false;
+  if (_pycRecognition) { try { _pycRecognition.stop(); } catch(e){} _pycRecognition = null; }
+  ['pyc-mic','iram-mic-big','drive-mic-btn','iram-nav-mic'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.classList.remove('active','listening');
+  });
+  const vs = document.getElementById('iram-voice-status');
+  if (vs) vs.textContent = 'Pulsa para hablar';
+  const st = document.getElementById('pyc-status');
+  if (st) st.textContent = 'Listo · ' + _iramIA.charAt(0).toUpperCase() + _iramIA.slice(1);
+}
+
 function pycAutoResize(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 80) + 'px';
