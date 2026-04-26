@@ -4763,6 +4763,24 @@ function renderizar() {
         const bAntiguo=dias>7&&!isRuta  ?`<span class="badge-antiguo">${dias}d</span>`:'';
         const bFijado =p.horaFijada&&!isRuta?`<span class="badge-fijado">FIJADO ${p.horaFijada}${p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''}</span>`:'';
 
+        // Chip MTO — solo si el trimestre actual está hecho
+        const _mesAct = new Date().getMonth();
+        const _trimAct = _mesAct<3?'Q1':_mesAct<6?'Q2':_mesAct<9?'Q3':'Q4';
+        const _mtoData = (() => {
+          try {
+            const manual = JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}');
+            const excelData = loadArr ? loadArr(K_EXCEL) : [];
+            const clave = p.codigo || '';
+            if (manual[clave]) return manual[clave];
+            const exRow = excelData.find(c => (c.CODIGO||c.codigo||'').toString() === clave);
+            return exRow || null;
+          } catch(e) { return null; }
+        })();
+        const _mtoVal = _mtoData ? (_mtoData[_trimAct]||'') : '';
+        const bMTO = _mtoVal && _mtoVal.trim() !== '' && _mtoVal !== '0'
+          ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#dcfce7;color:#15803d;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;margin-left:4px">✅ ${_trimAct}</span>`
+          : '';
+
         html+=`
         <div class="aviso-wrap" style="animation-delay:${delay}ms" data-id="${p.id}">
           <div class="swipe-bg swipe-bg-right" style="background:${c2.pastel}">
@@ -4782,7 +4800,7 @@ function renderizar() {
                 <div class="compact-client">
                   ${p.clienteReal}
                   ${p.codigo?`<span style="font-weight:400;font-size:12px;color:var(--ink-light);margin-left:4px">· ${p.codigo}</span>`:''}
-                  ${bNew}${bRuta}${bUrgente}${bAntiguo}
+                  ${bNew}${bRuta}${bUrgente}${bAntiguo}${bMTO}
                 </div>
                 ${bFijado?`<div style="margin-top:3px">${bFijado}</div>`:''}
                 ${p.descripcion?`<div class="compact-work">${p.descripcion}</div>`:''}
@@ -11970,14 +11988,15 @@ function pycGuardarKey(ia) {
 function pycMsgIA(txt, thinking=false) {
   _pycHist.push({ role:'model', text:txt, thinking });
   pycRenderMsgs();
-  // Leer automáticamente (solo si no es thinking)
   if (!thinking && txt && txt.length > 5) {
     setTimeout(() => pycHablar(txt), 300);
+    iramGuardarHistorial(); // Guardar en cada respuesta
   }
 }
 function pycMsgUser(txt) {
   _pycHist.push({ role:'user', text:txt });
   pycRenderMsgs();
+  iramGuardarHistorial();
 }
 function pycRenderMsgs() {
   const el = document.getElementById('pyc-msgs');
@@ -12056,11 +12075,29 @@ function pycContexto() {
     ? anPend.slice(0,12).map(a=>`- ${a.clienteReal||a.clienteNorm||a.cliente||'?'} · ${a.codigo||''} · ${a.localidad||''} · ${a.trabajo||a.descripcion||''}`).join('\n')
     : 'Sin partes pendientes.';
 
+  // ── MTO trimestre actual ──
+  const mesActual = new Date().getMonth();
+  const trimActual = mesActual < 3 ? 'Q1' : mesActual < 6 ? 'Q2' : mesActual < 9 ? 'Q3' : 'Q4';
+  const mtoMan = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
+  const mtoCtx = ruta.length ? ruta.map(p => {
+    const cliente = p.clienteReal || p.clienteNorm || p.cliente || '?';
+    const codigo  = p.codigo || '';
+    const exRow   = excel.find(c => iramNorm(c.CLIENTE||'').includes(iramNorm(cliente).slice(0,6)));
+    const clave   = codigo || (exRow ? iramNorm(exRow.CLIENTE||'').slice(0,8) : '');
+    const mtoData = mtoMan[clave] || (exRow ? { Q1: exRow.Q1||'', Q2: exRow.Q2||'', Q3: exRow.Q3||'', Q4: exRow.Q4||'' } : null);
+    if (!mtoData) return null;
+    const hecho = mtoData[trimActual] && mtoData[trimActual].trim() !== '' && mtoData[trimActual] !== '0';
+    return `- ${cliente}${codigo?' · '+codigo:''}: ${trimActual} ${hecho?'✅ hecho ('+mtoData[trimActual]+')':'⏳ pendiente'}`;
+  }).filter(Boolean).join('\n') : 'Sin datos MTO para la ruta de hoy.';
+
   return `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
-Hoy: ${hoy}. Ruta: ${rutaPend.length} pendientes, ${rutaHecha.length} completadas.
+Hoy: ${hoy}. Trimestre actual: ${trimActual}. Ruta: ${rutaPend.length} pendientes, ${rutaHecha.length} completadas.
 
 RUTA DEL DÍA:
 ${rutaCtx}
+
+MTO ${trimActual} DE LA RUTA:
+${mtoCtx}
 
 PARTES/ANÁLISIS HOY (${anPend.length} pendientes, ${anDone.length} completados):
 ${analisisCtx}
@@ -12329,20 +12366,22 @@ async function pycEnviar() {
     let respuesta = null;
 
     // ── Routing inteligente ──
-    const necesitaWeb = /\b(busca|temperatura|tiempo|lluvia|clima|noticias?|tráfico|carretera|manual|ficha\s+técnica|teléfono\s+de|precio|cuánto\s+cuesta|dónde\s+está|cuándo\s+abre)\b/i.test(txt);
+    const necesitaWeb = /\b(busca|temperatura|tiempo|lluvia|clima|noticias?|tráfico|carretera|manual|ficha\s+técnica|teléfono\s+de|precio|cuánto\s+cuesta|dónde\s+está|cuándo\s+abre|festivo|festivos|día\s+libre|huelga)\b/i.test(txt);
+    const pidioGemini = /\b(gemini|google)\b/i.test(txt);
 
     let orden;
-    if (necesitaWeb) {
-      // Siempre Gemini para búsqueda web, independiente del toggle
+    if (necesitaWeb || pidioGemini) {
+      // Gemini para web o cuando lo piden explícitamente
       orden = ['gemini', 'groq', 'mistral'];
       const st = document.getElementById('pyc-status');
-      if (st) st.textContent = '🌐 Buscando…';
+      if (st) st.textContent = pidioGemini ? '🔷 Gemini…' : '🌐 Buscando…';
+    } else if (_iramIA === 'groq') {
+      orden = ['groq', 'mistral', 'gemini'];
+    } else if (_iramIA === 'mistral') {
+      orden = ['mistral', 'groq', 'gemini'];
     } else {
-      // Conversación con contexto → Mistral primero
-      // Si el toggle está en Groq o Gemini, respetarlo como primera opción
-      orden = _iramIA === 'mistral' ? ['mistral', 'groq', 'gemini'] :
-              _iramIA === 'groq'    ? ['groq', 'mistral', 'gemini'] :
-                                      ['mistral', 'groq', 'gemini'];
+      // Por defecto: Groq primero (más rápido), Mistral fallback
+      orden = ['groq', 'mistral', 'gemini'];
     }
 
     for (const ia of orden) {
