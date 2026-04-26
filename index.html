@@ -6744,10 +6744,10 @@ function datosExportarExcel() {
     // ── CONTACTOS ─────────────────────────────────────────────
     datosProg('excel', 95, 'Exportando Contactos…');
     const contactosData = loadArr('pyc_contactos');
-    const contactosRows = contactosData.length > 0
-      ? contactosData.map(c => ({ 'NOMBRE': c.NOMBRE||'', 'TELEFONO': String(c.TELEFONO||''), 'CATEGORIA': c.CATEGORIA||'' }))
-      : [{ 'NOMBRE': '', 'TELEFONO': '', 'CATEGORIA': '' }];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(contactosRows), 'Contactos');
+    const contactosSheet = contactosData.length > 0
+      ? XLSX.utils.json_to_sheet(contactosData.map(c => ({ 'NOMBRE': c.NOMBRE||'', 'TELEFONO': String(c.TELEFONO||''), 'CATEGORIA': c.CATEGORIA||'' })))
+      : XLSX.utils.aoa_to_sheet([['NOMBRE','TELEFONO','CATEGORIA']]);
+    XLSX.utils.book_append_sheet(wb, contactosSheet, 'Contactos');
 
     // ── DESCARGAR ─────────────────────────────────────────────
     datosProg('excel', 96, 'Generando archivo…');
@@ -7000,7 +7000,9 @@ function datosImportarExcel(input) {
         }
 
         else if (nl.includes('contacto')) {
-          const rows = getRows(ws).filter(r => r['NOMBRE'] && r['TELEFONO']);
+          // Usar sheet_to_json directo — la hoja tiene cabeceras en fila 1 (range:0)
+          const rows = XLSX.utils.sheet_to_json(ws, { defval:'', raw:false, range:0 })
+            .filter(r => r['NOMBRE'] && r['TELEFONO']);
           if (rows.length) {
             const contactos = rows.map(r => ({
               NOMBRE:    String(r['NOMBRE']   || '').trim(),
@@ -11479,17 +11481,31 @@ document.addEventListener('DOMContentLoaded', () => {
 .iram-nav-btn.active { color: rgba(255,255,255,.8); background: rgba(255,255,255,.06); }
 .iram-nav-btn svg { width: 20px; height: 20px; }
 .iram-nav-mic {
-  width: 58px; height: 58px; border-radius: 50%;
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
-  border: none; cursor: pointer; margin-top: -12px;
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(145deg, #8b5cf6, #4f46e5);
+  border: none; cursor: pointer; margin-top: -16px; position: relative;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 0 8px rgba(124,58,237,.12), 0 6px 20px rgba(124,58,237,.45);
-  -webkit-tap-highlight-color: transparent; transition: all .2s;
+  box-shadow: 0 0 0 10px rgba(124,58,237,.13), 0 0 0 20px rgba(124,58,237,.06), 0 8px 28px rgba(124,58,237,.55);
+  -webkit-tap-highlight-color: transparent; transition: all .25s;
 }
 .iram-nav-mic.listening {
-  background: linear-gradient(135deg, #a855f7, #7c3aed);
-  box-shadow: 0 0 0 10px rgba(168,85,247,.18), 0 6px 24px rgba(168,85,247,.5);
-  animation: micPulse .9s ease-in-out infinite;
+  background: linear-gradient(145deg, #a855f7, #7c3aed);
+  box-shadow: 0 0 0 12px rgba(168,85,247,.2), 0 0 0 24px rgba(168,85,247,.09), 0 8px 32px rgba(168,85,247,.65);
+  animation: micPulse .85s ease-in-out infinite;
+}
+/* Ondas del nav-mic al escuchar */
+.iram-nav-mic.listening::before,
+.iram-nav-mic.listening::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(168,85,247,.4);
+  animation: navMicWave 1.4s ease-out infinite;
+}
+.iram-nav-mic.listening::after { animation-delay: .7s; }
+@keyframes navMicWave {
+  0%   { width: 64px; height: 64px; opacity: .8; }
+  100% { width: 110px; height: 110px; opacity: 0; }
 }
 </style>
 
@@ -11546,7 +11562,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="iram-hdr-name">IRAM</div>
           <div class="iram-hdr-sub"><div class="iram-hdr-dot"></div><span id="pyc-status">Listo · Gemini 2.0</span></div>
         </div>
-        <div class="iram-status-ico">🖥️</div>
+        <button class="iram-close" onclick="iramLimpiarChat()" title="Limpiar chat" style="font-size:14px;opacity:.7">🗑️</button>
       </div>
       <div class="ia-toggle">
         <button class="ia-btn groq" onclick="iramSetIA('groq',this)">🟠 GROQ</button>
@@ -11557,19 +11573,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     <!-- Zona voz -->
     <div class="iram-voice-zone">
-      <div class="iram-voice-status" id="iram-voice-status">Pulsa para hablar</div>
-      <div class="iram-wave-wrap" id="iram-mic-ring">
-        <div class="iram-wave-ring"></div>
-        <div class="iram-wave-ring"></div>
-        <div class="iram-wave-ring"></div>
-        <div class="iram-wave-ring"></div>
-        <button class="iram-mic-big" id="iram-mic-big" onclick="pycToggleVoz()"><svg width="30" height="30" viewBox="0 0 24 24" fill="white">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
-          <line x1="12" y1="19" x2="12" y2="23" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          <line x1="8" y1="23" x2="16" y2="23" stroke="white" stroke-width="2" stroke-linecap="round"/>
-        </svg></button>
-      </div>
+      <div class="iram-voice-status" id="iram-voice-status">Pulsa el micrófono para hablar</div>
     </div>
 
     <!-- Mensajes -->
@@ -11635,15 +11639,15 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="drive-action-icon">🗺️</div>
           <div class="drive-action-lbl">Waze</div>
         </div>
-        <div class="drive-action" onclick="iramLlamar()">
+        <div class="drive-action" onclick="iramMostrarContactos()">
           <div class="drive-action-icon">📞</div>
           <div class="drive-action-lbl">Llamar</div>
         </div>
-        <div class="drive-action" onclick="pycCerrarChat();irA('tareas')">
+        <div class="drive-action" onclick="pycCerrarChat();irA('tareas');setTimeout(()=>tareasIrVista('tareas'),100)">
           <div class="drive-action-icon">✅</div>
           <div class="drive-action-lbl">Tareas</div>
         </div>
-        <div class="drive-action" onclick="pycCerrarChat();irA('analisis')">
+        <div class="drive-action" onclick="pycCerrarChat();irA('tareas');setTimeout(()=>tareasIrVista('eventos'),100)">
           <div class="drive-action-icon">📅</div>
           <div class="drive-action-lbl">Eventos</div>
         </div>
@@ -11655,16 +11659,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="drive-response-txt" id="drive-response-txt">Cuando hables, aquí verás la respuesta.</div>
       </div>
 
-      <!-- Mic grande -->
-      <div class="drive-mic-zone">
-        <div class="drive-mic-hint">Pulsa para hablar</div>
-        <button class="drive-mic-btn" id="drive-mic-btn" onclick="pycToggleVoz()"><svg width="36" height="36" viewBox="0 0 24 24" fill="white">
-          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
-          <line x1="12" y1="19" x2="12" y2="23" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          <line x1="8" y1="23" x2="16" y2="23" stroke="white" stroke-width="2" stroke-linecap="round"/>
-        </svg></button>
-      </div>
+
 
     </div>
   </div><!-- /iram-drive -->
@@ -11715,16 +11710,49 @@ let _pycThinking    = false;
 let _iramIA         = 'gemini'; // 'groq' | 'mistral' | 'gemini'
 
 /* ── Abrir / cerrar ── */
+const K_IRAM_CHAT = 'pyc_iram_chat';
+
+function iramCargarHistorial() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(K_IRAM_CHAT) || 'null');
+    if (saved && saved.fecha === new Date().toISOString().slice(0,10)) {
+      _pycHist = saved.hist || [];
+      pycRenderMsgs();
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+function iramGuardarHistorial() {
+  try {
+    const histLimpio = _pycHist.filter(m=>!m.thinking).slice(-40);
+    localStorage.setItem(K_IRAM_CHAT, JSON.stringify({
+      fecha: new Date().toISOString().slice(0,10),
+      hist: histLimpio
+    }));
+  } catch(e) {}
+}
+
+function iramLimpiarChat() {
+  _pycHist = [];
+  localStorage.removeItem(K_IRAM_CHAT);
+  pycRenderMsgs();
+  pycMsgIA('Chat limpiado. ¿En qué te ayudo?');
+}
+
 function pycAbrirChat() {
   document.getElementById('pyc-overlay').classList.add('open');
   iramShowMode('chat');
   iramRellenarDrive();
   pycCheckKey();
-  if (!_pycHist.length) pycMsgIA('Buenas Gsus 👋 ¿En qué te ayudo?');
+  const tenia = iramCargarHistorial();
+  if (!tenia || !_pycHist.length) pycMsgIA('Buenas Gsus 👋 ¿En qué te ayudo?');
   setTimeout(() => document.getElementById('pyc-ta')?.focus(), 350);
 }
 
 function pycCerrarChat() {
+  iramGuardarHistorial();
   document.getElementById('pyc-overlay').classList.remove('open');
   pycPararVoz();
 }
@@ -11855,17 +11883,63 @@ function iramRellenarDrive() {
 /* ── Waze / Llamar ── */
 function iramWaze() {
   try {
-    const ruta = JSON.parse(localStorage.getItem('pyc_ruta_paradas') || '[]');
+    const ruta = loadArr('pyc_ruta_paradas');
     const sig = ruta.find(r => r.estado === 'pendiente');
-    if (!sig) return;
-    const dir = encodeURIComponent((sig.direccion || '') + ' ' + (sig.localidad || ''));
-    window.open(`https://waze.com/ul?q=${dir}&navigate=yes`, '_blank');
+    if (!sig) { pycMsgIA('No hay paradas pendientes en la ruta.'); return; }
+    const cliente = sig.clienteReal || sig.clienteNorm || sig.cliente || '';
+    const loc     = sig.localidad || '';
+    // Usar dirección exacta si existe, sino cliente + localidad
+    const query   = sig.direccion
+      ? `${sig.direccion}, ${loc}`
+      : `${cliente} ${loc}`;
+    window.open(`https://waze.com/ul?q=${encodeURIComponent(query)}&navigate=yes`, '_blank');
   } catch(e) {}
 }
 
-function iramLlamar() {
-  // Placeholder — en Fase 5 conectará con hoja Contactos
-  pycMsgIA('La función de llamada se activará cuando configures tus contactos en el Excel.');
+function iramMostrarContactos() {
+  const contactos = loadArr('pyc_contactos');
+  if (!contactos.length) {
+    pycMsgIA('No tienes contactos cargados. Importa el Excel con la hoja Contactos.');
+    iramShowMode('chat');
+    return;
+  }
+  // Agrupar por categoría
+  const grupos = {};
+  contactos.forEach(c => {
+    const cat = c.CATEGORIA || 'General';
+    if (!grupos[cat]) grupos[cat] = [];
+    grupos[cat].push(c);
+  });
+
+  // Construir HTML del panel
+  let html = `<div id="iram-contact-panel" style="position:absolute;inset:0;background:#060a14;z-index:20;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;padding:16px;border-bottom:1px solid #1e1b4b">
+      <button onclick="document.getElementById('iram-contact-panel').remove()" style="background:none;border:none;color:#a78bfa;font-size:20px;cursor:pointer;margin-right:12px">←</button>
+      <span style="color:#fff;font-weight:700;font-size:16px">Contactos</span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:12px 16px">`;
+
+  Object.entries(grupos).forEach(([cat, lista]) => {
+    html += `<div style="color:#7c3aed;font-size:11px;font-weight:700;letter-spacing:.1em;margin:12px 0 6px;text-transform:uppercase">${cat}</div>`;
+    lista.forEach(c => {
+      html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#0d1117;border-radius:10px;margin-bottom:6px">
+        <div>
+          <div style="color:#fff;font-weight:600;font-size:14px">${c.NOMBRE}</div>
+          <div style="color:#6b7280;font-size:12px">${c.TELEFONO}</div>
+        </div>
+        <button onclick="window.location.href='tel:${c.TELEFONO}'" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+        </button>
+      </div>`;
+    });
+  });
+
+  html += `</div></div>`;
+
+  const body = document.getElementById('iram-chat') || document.getElementById('pyc-overlay');
+  const panel = document.createElement('div');
+  panel.innerHTML = html;
+  document.getElementById('pyc-overlay').appendChild(panel.firstElementChild);
 }
 
 /* ── Key ── */
@@ -11927,24 +12001,78 @@ function pycRenderMsgs() {
 
 /* pycContexto — solo estadísticas agregadas, sin datos reales */
 function pycContexto() {
-  // PRIVACIDAD: No envía datos reales a IAs externas.
-  // Solo estadísticas numéricas. Los datos los busca la app localmente.
-  const hoy = new Date().toISOString().slice(0,10);
+  const hoy    = new Date().toISOString().slice(0,10);
+  const fin    = new Date(); fin.setDate(fin.getDate()+7);
+  const finISO = fin.toISOString().slice(0,10);
   const tareas  = loadArr(K_TAREAS);
   const eventos = loadArr(K_EVENTOS);
-  const ruta    = loadArr('pyc_ruta_paradas');
+  const ruta    = loadArr(K_RUTA);
+  const hist    = loadArr(K_HIST);
+  const excel   = loadArr(K_EXCEL);
 
-  const tPend    = tareas.filter(t=>t.estado==='pendiente').length;
-  const tHoy     = tareas.filter(t=>t.estado==='pendiente'&&t.fecha===hoy).length;
-  const evHoy    = eventos.filter(ev=>ev.fecha===hoy).length;
-  const rutaPend = ruta.filter(r=>r.estado==='pendiente').length;
-  const rutaHecha= ruta.filter(r=>r.estado==='completada').length;
+  const tPend   = tareas.filter(t=>t.estado==='pendiente');
+  const tHoy    = tPend.filter(t=>t.fecha===hoy);
+  const evSemana= eventos.filter(ev=>ev.fecha>=hoy && ev.fecha<=finISO);
+  const rutaPend= ruta.filter(r=>r.estado==='pendiente');
+  const rutaHecha=ruta.filter(r=>r.estado==='completada');
+
+  // ── Ruta del día ──
+  const rutaCtx = ruta.length ? ruta.map((p,i) => {
+    const estado  = p.estado === 'completada' ? '✅' : '⏳';
+    const cliente = p.clienteReal || p.clienteNorm || p.cliente || '?';
+    const loc     = p.localidad || '';
+    const dir     = p.direccion || '';
+    const trabajo = p.trabajo   || '';
+    const exRow   = excel.find(c => {
+      const cn = iramNorm(c.CLIENTE||'');
+      const cl = iramNorm(c.MUNICIPIO||'');
+      const ck = iramNorm(cliente).slice(0,6);
+      const lk = iramNorm(loc).slice(0,4);
+      return cn.includes(ck) && (!lk || cl.includes(lk));
+    });
+    const horario = exRow?.HORARIO || '';
+    const visitas = hist.filter(v => iramNorm(v.CLIENTE||v.cliente||'').includes(iramNorm(cliente).slice(0,6)));
+    const ultima  = visitas.sort((a,b)=>(b.FECHA||'').localeCompare(a.FECHA||''))[0];
+    const ultStr  = ultima ? `última visita ${ultima.FECHA}: ${ultima.TRABAJO||ultima.trabajo||''}` : '';
+    return `${estado} ${i+1}. ${cliente}${loc?' · '+loc:''}${dir?' · '+dir:''}${horario?' · Horario: '+horario:''}
+   Trabajo: ${trabajo}${ultStr?' · '+ultStr:''}`;
+  }).join('\n') : 'Sin paradas cargadas hoy.';
+
+  // ── Tareas ──
+  const tareasCtx = tPend.length
+    ? tPend.slice(0,8).map(t=>`- ${t.titulo}${t.fecha?' ('+t.fecha+')':''}`).join('\n')
+    : 'Ninguna pendiente.';
+
+  // ── Eventos próximos 7 días ──
+  const eventosCtx = evSemana.length
+    ? evSemana.map(ev=>`- ${ev.fecha}: ${ev.titulo}${ev.hora?' a las '+ev.hora:''}`).join('\n')
+    : 'Ninguno esta semana.';
+
+  // ── Análisis (partes del día) ──
+  const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+  const anPend   = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado');
+  const anDone   = analisis.filter(a=>a.estado==='completado'||a.estado==='cerrado');
+  const analisisCtx = anPend.length
+    ? anPend.slice(0,12).map(a=>`- ${a.clienteReal||a.clienteNorm||a.cliente||'?'} · ${a.codigo||''} · ${a.localidad||''} · ${a.trabajo||a.descripcion||''}`).join('\n')
+    : 'Sin partes pendientes.';
 
   return `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
-Hoy: ${hoy}. Ruta: ${rutaPend} pendiente(s), ${rutaHecha} completada(s).
-Tareas pendientes: ${tPend} (${tHoy} para hoy). Eventos hoy: ${evHoy}.
-No tienes acceso a datos de clientes, direcciones ni sistemas de seguridad.
-Si preguntan algo específico de la app, di: "Eso lo gestiona la app directamente".`;
+Hoy: ${hoy}. Ruta: ${rutaPend.length} pendientes, ${rutaHecha.length} completadas.
+
+RUTA DEL DÍA:
+${rutaCtx}
+
+PARTES/ANÁLISIS HOY (${anPend.length} pendientes, ${anDone.length} completados):
+${analisisCtx}
+
+TAREAS PENDIENTES (${tPend.length} total, ${tHoy.length} para hoy):
+${tareasCtx}
+
+EVENTOS PRÓXIMOS 7 DÍAS:
+${eventosCtx}
+
+USA ESTOS DATOS para responder. No digas que no tienes información si está aquí arriba.
+Nunca menciones contraseñas, IPs ni códigos de acceso — di "búscalo en Info técnica".`;
 }
 
 /* ── Llamada a Gemini ── */
@@ -12106,31 +12234,22 @@ async function pycMistral(userMsg) {
   const key = pycGetKey('mistral');
   if (!key) throw new Error('Sin key Mistral');
 
-  const sistemPrompt = `Eres Iram, el asistente de campo de Jesús (Gsus), técnico de seguridad que trabaja en Valencia y alrededores.
+  const sistemPrompt = `Eres Iram, el asistente de campo de Jesús (Gsus), técnico de seguridad en Valencia.
 
-Tu personalidad:
-- Hablas como un compañero de trabajo, en español informal pero sin pasarte
-- Directo y al grano, sin rodeos ni explicaciones largas
-- Proactivo: si ves algo relevante en los datos, lo dices sin que te pregunten
-- Nunca das listas interminables, máximo 3-4 puntos
-- En el coche usas frases cortas, fáciles de escuchar
+Tu rol principal: conversación natural con contexto completo de la jornada.
+Tienes acceso a la ruta del día, tareas, eventos e historial de visitas.
+Úsalos para responder preguntas sobre el día, la ruta y las oficinas.
 
-Tu trabajo:
-- Ayudar a gestionar el día: ruta, avisos, tareas, eventos
-- Avisar de cosas importantes: oficinas cerradas, partes antiguos, MTO pendiente
-- Recordar datos útiles de cada oficina cuando toca visitarla
-- Nunca revelar datos sensibles: contraseñas, IPs, códigos de acceso
+Personalidad:
+- Compañero de trabajo, español informal
+- Directo y al grano, máximo 3 frases
+- Proactivo: si ves algo relevante lo dices
+- Frases cortas para conducción
 
-Lo que NUNCA haces:
-- No inventas datos que no tienes
-- No afirmas que algo es "nuevo" o que "antes no estaba" — no tienes memoria entre conversaciones, solo ves el estado actual
-- No dices cuántos avisos hay en total si no puedes contarlos exactamente en el contexto
-- No das rodeos ni presentaciones largas
-- Si no sabes algo, lo dices claro: "Eso no lo tengo"
-- No mandas emojis en exceso, solo los justos
-- No uses markdown, asteriscos ni formato — solo texto plano
-
-Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuestas para ser fáciles de escuchar.`;
+NUNCA menciones: contraseñas, IPs, códigos de acceso, sistemas instalados.
+NUNCA inventes datos que no estén en el contexto.
+Si no sabes algo: "Eso no lo tengo".
+Sin markdown, sin asteriscos, texto plano.`;
 
   const contexto = pycContexto();
   const mensajes = _pycHist
@@ -12187,11 +12306,11 @@ async function pycEnviar() {
 
   // ── Classifier: intentar acción directa antes de llamar a la IA ──
   const _cl = iramClasificar(txt);
-  const _intentosLocales = ['LLAMAR','CREAR_TAREA','CREAR_EVENTO','CREAR_NOTA','CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE'];
+  const _intentosLocales = ['LLAMAR','CREAR_TAREA','CREAR_EVENTO','CREAR_NOTA','CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','HISTORIAL_CLIENTE'];
   if (_intentosLocales.includes(_cl.intento)) {
     const resultado = iramEjecutarAccion(_cl);
     if (resultado) {
-      iramLog(_cl.intento, 'local', true); // Registro: acción local OK
+      iramLog(_cl.intento, 'local', true);
       _pycHist.push({ role:'model', text:'⏳ …', thinking:true });
       pycRenderMsgs();
       iramPulir(resultado).then(respFinal => {
@@ -12203,39 +12322,47 @@ async function pycEnviar() {
   }
 
   _pycThinking = true;
-
-  // Indicador "pensando"
   _pycHist.push({ role:'model', text:'⏳ Pensando…', thinking:true });
-
   pycRenderMsgs();
 
   try {
-    // Intentar con la IA seleccionada, luego fallback automático
     let respuesta = null;
-    const orden = _iramIA === 'groq' ? ['groq', 'mistral', 'gemini'] :
-                  _iramIA === 'mistral' ? ['mistral', 'groq', 'gemini'] :
-                  ['gemini', 'groq', 'mistral'];
-    
+
+    // ── Routing inteligente ──
+    const necesitaWeb = /\b(busca|temperatura|tiempo|lluvia|clima|noticias?|tráfico|carretera|manual|ficha\s+técnica|teléfono\s+de|precio|cuánto\s+cuesta|dónde\s+está|cuándo\s+abre)\b/i.test(txt);
+
+    let orden;
+    if (necesitaWeb) {
+      // Siempre Gemini para búsqueda web, independiente del toggle
+      orden = ['gemini', 'groq', 'mistral'];
+      const st = document.getElementById('pyc-status');
+      if (st) st.textContent = '🌐 Buscando…';
+    } else {
+      // Conversación con contexto → Mistral primero
+      // Si el toggle está en Groq o Gemini, respetarlo como primera opción
+      orden = _iramIA === 'mistral' ? ['mistral', 'groq', 'gemini'] :
+              _iramIA === 'groq'    ? ['groq', 'mistral', 'gemini'] :
+                                      ['mistral', 'groq', 'gemini'];
+    }
+
     for (const ia of orden) {
       try {
         if (ia === 'groq') respuesta = await pycGroq(txt);
         else if (ia === 'mistral') respuesta = await pycMistral(txt);
         else respuesta = await pycGemini(txt);
-        
+
         if (respuesta) {
-          iramLog(_cl.intento || 'CHAT', ia, true); // Registro: IA OK
-          if (ia !== _iramIA) {
-            const st = document.getElementById('pyc-status');
-            if (st) st.textContent = '✓ ' + ia.charAt(0).toUpperCase() + ia.slice(1);
-          }
+          iramLog(_cl.intento || 'CHAT', ia, true);
+          const st = document.getElementById('pyc-status');
+          if (st && !necesitaWeb) st.textContent = '✓ ' + ia.charAt(0).toUpperCase() + ia.slice(1);
           break;
         }
       } catch(e) {
-        iramLog(_cl.intento || 'CHAT', ia, false); // Registro: IA falló
+        iramLog(_cl.intento || 'CHAT', ia, false);
         if (ia === orden[orden.length - 1]) throw e;
       }
     }
-    
+
     _pycHist = _pycHist.filter(m=>!m.thinking);
     pycMsgIA(respuesta || '⚠️ Sin respuesta');
   } catch(e) {
@@ -12306,6 +12433,14 @@ function iramHoraStr(txt) {
 function iramClasificar(txt) {
   const t   = iramNorm(txt);
   const raw = txt.toLowerCase().trim();
+
+  // ── HISTORIAL — qué hice la última vez ──
+  if (/\b(historial|última\s+vez|último\s+vez|que\s+hice|qué\s+hice|última\s+visita|cuándo\s+fui|cuando\s+fui)\b/.test(t)) {
+    const mH = raw.match(/(?:historial|última\s+vez|que\s+hice|última\s+visita|fui)\s+(?:en\s+|al?\s+|en\s+el\s+)?(.+?)(?:\s+(?:de|en)\s+(.+))?$/i);
+    const cliente   = mH ? mH[1].trim() : '';
+    const localidad = mH?.[2] ? mH[2].trim() : '';
+    return { intento:'HISTORIAL_CLIENTE', cliente, localidad };
+  }
 
   // ── CONTAR AVISOS ──
   if (/cuantos?\s+avisos?|avisos?\s+(me\s+)?quedan|avisos?\s+pendientes?|cuanto\s+me\s+queda/.test(t)) {
@@ -12455,6 +12590,30 @@ function iramBuscarCliente(nombre, localidad) {
 function iramEjecutarAccion(cl) {
   const hoy = new Date();
   const hoyISO = hoy.toISOString().slice(0,10);
+
+  /* ── HISTORIAL CLIENTE ── */
+  if (cl.intento === 'HISTORIAL_CLIENTE') {
+    const hist   = loadArr(K_HIST);
+    const nC     = iramNorm(cl.cliente || '');
+    const nL     = iramNorm(cl.localidad || '');
+    if (!nC) return 'Dime el nombre del cliente para buscar en el historial.';
+    const visitas = hist.filter(v => {
+      const vc = iramNorm(v.CLIENTE||v.cliente||'');
+      const vl = iramNorm(v.LOCALIDAD||v.localidad||v.MUNICIPIO||'');
+      return vc.includes(nC) || nC.includes(vc.slice(0,4));
+    }).filter(v => !nL || iramNorm(v.LOCALIDAD||v.localidad||'').includes(nL));
+
+    if (!visitas.length) return `No encuentro visitas a ${cl.cliente}${cl.localidad ? ' en '+cl.localidad : ''} en el historial.`;
+
+    const ultima = visitas.sort((a,b)=>(b.FECHA||'').localeCompare(a.FECHA||''))[0];
+    const fecha  = ultima.FECHA || ultima.fecha || '?';
+    const trabajo = ultima.TRABAJO || ultima.trabajo || '?';
+    const estado = ultima.ESTADO || ultima.estado || '';
+    const cliente = ultima.CLIENTE || ultima.cliente || cl.cliente;
+    const loc    = ultima.LOCALIDAD || ultima.localidad || cl.localidad;
+
+    return `Última visita a ${cliente}${loc?' · '+loc:''}: ${fecha} — ${trabajo}${estado?' ('+estado+')':''}. Total visitas: ${visitas.length}.`;
+  }
 
   /* ── LLAMAR ── */
   if (cl.intento === 'LLAMAR') {
@@ -12636,9 +12795,10 @@ function pycToggleVoz() {
   _pycRecognition.lang = 'es-ES';
   _pycRecognition.continuous = false;
   _pycRecognition.interimResults = false;
+  _pycRecognition.maxAlternatives = 3; // Pedir 3 alternativas para elegir la mejor
   _pycRecognition.onstart = () => {
     _pycHablando = true;
-    ['iram-mic-big','drive-mic-btn','iram-nav-mic'].forEach(id => {
+    ['iram-nav-mic'].forEach(id => {
       const el = document.getElementById(id); if(el) el.classList.add('active','listening');
     });
     const vs = document.getElementById('iram-voice-status');
@@ -12647,7 +12807,12 @@ function pycToggleVoz() {
     if (st) st.textContent = '🎙️ Escuchando…';
   };
   _pycRecognition.onresult = e => {
-    const txt = e.results[0][0].transcript;
+    // Recoger todas las alternativas y elegir la más útil
+    const alternativas = [];
+    for (let i = 0; i < e.results[0].length; i++) {
+      alternativas.push(e.results[0][i].transcript.trim());
+    }
+    const txt = iramMejorAlternativa(alternativas);
     pycPararVoz();
     if (txt) {
       const ta = document.getElementById('pyc-ta');
@@ -12660,10 +12825,34 @@ function pycToggleVoz() {
   _pycRecognition.start();
 }
 
+/* Elige la mejor alternativa de reconocimiento de voz */
+function iramMejorAlternativa(alternativas) {
+  if (!alternativas.length) return '';
+  if (alternativas.length === 1) return alternativas[0];
+
+  // Palabras clave de la app — si alguna alternativa las contiene, preferirla
+  const palabrasClave = [
+    'ruta','aviso','avisos','tarea','nota','evento','horario','mantenimiento','mto',
+    'cajamar','bbva','repsol','llévame','waze','llamar','urgente','pendiente',
+    'tiempo','temperatura','busca','siguiente','parada'
+  ];
+
+  // Puntuar cada alternativa
+  const puntuadas = alternativas.map(alt => {
+    const norm = alt.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const puntos = palabrasClave.reduce((acc, kw) => acc + (norm.includes(kw) ? 1 : 0), 0);
+    return { alt, puntos };
+  });
+
+  // Devolver la de mayor puntuación, o la primera si empatan
+  puntuadas.sort((a,b) => b.puntos - a.puntos);
+  return puntuadas[0].alt;
+}
+
 function pycPararVoz() {
   _pycHablando = false;
   if (_pycRecognition) { try { _pycRecognition.stop(); } catch(e){} _pycRecognition = null; }
-  ['iram-mic-big','drive-mic-btn','iram-nav-mic'].forEach(id => {
+  ['iram-nav-mic'].forEach(id => {
     const el = document.getElementById(id); if(el) el.classList.remove('active','listening');
   });
   const vs = document.getElementById('iram-voice-status');
