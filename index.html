@@ -11496,27 +11496,40 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- IRAM pantalla completa -->
 <div class="iram-overlay" id="pyc-overlay">
 
-  <!-- Config keys — 3 IAs -->
+
+  <!-- Config key — contextual según IA seleccionada -->
   <div class="pyc-key-box" id="pyc-key-box" style="display:none;position:relative;z-index:10;margin:8px 16px 0;flex-shrink:0">
-    <div class="pyc-key-lbl">🔑 Configura tus API keys</div>
-    <div class="pyc-key-desc">Obtén tus keys gratis. Se guardan solo en tu móvil.</div>
-    
-    <!-- Groq -->
+    <div class="pyc-key-lbl" id="pyc-key-lbl">🔑 Configura tu API key</div>
+    <div class="pyc-key-desc" id="pyc-key-desc">Se guarda solo en tu móvil.</div>
     <div class="pyc-key-row" style="margin-top:8px">
-      <input class="pyc-key-input" id="pyc-key-groq" type="password" placeholder="Groq key (console.groq.com)" autocomplete="off" style="flex:1">
+      <input class="pyc-key-input" id="pyc-key-input-ctx" type="password" placeholder="Pega tu key aquí…" autocomplete="off" style="flex:1">
+      <button class="pyc-key-save" id="pyc-key-btn-ctx" onclick="pycGuardarKeyCtx()" style="margin-left:4px">Guardar</button>
+    </div>
+    <!-- Enlace rápido a donde obtener la key -->
+    <div id="pyc-key-link" style="font-size:11px;color:#7c3aed;margin-top:6px;text-align:right"></div>
+    <!-- Botón para ver/editar todas las keys -->
+    <div style="text-align:right;margin-top:8px">
+      <button onclick="pycMostrarTodasKeys()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">Ver todas las keys →</button>
+    </div>
+  </div>
+
+  <!-- Config keys — todas (modo completo) -->
+  <div class="pyc-key-box" id="pyc-key-box-all" style="display:none;position:relative;z-index:10;margin:8px 16px 0;flex-shrink:0">
+    <div class="pyc-key-lbl">🔑 Todas las API keys</div>
+    <div class="pyc-key-row" style="margin-top:8px">
+      <input class="pyc-key-input" id="pyc-key-groq" type="password" placeholder="Groq (console.groq.com)" autocomplete="off" style="flex:1">
       <button class="pyc-key-save" onclick="pycGuardarKey('groq')" style="margin-left:4px">✓</button>
     </div>
-    
-    <!-- Mistral -->
     <div class="pyc-key-row" style="margin-top:6px">
-      <input class="pyc-key-input" id="pyc-key-mistral" type="password" placeholder="Mistral key (mistral.ai)" autocomplete="off" style="flex:1">
+      <input class="pyc-key-input" id="pyc-key-mistral" type="password" placeholder="Mistral (mistral.ai)" autocomplete="off" style="flex:1">
       <button class="pyc-key-save" onclick="pycGuardarKey('mistral')" style="margin-left:4px">✓</button>
     </div>
-    
-    <!-- Gemini -->
     <div class="pyc-key-row" style="margin-top:6px">
-      <input class="pyc-key-input" id="pyc-key-gemini" type="password" placeholder="Gemini key (aistudio.google.com)" autocomplete="off" style="flex:1">
+      <input class="pyc-key-input" id="pyc-key-gemini" type="password" placeholder="Gemini (aistudio.google.com)" autocomplete="off" style="flex:1">
       <button class="pyc-key-save" onclick="pycGuardarKey('gemini')" style="margin-left:4px">✓</button>
+    </div>
+    <div style="text-align:right;margin-top:8px">
+      <button onclick="pycOcultarTodasKeys()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">← Cerrar</button>
     </div>
   </div>
 
@@ -11733,7 +11746,76 @@ function iramSetIA(ia, btn) {
   btn.classList.add('on');
   const st = document.getElementById('pyc-status');
   if (st) st.textContent = 'Listo · ' + ia.charAt(0).toUpperCase() + ia.slice(1);
+
+  // Si no tiene key → mostrar key-box contextual para esa IA
+  if (!pycGetKey(ia)) {
+    pycMostrarKeyCtx(ia);
+  } else {
+    pycOcultarKeyBox();
+  }
 }
+
+/* Muestra el key-box contextual para una IA concreta */
+function pycMostrarKeyCtx(ia) {
+  const cfg = {
+    groq:    { lbl: '🟠 Groq — API key',    desc: 'Gratis en console.groq.com', link: 'console.groq.com',       ph: 'gsk_...' },
+    mistral: { lbl: '🟡 Mistral — API key', desc: 'Gratis en mistral.ai',        link: 'mistral.ai',            ph: 'sk-...' },
+    gemini:  { lbl: '🔷 Gemini — API key',  desc: 'Gratis en aistudio.google.com', link: 'aistudio.google.com', ph: 'AIza...' },
+  };
+  const c = cfg[ia] || cfg.gemini;
+  const box  = document.getElementById('pyc-key-box');
+  const boxA = document.getElementById('pyc-key-box-all');
+  const lbl  = document.getElementById('pyc-key-lbl');
+  const desc = document.getElementById('pyc-key-desc');
+  const inp  = document.getElementById('pyc-key-input-ctx');
+  const link = document.getElementById('pyc-key-link');
+
+  if (lbl)  lbl.textContent  = c.lbl;
+  if (desc) desc.textContent = c.desc;
+  if (inp)  { inp.placeholder = c.ph; inp.value = pycGetKey(ia) || ''; inp.dataset.ia = ia; }
+  if (link) link.textContent = '→ Obtener en ' + c.link;
+  if (box)  box.style.display  = 'flex';
+  if (boxA) boxA.style.display = 'none';
+}
+
+/* Guarda la key del input contextual */
+function pycGuardarKeyCtx() {
+  const inp = document.getElementById('pyc-key-input-ctx');
+  if (!inp) return;
+  const ia = inp.dataset.ia || _iramIA;
+  const v  = inp.value.trim();
+  if (!v) return;
+  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
+  localStorage.setItem(stores[ia], v);
+  pycOcultarKeyBox();
+  pycMsgIA(`✅ Key de ${ia} guardada. ¿En qué te ayudo?`);
+}
+
+/* Muestra todas las keys */
+function pycMostrarTodasKeys() {
+  const box  = document.getElementById('pyc-key-box');
+  const boxA = document.getElementById('pyc-key-box-all');
+  if (box)  box.style.display  = 'none';
+  if (boxA) {
+    boxA.style.display = 'flex';
+    const kG  = document.getElementById('pyc-key-groq');
+    const kM  = document.getElementById('pyc-key-mistral');
+    const kGm = document.getElementById('pyc-key-gemini');
+    if (kG)  kG.value  = pycGetKey('groq');
+    if (kM)  kM.value  = pycGetKey('mistral');
+    if (kGm) kGm.value = pycGetKey('gemini');
+  }
+}
+
+/* Oculta todas las key-boxes */
+function pycOcultarKeyBox() {
+  const box  = document.getElementById('pyc-key-box');
+  const boxA = document.getElementById('pyc-key-box-all');
+  if (box)  box.style.display  = 'none';
+  if (boxA) boxA.style.display = 'none';
+}
+
+function pycOcultarTodasKeys() { pycOcultarKeyBox(); }
 
 /* ── Rellenar datos modo conducción ── */
 function iramRellenarDrive() {
@@ -11793,16 +11875,12 @@ function pycGetKey(ia) {
   return localStorage.getItem(stores[ia] || PYC_KEY_GEMINI) || '';
 }
 function pycCheckKey() {
-  const box = document.getElementById('pyc-key-box');
-  const hasAny = pycGetKey('groq') || pycGetKey('mistral') || pycGetKey('gemini');
-  if (box) box.style.display = hasAny ? 'none' : 'flex';
-  // Cargar keys en inputs
-  const kG = document.getElementById('pyc-key-groq');
-  const kM = document.getElementById('pyc-key-mistral');
-  const kGm = document.getElementById('pyc-key-gemini');
-  if (kG) kG.value = pycGetKey('groq');
-  if (kM) kM.value = pycGetKey('mistral');
-  if (kGm) kGm.value = pycGetKey('gemini');
+  // Al abrir Iram: si la IA activa no tiene key, mostrar key-box contextual
+  if (!pycGetKey(_iramIA)) {
+    pycMostrarKeyCtx(_iramIA);
+  } else {
+    pycOcultarKeyBox();
+  }
 }
 function pycGuardarKey(ia) {
   const inputs = { groq: 'pyc-key-groq', mistral: 'pyc-key-mistral', gemini: 'pyc-key-gemini' };
