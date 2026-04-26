@@ -6741,6 +6741,14 @@ function datosExportarExcel() {
       .map(([clave, v]) => ({ CLAVE: clave, POLVO: v.polvo || 0, CO2: v.co2 || 0 }));
     if (mtoExtRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mtoExtRows), 'MTO_Ext');
 
+    // ── CONTACTOS ─────────────────────────────────────────────
+    datosProg('excel', 95, 'Exportando Contactos…');
+    const contactosData = loadArr('pyc_contactos');
+    const contactosRows = contactosData.length > 0
+      ? contactosData.map(c => ({ 'NOMBRE': c.NOMBRE||'', 'TELEFONO': String(c.TELEFONO||''), 'CATEGORIA': c.CATEGORIA||'' }))
+      : [{ 'NOMBRE': '', 'TELEFONO': '', 'CATEGORIA': '' }];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(contactosRows), 'Contactos');
+
     // ── DESCARGAR ─────────────────────────────────────────────
     datosProg('excel', 96, 'Generando archivo…');
     const fecha = new Date().toISOString().slice(0,10);
@@ -6988,6 +6996,18 @@ function datosImportarExcel(input) {
               };
             });
             save(K_MTO_EXT, existing);
+          }
+        }
+
+        else if (nl.includes('contacto')) {
+          const rows = getRows(ws).filter(r => r['NOMBRE'] && r['TELEFONO']);
+          if (rows.length) {
+            const contactos = rows.map(r => ({
+              NOMBRE:    String(r['NOMBRE']   || '').trim(),
+              TELEFONO:  String(r['TELEFONO'] || '').trim(),
+              CATEGORIA: String(r['CATEGORIA']|| '').trim(),
+            }));
+            save('pyc_contactos', contactos);
           }
         }
 
@@ -11248,19 +11268,19 @@ document.addEventListener('DOMContentLoaded', () => {
 .iram-mic-ring.listening .iram-wave-ring { border-color: rgba(168,85,247,.4); }
 
 .iram-mic-big {
-  width: 62px; height: 62px; border-radius: 50%; position: relative; z-index: 2;
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  width: 72px; height: 72px; border-radius: 50%; position: relative; z-index: 2;
+  background: linear-gradient(145deg, #8b5cf6, #4f46e5);
   border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 6px 24px rgba(124,58,237,.5);
-  -webkit-tap-highlight-color: transparent; transition: all .2s;
+  box-shadow: 0 0 0 10px rgba(124,58,237,.12), 0 0 0 20px rgba(124,58,237,.06), 0 8px 32px rgba(124,58,237,.55);
+  -webkit-tap-highlight-color: transparent; transition: all .25s;
 }
 .iram-mic-big.listening {
-  background: linear-gradient(135deg, #a855f7, #7c3aed);
-  box-shadow: 0 6px 32px rgba(168,85,247,.6);
-  animation: micPulse .9s ease-in-out infinite;
+  background: linear-gradient(145deg, #a855f7, #7c3aed);
+  box-shadow: 0 0 0 14px rgba(168,85,247,.2), 0 0 0 28px rgba(168,85,247,.08), 0 8px 40px rgba(168,85,247,.65);
+  animation: micPulse .85s ease-in-out infinite;
 }
-@keyframes micPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+@keyframes micPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
 
 /* Área de mensajes */
 .iram-msgs {
@@ -11428,17 +11448,17 @@ document.addEventListener('DOMContentLoaded', () => {
   font-family: monospace; text-transform: uppercase;
 }
 .drive-mic-btn {
-  width: 72px; height: 72px; border-radius: 50%;
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  width: 82px; height: 82px; border-radius: 50%;
+  background: linear-gradient(145deg, #8b5cf6, #4f46e5);
   border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  font-size: 30px;
-  box-shadow: 0 0 0 10px rgba(124,58,237,.1), 0 0 0 20px rgba(124,58,237,.05), 0 8px 32px rgba(124,58,237,.4);
-  -webkit-tap-highlight-color: transparent; transition: all .2s;
+  box-shadow: 0 0 0 12px rgba(124,58,237,.13), 0 0 0 24px rgba(124,58,237,.06), 0 10px 40px rgba(124,58,237,.5);
+  -webkit-tap-highlight-color: transparent; transition: all .25s;
 }
 .drive-mic-btn.listening {
-  box-shadow: 0 0 0 14px rgba(168,85,247,.18), 0 0 0 28px rgba(168,85,247,.07), 0 8px 40px rgba(168,85,247,.5);
-  animation: micPulse .9s ease-in-out infinite;
+  background: linear-gradient(145deg, #a855f7, #7c3aed);
+  box-shadow: 0 0 0 16px rgba(168,85,247,.2), 0 0 0 32px rgba(168,85,247,.08), 0 10px 48px rgba(168,85,247,.65);
+  animation: micPulse .85s ease-in-out infinite;
 }
 
 /* ── BARRA INFERIOR ── */
@@ -11530,7 +11550,12 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="iram-wave-ring"></div>
         <div class="iram-wave-ring"></div>
         <div class="iram-wave-ring"></div>
-        <button class="iram-mic-big" id="iram-mic-big" onclick="pycToggleVoz()">🎤</button>
+        <button class="iram-mic-big" id="iram-mic-big" onclick="pycToggleVoz()"><svg width="30" height="30" viewBox="0 0 24 24" fill="white">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <line x1="12" y1="19" x2="12" y2="23" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="8" y1="23" x2="16" y2="23" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg></button>
       </div>
     </div>
 
@@ -11544,7 +11569,7 @@ document.addEventListener('DOMContentLoaded', () => {
         oninput="pycAutoResize(this)"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();pycEnviar()}"
       ></textarea>
-      <button class="pyc-mic" id="pyc-mic" onclick="pycToggleVoz()" title="Voz">🎙️</button>
+      
       <button class="pyc-send" id="pyc-send" onclick="pycEnviar()">➤</button>
     </div>
 
@@ -11620,7 +11645,12 @@ document.addEventListener('DOMContentLoaded', () => {
       <!-- Mic grande -->
       <div class="drive-mic-zone">
         <div class="drive-mic-hint">Pulsa para hablar</div>
-        <button class="drive-mic-btn" id="drive-mic-btn" onclick="pycToggleVoz()">🎤</button>
+        <button class="drive-mic-btn" id="drive-mic-btn" onclick="pycToggleVoz()"><svg width="36" height="36" viewBox="0 0 24 24" fill="white">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <line x1="12" y1="19" x2="12" y2="23" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="8" y1="23" x2="16" y2="23" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg></button>
       </div>
 
     </div>
@@ -11660,6 +11690,8 @@ document.addEventListener('DOMContentLoaded', () => {
 'use strict';
 
 const PYC_KEY_GROQ    = 'pyc_groq_key';
+const K_IRAM_LOG      = 'pyc_iram_log';  // Aprendizaje pasivo
+const MAX_IRAM_LOG    = 200;             // Máximo registros
 const PYC_KEY_MISTRAL = 'pyc_mistral_key';
 const PYC_KEY_GEMINI  = 'pyc_gemini_key';
 const PYC_HIST_MAX    = 8;
@@ -11815,42 +11847,26 @@ function pycRenderMsgs() {
   }
 }
 
+/* pycContexto — solo estadísticas agregadas, sin datos reales */
 function pycContexto() {
+  // PRIVACIDAD: No envía datos reales a IAs externas.
+  // Solo estadísticas numéricas. Los datos los busca la app localmente.
   const hoy = new Date().toISOString().slice(0,10);
-  const tareas   = (() => { try { return JSON.parse(localStorage.getItem('pyc_tareas')||'[]'); } catch{return[];} })();
-  const notas    = (() => { try { return JSON.parse(localStorage.getItem('pyc_notas')||'[]'); } catch{return[];} })();
-  const eventos  = (() => { try { return JSON.parse(localStorage.getItem('pyc_eventos')||'[]'); } catch{return[];} })();
-  const ruta     = (() => { try { return JSON.parse(localStorage.getItem('pyc_ruta_paradas')||'[]'); } catch{return[];} })();
+  const tareas  = loadArr(K_TAREAS);
+  const eventos = loadArr(K_EVENTOS);
+  const ruta    = loadArr('pyc_ruta_paradas');
 
-  const tPend    = tareas.filter(t=>t.estado==='pendiente');
-  const tHoy     = tPend.filter(t=>t.fecha===hoy);
-  const evHoy    = eventos.filter(ev=>ev.fecha===hoy||(ev.fecha<=hoy&&(ev.fechaFin||'')>=hoy));
-  const rutaPend = ruta.filter(r=>r.estado==='pendiente');
-  const rutaHecha= ruta.filter(r=>r.estado==='completada');
+  const tPend    = tareas.filter(t=>t.estado==='pendiente').length;
+  const tHoy     = tareas.filter(t=>t.estado==='pendiente'&&t.fecha===hoy).length;
+  const evHoy    = eventos.filter(ev=>ev.fecha===hoy).length;
+  const rutaPend = ruta.filter(r=>r.estado==='pendiente').length;
+  const rutaHecha= ruta.filter(r=>r.estado==='completada').length;
 
-  // Privacidad: nunca enviar pyc_info_tecnica (puede tener contraseñas, IPs, códigos)
-  const rutaSegura = rutaPend.slice(0,5).map(r =>
-    `  - ${r.cliente||'Cliente'} · ${r.localidad||''} · ${r.trabajo||''}`
-  );
-
-  return `ESTADO ACTUAL (hoy: ${hoy}):
-
-RUTA: ${rutaPend.length} pendiente(s), ${rutaHecha.length} completada(s)
-${rutaSegura.join('\n')||'  (sin paradas)'}
-
-TAREAS PENDIENTES: ${tPend.length}
-${tPend.slice(0,5).map(t=>`  - ${t.titulo}${t.fecha?' · '+t.fecha:''}`).join('\n')||'  (ninguna)'}
-
-TAREAS DE HOY: ${tHoy.length}
-${tHoy.map(t=>`  - ${t.titulo}`).join('\n')||'  (ninguna)'}
-
-EVENTOS DE HOY: ${evHoy.length}
-${evHoy.map(ev=>`  - ${ev.titulo}${ev.hora?' a las '+ev.hora:''}`).join('\n')||'  (ninguno)'}
-
-NOTAS: ${notas.length} guardadas
-${notas.slice(0,3).map(n=>`  - ${n.titulo}`).join('\n')||'  (ninguna)'}
-
-PRIVACIDAD: No tienes acceso a contraseñas, IPs ni códigos de acceso. Si el usuario los pide, responde: "Eso no te lo puedo dar, búscalo en Buscar > Info técnica".`;
+  return `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
+Hoy: ${hoy}. Ruta: ${rutaPend} pendiente(s), ${rutaHecha} completada(s).
+Tareas pendientes: ${tPend} (${tHoy} para hoy). Eventos hoy: ${evHoy}.
+No tienes acceso a datos de clientes, direcciones ni sistemas de seguridad.
+Si preguntan algo específico de la app, di: "Eso lo gestiona la app directamente".`;
 }
 
 /* ── Llamada a Gemini ── */
@@ -11872,18 +11888,23 @@ Tu personalidad:
 
 Tu trabajo:
 - Ayudar a gestionar el día: ruta, avisos, tareas, eventos
+- Buscar información externa cuando te lo pidan: tiempo, manuales, teléfonos, noticias
 - Avisar de cosas importantes: oficinas cerradas, partes antiguos, MTO pendiente
-- Recordar datos útiles de cada oficina cuando toca visitarla
 - Nunca revelar datos sensibles: contraseñas, IPs, códigos de acceso
 
-Lo que NO haces:
+Lo que NUNCA haces:
 - No inventas datos que no tienes
+- No afirmas que algo es "nuevo" o que "antes no estaba" — no tienes memoria entre conversaciones, solo ves el estado actual
+- No dices cuántos avisos hay en total si no puedes contarlos exactamente en el contexto
 - No das rodeos ni presentaciones largas
 - Si no sabes algo, lo dices claro: "Eso no lo tengo"
 - No mandas emojis en exceso, solo los justos
 - No uses markdown, asteriscos ni formato — solo texto plano
 
-Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuestas para ser fáciles de escuchar.`
+Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuestas para ser fáciles de escuchar.`;
+
+  // Detectar si la pregunta necesita búsqueda web
+  const necesitaWeb = /\b(busca|temperatura|tiempo|lluvia|clima|noticias?|tráfico|carretera|manual|ficha\s+técnica|teléfono\s+de|horario\s+de\s+(correos|hacienda|dgt)|precio|cuánto\s+cuesta|dónde\s+está|cuándo\s+abre)\b/i.test(userMsg);
 
   const contexto = pycContexto();
   const mensajes = _pycHist
@@ -11898,11 +11919,21 @@ Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuesta
     mensajes[idx].parts[0].text = contexto + '\n\nPREGUNTA DEL USUARIO: ' + mensajes[idx].parts[0].text;
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`;
+  // gemini-2.0-flash para búsqueda web, flash-lite para conversación normal
+  const modelo = necesitaWeb ? 'gemini-2.0-flash' : 'gemini-2.0-flash-lite';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
+
   const body = {
     system_instruction: { parts: [{ text: sistemPrompt }] },
-    contents: mensajes
+    contents: mensajes,
+    ...(necesitaWeb && { tools: [{ google_search: {} }] })
   };
+
+  // Indicador visual si va a buscar en web
+  if (necesitaWeb) {
+    const st = document.getElementById('pyc-status');
+    if (st) st.textContent = '🌐 Buscando…';
+  }
 
   const resp = await fetch(url, {
     method: 'POST',
@@ -11939,8 +11970,10 @@ Tu trabajo:
 - Recordar datos útiles de cada oficina cuando toca visitarla
 - Nunca revelar datos sensibles: contraseñas, IPs, códigos de acceso
 
-Lo que NO haces:
+Lo que NUNCA haces:
 - No inventas datos que no tienes
+- No afirmas que algo es "nuevo" o que "antes no estaba" — no tienes memoria entre conversaciones, solo ves el estado actual
+- No dices cuántos avisos hay en total si no puedes contarlos exactamente en el contexto
 - No das rodeos ni presentaciones largas
 - Si no sabes algo, lo dices claro: "Eso no lo tengo"
 - No mandas emojis en exceso, solo los justos
@@ -12010,8 +12043,10 @@ Tu trabajo:
 - Recordar datos útiles de cada oficina cuando toca visitarla
 - Nunca revelar datos sensibles: contraseñas, IPs, códigos de acceso
 
-Lo que NO haces:
+Lo que NUNCA haces:
 - No inventas datos que no tienes
+- No afirmas que algo es "nuevo" o que "antes no estaba" — no tienes memoria entre conversaciones, solo ves el estado actual
+- No dices cuántos avisos hay en total si no puedes contarlos exactamente en el contexto
 - No das rodeos ni presentaciones largas
 - Si no sabes algo, lo dices claro: "Eso no lo tengo"
 - No mandas emojis en exceso, solo los justos
@@ -12071,10 +12106,29 @@ async function pycEnviar() {
   ta.value = '';
   pycAutoResize(ta);
   pycMsgUser(txt);
+
+  // ── Classifier: intentar acción directa antes de llamar a la IA ──
+  const _cl = iramClasificar(txt);
+  const _intentosLocales = ['LLAMAR','CREAR_TAREA','CREAR_EVENTO','CREAR_NOTA','CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE'];
+  if (_intentosLocales.includes(_cl.intento)) {
+    const resultado = iramEjecutarAccion(_cl);
+    if (resultado) {
+      iramLog(_cl.intento, 'local', true); // Registro: acción local OK
+      _pycHist.push({ role:'model', text:'⏳ …', thinking:true });
+      pycRenderMsgs();
+      iramPulir(resultado).then(respFinal => {
+        _pycHist = _pycHist.filter(m=>!m.thinking);
+        pycMsgIA(respFinal);
+      });
+      return;
+    }
+  }
+
   _pycThinking = true;
 
   // Indicador "pensando"
   _pycHist.push({ role:'model', text:'⏳ Pensando…', thinking:true });
+
   pycRenderMsgs();
 
   try {
@@ -12091,7 +12145,7 @@ async function pycEnviar() {
         else respuesta = await pycGemini(txt);
         
         if (respuesta) {
-          // Si la IA cambió por fallback, actualizar indicador
+          iramLog(_cl.intento || 'CHAT', ia, true); // Registro: IA OK
           if (ia !== _iramIA) {
             const st = document.getElementById('pyc-status');
             if (st) st.textContent = '✓ ' + ia.charAt(0).toUpperCase() + ia.slice(1);
@@ -12099,12 +12153,11 @@ async function pycEnviar() {
           break;
         }
       } catch(e) {
-        // Intentar con la siguiente
+        iramLog(_cl.intento || 'CHAT', ia, false); // Registro: IA falló
         if (ia === orden[orden.length - 1]) throw e;
       }
     }
     
-    // Quitar indicador thinking
     _pycHist = _pycHist.filter(m=>!m.thinking);
     pycMsgIA(respuesta || '⚠️ Sin respuesta');
   } catch(e) {
@@ -12115,40 +12168,370 @@ async function pycEnviar() {
   }
 }
 
-/* ── Voz → texto (Web Speech API) ── */
-function pycToggleVoz() {
-  if (_pycRecognition) { pycPararVoz(); return; }
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert('Tu navegador no soporta reconocimiento de voz. Usa Chrome en Android.'); return; }
+/* ══════════════════════════════════════════════════════
+   IRAM CLASSIFIER — Pattern matching sin librerías
+   ══════════════════════════════════════════════════════ */
 
-  const rec = new SR();
-  rec.lang = 'es-ES';
-  rec.continuous = false;
-  rec.interimResults = false;
+const _DIAS_IDX = {
+  lunes:1, martes:2, 'miercoles':3, 'miércoles':3,
+  jueves:4, viernes:5, 'sabado':6, 'sábado':6, domingo:0
+};
 
-  rec.onstart = () => {
-    _pycRecognition = rec;
-    document.getElementById('pyc-mic').classList.add('active');
-    document.getElementById('pyc-status').textContent = '🎙️ Escuchando…';
-  };
-  rec.onresult = e => {
-    const txt = e.results[0][0].transcript;
-    document.getElementById('pyc-ta').value = txt;
-    pycAutoResize(document.getElementById('pyc-ta'));
-    pycPararVoz();
-    pycEnviar();
-  };
-  rec.onerror = () => pycPararVoz();
-  rec.onend   = () => pycPararVoz();
-  rec.start();
+/* Extrae fecha ISO de un texto natural */
+function iramFechaISO(t) {
+  t = t.toLowerCase();
+  const hoy = new Date();
+
+  if (/\bhoy\b/.test(t)) return hoy.toISOString().slice(0,10);
+
+  if (/\bma[ñn]ana\b/.test(t)) {
+    const d = new Date(hoy); d.setDate(d.getDate()+1);
+    return d.toISOString().slice(0,10);
+  }
+
+  // "el jueves 20" → día 20 del mes
+  for (const [dia] of Object.entries(_DIAS_IDX)) {
+    const re = new RegExp(`\\b${dia}\\s+(\\d{1,2})\\b`);
+    const m = t.match(re);
+    if (m) {
+      const d = new Date(hoy);
+      d.setDate(parseInt(m[1]));
+      return d.toISOString().slice(0,10);
+    }
+  }
+
+  // "el jueves" / "próximo martes"
+  for (const [dia, idx] of Object.entries(_DIAS_IDX)) {
+    const re = new RegExp(`(pr[oó]ximo\\s+)?\\b${dia}\\b`);
+    if (re.test(t)) {
+      const d = new Date(hoy);
+      let diff = (idx - d.getDay() + 7) % 7;
+      if (diff === 0) diff = 7;
+      d.setDate(d.getDate() + diff);
+      return d.toISOString().slice(0,10);
+    }
+  }
+
+  return hoy.toISOString().slice(0,10);
 }
 
-function pycPararVoz() {
-  if (_pycRecognition) { try { _pycRecognition.stop(); } catch(e){} _pycRecognition = null; }
-  const mic = document.getElementById('pyc-mic');
-  const st  = document.getElementById('pyc-status');
-  if (mic) mic.classList.remove('active');
-  if (st)  st.textContent = 'Listo · ' + _iramIA.charAt(0).toUpperCase() + _iramIA.slice(1);
+/* Extrae hora HH:MM de un texto */
+function iramHoraStr(txt) {
+  const m1 = txt.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (m1) return `${m1[1].padStart(2,'0')}:${m1[2]}`;
+  const m2 = txt.match(/\ba\s+las?\s+(\d{1,2})\b/i);
+  if (m2) return `${m2[1].padStart(2,'0')}:00`;
+  return '';
+}
+
+/* Clasificador principal — devuelve {intento, ...entidades} */
+function iramClasificar(txt) {
+  const t   = iramNorm(txt);
+  const raw = txt.toLowerCase().trim();
+
+  // ── CONTAR AVISOS ──
+  if (/cuantos?\s+avisos?|avisos?\s+(me\s+)?quedan|avisos?\s+pendientes?|cuanto\s+me\s+queda/.test(t)) {
+    return { intento:'CONTAR_AVISOS' };
+  }
+
+  // ── URGENTE — reordenar ruta ──
+  if (/cambio\s+de\s+ruta|ve\s+a\s+por\s+el\s+urgente|urgente\s+primero|mover?\s+urgente/.test(t)) {
+    return { intento:'URGENTE' };
+  }
+
+  // ── NAVEGAR / WAZE ──
+  if (/llevame|navega|waze|ir\s+al?|vamos\s+al?|como\s+llego|lleva(me)?\s+a/.test(t)) {
+    const m = raw.match(/(?:ll[eé]vame|navega|waze|ir|vamos|llega)\s+(?:a\s+|al?\s+|hasta\s+)?(.+)/i);
+    return { intento:'NAVEGAR', destino: m ? m[1].trim() : '' };
+  }
+
+  // ── HORARIO ──
+  if (/horario|a\s+que\s+hora\s+(abre|cierra)|cuando\s+(abre|cierra)/.test(t)) {
+    // Extraer cliente y localidad
+    const mHor = raw.match(/horario\s+(?:del?\s+|de\s+la\s+)?(.+?)(?:\s+(?:de|en)\s+(.+))?$/i);
+    const cliente   = mHor ? mHor[1].trim() : '';
+    const localidad = mHor?.[2] ? mHor[2].trim() : '';
+    return { intento:'HORARIO', cliente, localidad };
+  }
+
+  // ── MTO ──
+  if (/mantenimiento|mto|revision\s+hecha|esta\s+hecho\s+el\s+mto/.test(t)) {
+    const mMto = raw.match(/(?:mantenimiento|mto|revision)\s+(?:del?\s+|de\s+)?(.+?)(?:\s+(?:de|en)\s+(.+))?$/i);
+    const cliente   = mMto ? mMto[1].trim() : '';
+    const localidad = mMto?.[2] ? mMto[2].trim() : '';
+    return { intento:'MTO_ESTADO', cliente, localidad };
+  }
+
+  // ── LLAMAR ──
+  if (/\b(llama|llamar|llamame|marca|marcar)\b/.test(t)) {
+    const m = raw.match(/(?:llama|llamar|marca)\s+(?:a\s+|al\s+)?(.+)/i);
+    return { intento:'LLAMAR', quien: m ? m[1].trim() : '' };
+  }
+
+  // ── CREAR EVENTO — tiene hora O palabras de evento ──
+  const tieneHora   = /a\s+las?\s+\d|(\d{1,2}):(\d{2})/.test(t);
+  const esEvento    = /\b(evento|cita|reunion|visita\s+conjunta|visita|hay)\b/.test(t);
+  const esProgramar = /\b(programa|agenda|bloquea)\b/.test(t);
+  if ((tieneHora && esEvento) || esProgramar) {
+    const fecha  = iramFechaISO(t);
+    const hora   = iramHoraStr(raw);
+    const titulo = txt
+      .replace(/\bel\s+(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*\d*\b/gi,'')
+      .replace(/\ba\s+las?\s+\d{1,2}(:\d{2})?\b/gi,'')
+      .replace(/\b(hay|que|programa|agenda|bloquea)\b/gi,'')
+      .replace(/\s+/g,' ').trim();
+    return { intento:'CREAR_EVENTO', titulo, fecha, hora };
+  }
+
+  // ── CREAR NOTA — apunta / anota ──
+  if (/\b(apunta|anota|guarda\s+que|recuerda\s+que|llaves|esta\s+en)\b/.test(t) && !tieneHora) {
+    const texto = txt
+      .replace(/\b(apuntar?|anotar?|guarda\s+que|recuerda\s+que)\s*/i,'')
+      .trim();
+    return { intento:'CREAR_NOTA', texto };
+  }
+
+  // ── CREAR TAREA — recuerda / hay que / tarea ──
+  if (/\b(recuerda|tarea|pendiente|acuerdate|no\s+olvid|hay\s+que|tenemos\s+que|mañana)\b/.test(t)) {
+    const fecha  = iramFechaISO(t);
+    const titulo = txt
+      .replace(/\b(ma[ñn]ana|hoy|pasado\s+ma[ñn]ana)\b/gi,'')
+      .replace(/\bel\s+(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*\d*\b/gi,'')
+      .replace(/\b(recuerda(r)?|tarea|pendiente|ac[uú]érdate|no\s+olvides?|hay\s+que|tenemos\s+que)\s*(que)?\s*/i,'')
+      .replace(/\s+/g,' ').trim();
+    if (titulo) return { intento:'CREAR_TAREA', titulo, fecha };
+  }
+
+  return { intento:'CHAT' };
+}
+
+
+/* ══════════════════════════════════════════════════════
+   IRAM APRENDIZAJE — registro pasivo de uso
+   ══════════════════════════════════════════════════════ */
+
+/* Registra cada interacción */
+function iramLog(intento, ia, ok) {
+  try {
+    const log = JSON.parse(localStorage.getItem(K_IRAM_LOG) || '[]');
+    log.push({ intento, ia, ts: Date.now(), ok: !!ok });
+    // Mantener solo los últimos MAX_IRAM_LOG registros
+    if (log.length > MAX_IRAM_LOG) log.splice(0, log.length - MAX_IRAM_LOG);
+    localStorage.setItem(K_IRAM_LOG, JSON.stringify(log));
+  } catch(e) {}
+}
+
+/* Devuelve estadísticas de uso — útil para depurar y para futura sugerencia automática */
+function iramStats() {
+  try {
+    const log = JSON.parse(localStorage.getItem(K_IRAM_LOG) || '[]');
+    if (!log.length) return 'Sin datos de uso todavía.';
+
+    // Agrupar por IA
+    const porIA = {};
+    const porIntento = {};
+    log.forEach(r => {
+      // Por IA
+      if (!porIA[r.ia]) porIA[r.ia] = { total:0, ok:0 };
+      porIA[r.ia].total++;
+      if (r.ok) porIA[r.ia].ok++;
+      // Por intento
+      if (!porIntento[r.intento]) porIntento[r.intento] = 0;
+      porIntento[r.intento]++;
+    });
+
+    const iaStr = Object.entries(porIA)
+      .map(([ia, d]) => `${ia}: ${d.total} usos (${Math.round(d.ok/d.total*100)}% ok)`)
+      .join(' · ');
+
+    const top3 = Object.entries(porIntento)
+      .sort((a,b)=>b[1]-a[1]).slice(0,3)
+      .map(([i,n])=>`${i}(${n})`).join(', ');
+
+    return `${log.length} interacciones · ${iaStr} · Top: ${top3}`;
+  } catch(e) { return 'Error leyendo log.'; }
+}
+
+/* ── Normalización básica para búsquedas ── */
+function iramNorm(s) {
+  return (s||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s]/g,'').trim();
+}
+
+/* ── Buscar cliente en Excel por nombre y/o localidad ── */
+function iramBuscarCliente(nombre, localidad) {
+  const excel = loadArr(K_EXCEL);
+  const nN = iramNorm(nombre);
+  const nL = iramNorm(localidad);
+  return excel.find(c => {
+    const cN = iramNorm(c.CLIENTE||c.cliente||'');
+    const cL = iramNorm(c.MUNICIPIO||c.municipio||'');
+    const matchN = !nN || cN.includes(nN) || nN.includes(cN);
+    const matchL = !nL || cL.includes(nL) || nL.includes(cL);
+    return matchN && matchL;
+  });
+}
+
+/* ── Ejecuta la acción detectada — devuelve string o null ── */
+function iramEjecutarAccion(cl) {
+  const hoy = new Date();
+  const hoyISO = hoy.toISOString().slice(0,10);
+
+  /* ── LLAMAR ── */
+  if (cl.intento === 'LLAMAR') {
+    const contactos = loadArr('pyc_contactos');
+    if (!contactos.length) return 'No tienes contactos cargados. Importa el Excel con la hoja Contactos.';
+    const nQ = iramNorm(cl.quien || '');
+    const match = contactos.find(c => iramNorm(c.NOMBRE).includes(nQ) || nQ.includes(iramNorm(c.NOMBRE)));
+    if (!match) return `No encuentro a "${cl.quien}" en tus contactos.`;
+    window.location.href = `tel:${match.TELEFONO}`;
+    return `Llamando a ${match.NOMBRE} · ${match.TELEFONO}`;
+  }
+
+  /* ── CONTAR AVISOS ── */
+  if (cl.intento === 'CONTAR_AVISOS') {
+    const ruta = loadArr(K_RUTA);
+    const pend = ruta.filter(r=>r.estado==='pendiente').length;
+    const done = ruta.filter(r=>r.estado==='completada').length;
+    if (pend === 0) return `No te queda ningún aviso pendiente. Llevas ${done} completado${done!==1?'s':''}.`;
+    return `Tienes ${pend} aviso${pend!==1?'s':''} pendiente${pend!==1?'s':''}. Llevas ${done} completado${done!==1?'s':''}.`;
+  }
+
+  /* ── HORARIO OFICINA ── */
+  if (cl.intento === 'HORARIO') {
+    const cli = iramBuscarCliente(cl.cliente, cl.localidad);
+    if (!cli) return `No encuentro a ${cl.cliente||cl.localidad} en la base de datos.`;
+    const horario = cli.HORARIO || cli.horario || '';
+    const nombre  = cli.CLIENTE || cli.cliente || cl.cliente;
+    const muni    = cli.MUNICIPIO || cli.municipio || cl.localidad;
+    if (!horario) return `${nombre} en ${muni} no tiene horario registrado.`;
+    return `${nombre} · ${muni}: ${horario}`;
+  }
+
+  /* ── MTO — ¿está hecho? ── */
+  if (cl.intento === 'MTO_ESTADO') {
+    const cli = iramBuscarCliente(cl.cliente, cl.localidad);
+    if (!cli) return `No encuentro a ${cl.cliente||cl.localidad} en la base de datos.`;
+    const nombre = cli.CLIENTE || cli.cliente || cl.cliente;
+    const muni   = cli.MUNICIPIO || cli.municipio || cl.localidad;
+    // Calcular trimestre actual
+    const mes = hoy.getMonth(); // 0-11
+    const trimActual = mes < 3 ? 'Q1' : mes < 6 ? 'Q2' : mes < 9 ? 'Q3' : 'Q4';
+    const mtoManual = loadArr ? (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })() : {};
+    const key = Object.keys(mtoManual).find(k => k.toUpperCase().includes(iramNorm(nombre).toUpperCase().slice(0,6)));
+    const override = key ? mtoManual[key] : null;
+    const valorTrim = override?.[trimActual] || cli[trimActual] || '';
+    const hecho = valorTrim && valorTrim.trim() !== '' && valorTrim !== '0';
+    return `MTO ${trimActual} de ${nombre} en ${muni}: ${hecho ? `✅ hecho (${valorTrim})` : '⏳ pendiente'}.`;
+  }
+
+  /* ── NAVEGAR A ── */
+  if (cl.intento === 'NAVEGAR') {
+    // Intentar buscar en ruta primero
+    const ruta = loadArr(K_RUTA);
+    const nD = iramNorm(cl.destino||'');
+    const parada = ruta.find(p => {
+      const nC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
+      const nL = iramNorm(p.localidad||'');
+      return nC.includes(nD) || nD.includes(nC) || nL.includes(nD) || nD.includes(nL);
+    });
+    const dir = parada
+      ? (parada.direccion || `${parada.clienteReal||parada.cliente} ${parada.localidad}`)
+      : cl.destino;
+    const url = `https://waze.com/ul?q=${encodeURIComponent(dir)}&navigate=yes`;
+    window.open(url, '_blank');
+    return `Abriendo Waze hacia ${parada ? (parada.clienteReal||parada.cliente)+' · '+(parada.localidad||'') : cl.destino}.`;
+  }
+
+  /* ── URGENTE — mover al inicio de ruta ── */
+  if (cl.intento === 'URGENTE') {
+    const ruta = loadArr(K_RUTA);
+    const idx  = ruta.findIndex(p=>p.urgente===true || /urgente/i.test(p.trabajo||''));
+    if (idx <= 0) return idx === 0 ? 'El urgente ya está en primera posición.' : 'No veo ningún aviso urgente en tu ruta.';
+    const urgente = ruta.splice(idx,1)[0];
+    ruta.unshift(urgente);
+    save(K_RUTA, ruta);
+    if (typeof renderRuta === 'function') renderRuta();
+    return `Urgente movido al inicio: ${urgente.clienteReal||urgente.cliente} · ${urgente.localidad||''}.`;
+  }
+
+  /* ── CREAR TAREA ── */
+  if (cl.intento === 'CREAR_TAREA' && cl.titulo) {
+    const tareas = loadArr(K_TAREAS);
+    tareas.unshift({
+      id:'T_'+Date.now(), titulo:cl.titulo,
+      descripcion:'', prioridad:'normal',
+      fecha:cl.fecha||'', estado:'pendiente',
+      etiquetas:'iram', alarma:'',
+    });
+    save(K_TAREAS, tareas);
+    if (typeof renderTareas === 'function') renderTareas();
+    if (typeof actualizarBavTareas === 'function') actualizarBavTareas();
+    const fStr = cl.fecha
+      ? new Date(cl.fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})
+      : 'sin fecha';
+    return `✅ Tarea guardada: "${cl.titulo}" — ${fStr}`;
+  }
+
+  /* ── CREAR EVENTO ── */
+  if (cl.intento === 'CREAR_EVENTO' && cl.titulo && cl.fecha) {
+    const eventos = loadArr(K_EVENTOS);
+    eventos.push({
+      id:'EV_'+Date.now(), titulo:cl.titulo,
+      fecha:cl.fecha, fechaFin:cl.fecha,
+      hora:cl.hora||'', todoDia:!cl.hora,
+      descripcion:'Creado por Iram', tipo:'evento',
+    });
+    save(K_EVENTOS, eventos);
+    if (typeof refreshFCEvents === 'function') refreshFCEvents();
+    const fStr = new Date(cl.fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+    return `📅 Evento guardado: "${cl.titulo}" — ${fStr}${cl.hora ? ' a las '+cl.hora : ''}`;
+  }
+
+  /* ── CREAR NOTA ── */
+  if (cl.intento === 'CREAR_NOTA' && cl.texto) {
+    const notas = loadArr(K_NOTAS);
+    notas.unshift({
+      id:'N_'+Date.now(),
+      titulo:cl.texto.slice(0,40),
+      texto:`<p>${cl.texto}</p>`,
+      fecha:hoy.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}),
+      etiquetas:'iram',
+    });
+    save(K_NOTAS, notas);
+    if (typeof renderNotas === 'function') renderNotas();
+    return `📝 Nota guardada: "${cl.texto.slice(0,50)}"`;
+  }
+
+  return null;
+}
+
+/* ── Pulir respuesta local con Groq (hace la frase más natural) ── */
+async function iramPulir(respuestaLocal) {
+  const key = pycGetKey('groq');
+  if (!key) return respuestaLocal; // Sin key → devuelve la respuesta técnica directamente
+
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: 'Eres Iram, asistente de un técnico de seguridad. Convierte el texto que te doy en una frase corta y natural en español, como si se lo dijeras a un compañero que va conduciendo. Sin emojis al inicio, máximo 2 frases, texto plano sin markdown.' },
+          { role: 'user', content: respuestaLocal }
+        ],
+        max_tokens: 80,
+        temperature: 0.6
+      })
+    });
+    if (!resp.ok) return respuestaLocal;
+    const data = await resp.json();
+    return data?.choices?.[0]?.message?.content || respuestaLocal;
+  } catch(e) {
+    return respuestaLocal; // Fallback silencioso
+  }
 }
 
 /* ── Texto → voz (Web Speech Synthesis) ── */
@@ -12161,12 +12544,6 @@ function pycHablar(txt) {
   _pycHablando = true;
   u.onend = () => { _pycHablando = false; };
   window.speechSynthesis.speak(u);
-}
-
-/* ── Helpers ── */
-function pycAutoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 80) + 'px';
 }
 
 /* ── Voz: activar/desactivar ── */
@@ -12183,7 +12560,7 @@ function pycToggleVoz() {
   _pycRecognition.interimResults = false;
   _pycRecognition.onstart = () => {
     _pycHablando = true;
-    ['pyc-mic','iram-mic-big','drive-mic-btn','iram-nav-mic'].forEach(id => {
+    ['iram-mic-big','drive-mic-btn','iram-nav-mic'].forEach(id => {
       const el = document.getElementById(id); if(el) el.classList.add('active','listening');
     });
     const vs = document.getElementById('iram-voice-status');
@@ -12208,7 +12585,7 @@ function pycToggleVoz() {
 function pycPararVoz() {
   _pycHablando = false;
   if (_pycRecognition) { try { _pycRecognition.stop(); } catch(e){} _pycRecognition = null; }
-  ['pyc-mic','iram-mic-big','drive-mic-btn','iram-nav-mic'].forEach(id => {
+  ['iram-mic-big','drive-mic-btn','iram-nav-mic'].forEach(id => {
     const el = document.getElementById(id); if(el) el.classList.remove('active','listening');
   });
   const vs = document.getElementById('iram-voice-status');
