@@ -11923,6 +11923,25 @@ function iramLimpiarChat() {
   pycMsgIA('Chat limpiado. ¿En qué te ayudo?');
 }
 
+function pycAbrirChat() {
+  document.getElementById('pyc-overlay').classList.add('open');
+  iramShowMode('chat');
+  iramRellenarDrive();
+  pycCheckKey();
+  const tenia = iramCargarHistorial();
+  if (!tenia || !_pycHist.length) {
+    pycMsgIA(iramSaludoProactivo(), false, 'local');
+  }
+  iramCloudInit().catch(()=>{});
+  setTimeout(() => document.getElementById('pyc-ta')?.focus(), 350);
+}
+
+function pycCerrarChat() {
+  iramGuardarHistorial();
+  document.getElementById('pyc-overlay').classList.remove('open');
+  pycPararVoz();
+}
+
 /* ══════════════════════════════════════════════════════
    IRAM — Resumen vivo del día
    Se actualiza con cada acción importante
