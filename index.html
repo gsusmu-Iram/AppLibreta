@@ -11884,12 +11884,128 @@ async function iramCloudListar() {
 }
 
 const PYC_KEY_GEMINI  = 'pyc_gemini_key';
-const PYC_HIST_MAX    = 20; // Más historial para mejor contexto conversacional
+const PYC_HIST_MAX    = 20;
 let _pycHist        = [];
 let _pycRecognition = null;
 let _pycHablando    = false;
 let _pycThinking    = false;
-let _iramIA         = 'gemini'; // 'groq' | 'mistral' | 'gemini'
+let _iramIA         = 'groq';
+let _iramModo       = 'local'; // 'local' | 'web'
+
+/* ── Navegación entre pantallas de Iram ── */
+function iramShowMode(mode) {
+  document.querySelectorAll('.iram-screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.iram-nav-btn').forEach(b => b.classList.remove('active'));
+  const scr = document.getElementById('iram-' + mode);
+  if (scr) scr.classList.add('active');
+  const btn = document.getElementById('iram-btn-' + mode);
+  if (btn) btn.classList.add('active');
+  if (mode === 'drive') iramRellenarDrive();
+}
+
+/* ── Toggle modo local/web ── */
+function iramSetModo(modo, btn) {
+  _iramModo = modo;
+  _iramIA   = modo === 'web' ? 'gemini' : 'groq';
+  btn.closest('.ia-toggle').querySelectorAll('.ia-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  const st = document.getElementById('pyc-status');
+  if (st) st.textContent = modo === 'web' ? '🌐 Web' : '💬 Iram';
+}
+
+function iramSetIA(ia, btn) {
+  _iramIA = ia;
+  if (btn) {
+    btn.closest('.ia-toggle')?.querySelectorAll('.ia-btn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+  }
+}
+
+/* ── Verificar key configurada ── */
+function pycGetKey(ia) {
+  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
+  return localStorage.getItem(stores[ia] || '') || '';
+}
+
+function pycCheckKey() {
+  const ia = _iramIA === 'gemini' ? 'gemini' : 'groq';
+  if (!pycGetKey(ia)) pycMostrarKeyCtx(ia);
+  else pycOcultarKeyBox();
+}
+
+/* ── Mensajes ── */
+function pycMsgIA(txt, thinking=false, ia=null) {
+  _pycHist.push({ role:'model', text:txt, thinking, ia: ia || _iramIA });
+  pycRenderMsgs();
+  if (!thinking && txt && txt.length > 5) {
+    setTimeout(() => pycHablar(txt), 300);
+    iramGuardarHistorial();
+  }
+}
+
+function pycMsgUser(txt) {
+  _pycHist.push({ role:'user', text:txt });
+  pycRenderMsgs();
+  iramGuardarHistorial();
+}
+
+function pycRenderMsgs() {
+  const el = document.getElementById('pyc-msgs');
+  if (!el) return;
+  el.innerHTML = _pycHist.map(m => {
+    const cls = m.role === 'user' ? 'user' : 'ai';
+    let av = m.role === 'user' ? '👤' : '✦';
+    let avStyle = '';
+    if (m.role !== 'user') {
+      const iaColors = { groq:'#fb923c', mistral:'#fbbf24', gemini:'#818cf8', local:'#7c3aed' };
+      const col = iaColors[m.ia] || '#7c3aed';
+      avStyle = ` style="background:${col}"`;
+    }
+    return `<div class="pyc-msg ${cls}">
+      <div class="pyc-avatar"${avStyle}>${av}</div>
+      <div class="pyc-bubble${m.thinking?' thinking':''}">${m.text}</div>
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+  // Actualizar "Iram dice" en modo conducción
+  const last = _pycHist.filter(m => m.role==='model' && !m.thinking).slice(-1)[0];
+  if (last) {
+    const d = document.getElementById('drive-iram-txt');
+    if (d) d.textContent = last.text;
+  }
+}
+
+/* ── Rellenar modo conducción ── */
+function iramRellenarDrive() {
+  try {
+    const ruta   = JSON.parse(localStorage.getItem('pyc_ruta_paradas') || '[]');
+    const tareas = JSON.parse(localStorage.getItem('pyc_tareas') || '[]');
+    const pend   = ruta.filter(r => r.estado === 'pendiente');
+    const hecho  = ruta.filter(r => r.estado === 'completada');
+    const tPend  = tareas.filter(t => t.estado === 'pendiente');
+
+    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setText('drive-n-pend',   pend.length);
+    setText('drive-n-hecho',  hecho.length);
+    setText('drive-n-tareas', tPend.length);
+
+    const sig = pend[0];
+    if (sig) {
+      setText('drive-next-cliente', `${sig.clienteReal || sig.cliente || '—'} · ${sig.codigo || ''}`);
+      setText('drive-next-dir', `📍 ${sig.direccion || ''} · ${sig.localidad || ''}`);
+      setText('drive-next-work', sig.trabajo || sig.aviso || '');
+      const horEl = document.getElementById('drive-next-hor');
+      if (horEl) {
+        horEl.textContent = sig.horarioTxt || '';
+        horEl.className   = 'drive-hor ' + (sig.horarioStatus || '');
+      }
+    } else {
+      setText('drive-next-cliente', 'Sin paradas pendientes');
+      setText('drive-next-dir', '');
+      setText('drive-next-work', '');
+    }
+  } catch(e) {}
+}
 
 /* ── Abrir / cerrar ── */
 const K_IRAM_CHAT = 'pyc_iram_chat';
