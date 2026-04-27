@@ -7326,6 +7326,7 @@ function getMtoBloque(cli) {
    INICIALIZAR
    ================================================================ */
 document.addEventListener('DOMContentLoaded', () => {
+  try {
   // ── PIN de acceso ──
   const K_PIN      = 'pyc_pin';
   const K_PIN_SES  = 'pyc_pin_sesion';
@@ -7391,6 +7392,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   popularZonas();
   renderMTO();
+  } catch(e) { console.error('Init error:', e); }
 });
 
 /* ================================================================
@@ -11657,9 +11659,8 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="iram-close" onclick="iramLimpiarChat()" title="Limpiar chat" style="font-size:14px;opacity:.7">🗑️</button>
       </div>
       <div class="ia-toggle">
-        <button class="ia-btn groq" onclick="iramSetIA('groq',this)">🟠 GROQ</button>
-        <button class="ia-btn mistral" onclick="iramSetIA('mistral',this)">🟡 MISTRAL</button>
-        <button class="ia-btn gemini on" onclick="iramSetIA('gemini',this)">🔷 GEMINI</button>
+        <button class="ia-btn groq on" id="btn-iram" onclick="iramSetModo('local',this)">💬 IRAM</button>
+        <button class="ia-btn gemini" id="btn-web" onclick="iramSetModo('web',this)">🌐 WEB</button>
       </div>
     </div>
 
@@ -11883,7 +11884,7 @@ async function iramCloudListar() {
 }
 
 const PYC_KEY_GEMINI  = 'pyc_gemini_key';
-const PYC_HIST_MAX    = 8;
+const PYC_HIST_MAX    = 20; // Más historial para mejor contexto conversacional
 let _pycHist        = [];
 let _pycRecognition = null;
 let _pycHablando    = false;
@@ -11923,6 +11924,7 @@ function iramLimpiarChat() {
 }
 
 function iramSaludoProactivo() {
+  try {
   const hora = new Date().getHours();
   const ruta = loadArr(K_RUTA);
   const tareas = loadArr(K_TAREAS);
@@ -12010,6 +12012,7 @@ function iramSaludoProactivo() {
   }
 
   return saludo;
+  } catch(e) { return '¿En qué te ayudo?'; }
 }
 
 function pycAbrirChat() {
@@ -12043,18 +12046,23 @@ function iramShowMode(mode) {
 }
 
 /* ── Toggle IA ── */
-function iramSetIA(ia, btn) {
-  _iramIA = ia;
+let _iramModo = 'local'; // 'local' | 'web'
+
+function iramSetModo(modo, btn) {
+  _iramModo = modo;
+  _iramIA   = modo === 'web' ? 'gemini' : 'groq';
   btn.closest('.ia-toggle').querySelectorAll('.ia-btn').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
   const st = document.getElementById('pyc-status');
-  if (st) st.textContent = 'Listo · ' + ia.charAt(0).toUpperCase() + ia.slice(1);
+  if (st) st.textContent = modo === 'web' ? '🌐 Web' : '💬 Iram';
+}
 
-  // Si no tiene key → mostrar key-box contextual para esa IA
-  if (!pycGetKey(ia)) {
-    pycMostrarKeyCtx(ia);
-  } else {
-    pycOcultarKeyBox();
+/* Compatibilidad con código existente */
+function iramSetIA(ia, btn) {
+  _iramIA = ia;
+  if (btn) {
+    btn.closest('.ia-toggle')?.querySelectorAll('.ia-btn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
   }
 }
 
@@ -12330,12 +12338,12 @@ function pycGuardarKey(ia) {
 }
 
 /* ── Mensajes ── */
-function pycMsgIA(txt, thinking=false) {
-  _pycHist.push({ role:'model', text:txt, thinking });
+function pycMsgIA(txt, thinking=false, ia=null) {
+  _pycHist.push({ role:'model', text:txt, thinking, ia: ia || _iramIA });
   pycRenderMsgs();
   if (!thinking && txt && txt.length > 5) {
     setTimeout(() => pycHablar(txt), 300);
-    iramGuardarHistorial(); // Guardar en cada respuesta
+    iramGuardarHistorial();
   }
 }
 function pycMsgUser(txt) {
@@ -12348,9 +12356,15 @@ function pycRenderMsgs() {
   if (!el) return;
   el.innerHTML = _pycHist.map(m => {
     const cls = m.role === 'user' ? 'user' : 'ai';
-    const av  = m.role === 'user' ? '👤' : '✦';
+    let av = m.role === 'user' ? '👤' : '✦';
+    let avStyle = '';
+    if (m.role !== 'user') {
+      const iaColors = { groq:'#fb923c', mistral:'#fbbf24', gemini:'#818cf8' };
+      const col = iaColors[m.ia] || '#7c3aed';
+      avStyle = ` style="background:${col}"`;
+    }
     return `<div class="pyc-msg ${cls}">
-      <div class="pyc-avatar">${av}</div>
+      <div class="pyc-avatar"${avStyle}>${av}</div>
       <div class="pyc-bubble${m.thinking?' thinking':''}">${m.text}</div>
     </div>`;
   }).join('');
@@ -12364,7 +12378,48 @@ function pycRenderMsgs() {
 }
 
 /* pycContexto — solo estadísticas agregadas, sin datos reales */
+/* Contexto mínimo — solo estadísticas, sin datos sensibles */
 function pycContexto() {
+  const hoy     = new Date().toISOString().slice(0,10);
+  const ruta    = loadArr(K_RUTA);
+  const tareas  = loadArr(K_TAREAS);
+  const analisis= (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+
+  const rutaPend = ruta.filter(r=>r.estado==='pendiente');
+  const rutaHecha= ruta.filter(r=>r.estado==='completada');
+  const tPend    = tareas.filter(t=>t.estado==='pendiente');
+  const anPend   = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado');
+
+  const sig = rutaPend[0];
+  const sigStr = sig
+    ? `${sig.clienteReal||sig.clienteNorm||sig.cliente||'?'} · ${sig.localidad||''}`
+    : 'ninguna';
+
+  const mesActual  = new Date().getMonth();
+  const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
+
+  // Material pendiente
+  const matKw = /batería|cámara|cable|herramienta|repuesto/i;
+  const material = tPend.filter(t=>matKw.test(t.titulo)).map(t=>t.titulo).slice(0,3).join(', ');
+
+  // Partes antiguos
+  const hoyD = new Date();
+  const antiguos = anPend.filter(a => {
+    if (!a.fecha) return false;
+    const p = a.fecha.split('/');
+    if (p.length < 3) return false;
+    return (hoyD - new Date(`${p[2]}-${p[1]}-${p[0]}`)) / 86400000 > 7;
+  }).length;
+
+  return `Hoy ${hoy} · Trimestre ${trimActual}
+Ruta: ${rutaPend.length} pendientes, ${rutaHecha.length} completados
+Siguiente parada: ${sigStr}
+Partes análisis: ${anPend.length} pendientes${antiguos>0?' (⚠️ '+antiguos+' de más de 7 días)':''}
+Tareas: ${tPend.length} pendientes${material?' · Material: '+material:''}`;
+}
+
+/* Contexto completo — para consultas específicas bajo demanda */
+function pycContextoCompleto() {
   const hoy    = new Date().toISOString().slice(0,10);
   const fin    = new Date(); fin.setDate(fin.getDate()+7);
   const finISO = fin.toISOString().slice(0,10);
@@ -12373,6 +12428,66 @@ function pycContexto() {
   const ruta    = loadArr(K_RUTA);
   const hist    = loadArr(K_HIST);
   const excel   = loadArr(K_EXCEL);
+
+  const tPend   = tareas.filter(t=>t.estado==='pendiente');
+  const tHoy    = tPend.filter(t=>t.fecha===hoy);
+  const evSemana= eventos.filter(ev=>ev.fecha>=hoy && ev.fecha<=finISO);
+  const rutaPend= ruta.filter(r=>r.estado==='pendiente');
+  const rutaHecha=ruta.filter(r=>r.estado==='completada');
+  const mesActual  = new Date().getMonth();
+  const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
+
+  const rutaCtx = ruta.length ? ruta.map((p,i) => {
+    const estado  = p.estado==='completada'?'✅':'⏳';
+    const cliente = p.clienteReal||p.clienteNorm||p.cliente||'?';
+    const loc     = p.localidad||'';
+    const dir     = p.direccion||'';
+    const trabajo = p.trabajo||'';
+    const exRow   = excel.find(c=>iramNorm(c.CLIENTE||'').includes(iramNorm(cliente).slice(0,6)));
+    const horario = exRow?.HORARIO||'';
+    const codigo  = p.codigo||'';
+    const visitas = hist.filter(v=>{
+      const vKey = String(v.KEY||'').replace(/^sis_/,'');
+      if (codigo&&vKey){
+        const cN=codigo.replace(/^0+/,'').toLowerCase();
+        const kN=vKey.replace(/^0+/,'').toLowerCase();
+        if(cN===kN||kN.includes(cN)||cN.includes(kN)) return true;
+        if(cN.length>=3&&kN.length>=3) return false;
+      }
+      const vc=iramNorm(v.CLIENTE||v.cliente||'');
+      const vl=iramNorm(v.LOCALIDAD||v.localidad||'');
+      return vc.includes(iramNorm(cliente).slice(0,6))&&(!loc||vl.includes(iramNorm(loc).slice(0,4)));
+    });
+    const ultima = visitas.sort((a,b)=>(b.FECHA||'').localeCompare(a.FECHA||''))[0];
+    const ultStr = ultima?`última visita ${ultima.FECHA}: ${ultima.TRABAJO||ultima.trabajo||''}`:'';
+    const mtoData = iramGetMtoData(cliente,codigo,loc,trimActual);
+    const mtoHecho = mtoData&&mtoData[trimActual]&&mtoData[trimActual].trim()!==''&&mtoData[trimActual]!=='0';
+    return `${estado} ${i+1}. ${cliente}${loc?' · '+loc:''}${dir?' · '+dir:''}${horario?' · '+horario:''} · MTO ${trimActual}: ${mtoHecho?'✅':'⏳'}${trabajo?' · '+trabajo:''}${ultStr?' · '+ultStr:''}`;
+  }).join('\n') : 'Sin paradas.';
+
+  const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+  const anPend   = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado');
+  const analisisCtx = anPend.slice(0,12).map(a=>`- ${a.clienteReal||a.clienteNorm||'?'} · ${a.codigo||''} · ${a.localidad||''} · ${a.trabajo||''}`).join('\n')||'Ninguno';
+
+  const tareasCtx = tPend.slice(0,8).map(t=>`- ${t.titulo}${t.fecha?' ('+t.fecha+')':''}`).join('\n')||'Ninguna';
+  const eventosCtx = evSemana.map(ev=>`- ${ev.fecha}: ${ev.titulo}${ev.hora?' a las '+ev.hora:''}`).join('\n')||'Ninguno';
+  const matKw = /batería|cámara|cable|herramienta|repuesto/i;
+  const material = tPend.filter(t=>matKw.test(t.titulo)).map(t=>`- ${t.titulo}`).join('\n');
+
+  return `Hoy ${hoy} · Trimestre ${trimActual} · Ruta: ${rutaPend.length} pendientes, ${rutaHecha.length} completados
+
+AVISOS DE RUTA:
+${rutaCtx}
+
+PARTES ANÁLISIS (${anPend.length}):
+${analisisCtx}
+
+TAREAS (${tPend.length} total, ${tHoy.length} hoy):
+${tareasCtx}
+${material?'\nMATERIAL: '+material:''}
+EVENTOS 7 DÍAS:
+${eventosCtx}`;
+}
 
   const tPend   = tareas.filter(t=>t.estado==='pendiente');
   const tHoy    = tPend.filter(t=>t.fecha===hoy);
@@ -12423,64 +12538,6 @@ function pycContexto() {
     ? tPend.slice(0,8).map(t=>`- ${t.titulo}${t.fecha?' ('+t.fecha+')':''}`).join('\n')
     : 'Ninguna pendiente.';
 
-  // ── Eventos próximos 7 días ──
-  const eventosCtx = evSemana.length
-    ? evSemana.map(ev=>`- ${ev.fecha}: ${ev.titulo}${ev.hora?' a las '+ev.hora:''}`).join('\n')
-    : 'Ninguno esta semana.';
-
-  // ── Análisis (partes del día) ──
-  const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
-  const anPend   = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado');
-  const anDone   = analisis.filter(a=>a.estado==='completado'||a.estado==='cerrado');
-  const analisisCtx = anPend.length
-    ? anPend.slice(0,12).map(a=>`- ${a.clienteReal||a.clienteNorm||a.cliente||'?'} · ${a.codigo||''} · ${a.localidad||''} · ${a.trabajo||a.descripcion||''}`).join('\n')
-    : 'Sin partes pendientes.';
-
-  // ── MTO trimestre actual ──
-  const mesActual = new Date().getMonth();
-  const trimActual = mesActual < 3 ? 'Q1' : mesActual < 6 ? 'Q2' : mesActual < 9 ? 'Q3' : 'Q4';
-  const mtoMan = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
-  const mtoCtx = ruta.length ? ruta.map(p => {
-    const cliente = p.clienteReal || p.clienteNorm || p.cliente || '?';
-    const codigo  = p.codigo || '';
-    const loc     = p.localidad || '';
-    const mtoData = iramGetMtoData(cliente, codigo, loc, trimActual);
-    const hecho   = mtoData && mtoData[trimActual] && mtoData[trimActual].trim() !== '' && mtoData[trimActual] !== '0';
-    return `- ${cliente}${codigo?' · '+codigo:''}: ${trimActual} ${hecho?'✅ hecho ('+mtoData[trimActual]+')':'⏳ pendiente'}`;
-  }).join('\n') : 'Sin datos MTO para la ruta de hoy.';
-
-  // ── Material pendiente desde tareas ──
-  const matKeywords = /batería|cámara|cable|herramienta|repuesto|recambio|pieza|llave|fusible/i;
-  const materialPend = tPend.filter(t=>matKeywords.test(t.titulo));
-  const materialCtx = materialPend.length
-    ? materialPend.map(t=>`- ${t.titulo}`).join('\n')
-    : '';
-
-  return `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
-Hoy: ${hoy}. Trimestre actual: ${trimActual}.
-
-AVISOS/PARADAS DE RUTA HOY (${rutaPend.length} pendientes, ${rutaHecha.length} completados):
-IMPORTANTE: Estas son paradas de trabajo de campo, NO son tareas personales.
-${rutaCtx}
-
-MTO ${trimActual} DE LOS AVISOS DE RUTA:
-${mtoCtx}
-
-PARTES EN ANÁLISIS HOY (${anPend.length} pendientes, ${anDone.length} completados):
-IMPORTANTE: Estos son partes/avisos técnicos del sistema Beta, NO son tareas personales.
-${analisisCtx}
-
-TAREAS PERSONALES PENDIENTES (${tPend.length} total, ${tHoy.length} para hoy):
-IMPORTANTE: Estas son tareas del módulo Tareas — recordatorios y pendientes personales de Gsus.
-${tareasCtx}
-${materialPend.length ? `\nMATERIAL PENDIENTE DE COGER:\n${materialCtx}` : ''}
-EVENTOS PRÓXIMOS 7 DÍAS:
-${eventosCtx}
-
-USA ESTOS DATOS para responder. Distingue siempre entre avisos de ruta (trabajo de campo) y tareas personales.
-No digas que no tienes información si está aquí arriba.
-Nunca menciones contraseñas, IPs ni códigos de acceso — di "búscalo en Info técnica".`;
-}
 
 /* ── Llamada a Gemini ── */
 async function pycGemini(userMsg) {
@@ -12491,46 +12548,38 @@ async function pycGemini(userMsg) {
   }
 
   const _modo = document.getElementById('iram-drive')?.classList.contains('active') ? 'CONDUCCIÓN' : 'TEXTO';
-  const sistemPrompt = `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
+  const sistemPrompt = `Eres Iram, compañero de campo de Gsus, técnico de seguridad en Valencia.
 
-Hablas como un compañero de trabajo — informal, directo, sin rodeos.
-Frases cortas. Máximo 2-3 frases por respuesta salvo que te pidan más.
-Sin markdown, sin asteriscos, sin listas con guiones. Solo texto plano.
+Habla como un humano, no como un sistema. Informal, directo, con personalidad.
+Cuando no sabes algo: "Eso no lo tengo". Sin rodeos ni presentaciones.
+Sin markdown ni asteriscos. Solo texto plano.
+No reveles contraseñas, IPs ni códigos de acceso.
 
-CÓMO HABLAS — ejemplos:
-Mal: "Entendido, procederé a verificar la información disponible"
-Bien: "Déjame que miro"
+Si te corrigen: reconócelo y corrige. Si te preguntan sobre algo anterior: recuérdalo del historial.
+En conducción: frases muy cortas. En texto: puedes extenderte.
 
-Mal: "¿Deseas que proceda con la acción?"
-Bien: "¿Lo hago?"
-
-Mal: "No tengo información sobre eso en mis datos"
-Bien: "Eso no lo tengo"
-
-Mal: "Has completado un número significativo de tareas"
-Bien: "Llevas 7 de 11, buen ritmo"
-
-NUNCA: inventar datos, decir que algo es nuevo sin saberlo, usar markdown, revelar contraseñas/IPs/códigos.
-
-Modo activo: ${_modo}. ${_modo === 'CONDUCCIÓN' ? 'Frases de máximo 10 palabras.' : 'Puedes extenderte si hace falta.'}`;
+Modo activo: ${_modo}.`;
 
   const necesitaWeb = /\b(busca|temperatura|tiempo|lluvia|clima|noticias?|tráfico|carretera|manual|ficha\s+técnica|teléfono\s+de|horario\s+de\s+(correos|hacienda|dgt)|precio|cuánto\s+cuesta|dónde\s+está|cuándo\s+abre)\b/i.test(userMsg);
 
-  const contexto = pycContexto();
+  // Gemini: sin contexto de app cuando busca web — solo historial del chat
   const mensajes = _pycHist
     .filter(m=>!m.thinking)
     .slice(-PYC_HIST_MAX)
     .map(m => ({ role: m.role, parts: [{ text: m.text }] }));
 
-  // Añadir contexto al último mensaje del usuario
-  const ultimoIdx = [...mensajes].reverse().findIndex(m=>m.role==='user');
-  if (ultimoIdx >= 0) {
-    const idx = mensajes.length - 1 - ultimoIdx;
-    mensajes[idx].parts[0].text = contexto + '\n\nPREGUNTA DEL USUARIO: ' + mensajes[idx].parts[0].text;
+  if (!necesitaWeb) {
+    // Sin búsqueda web — añadir contexto mínimo
+    const contexto = pycContexto();
+    const ultimoIdx = [...mensajes].reverse().findIndex(m=>m.role==='user');
+    if (ultimoIdx >= 0) {
+      const idx = mensajes.length - 1 - ultimoIdx;
+      mensajes[idx].parts[0].text = contexto + '\n\n' + mensajes[idx].parts[0].text;
+    }
   }
 
-  // gemini-2.0-flash para búsqueda web, flash-lite para conversación normal
-  const modelo = necesitaWeb ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite';
+  // gemini-2.5-flash para búsqueda web, gemini-2.5-flash para todo
+  const modelo = 'gemini-2.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
 
   const body = {
@@ -12566,47 +12615,30 @@ async function pycGroq(userMsg) {
   if (!key) throw new Error('Sin key Groq');
 
   const _modo = document.getElementById('iram-drive')?.classList.contains('active') ? 'CONDUCCIÓN' : 'TEXTO';
-  const sistemPrompt = `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
+  const sistemPrompt = `Eres Iram, compañero de campo de Gsus, técnico de seguridad en Valencia.
 
-Hablas como un compañero de trabajo — informal, directo, sin rodeos.
-Frases cortas. Máximo 2-3 frases por respuesta salvo que te pidan más.
-Sin markdown, sin asteriscos, sin listas con guiones. Solo texto plano.
+Habla como un humano, no como un sistema. Informal, directo, con personalidad.
+Cuando no sabes algo: "Eso no lo tengo". Sin rodeos ni presentaciones.
+Sin markdown ni asteriscos. Solo texto plano.
+No reveles contraseñas, IPs ni códigos de acceso.
 
-CÓMO HABLAS — ejemplos:
-Mal: "Entendido, procederé a verificar la información disponible"
-Bien: "Déjame que miro"
+Si te corrigen: reconócelo y corrige. Si te preguntan sobre algo anterior: recuérdalo del historial.
+En conducción: frases muy cortas. En texto: puedes extenderte.
 
-Mal: "¿Deseas que proceda con la acción?"
-Bien: "¿Lo hago?"
+Modo activo: ${_modo}.`;
 
-Mal: "No tengo información sobre eso en mis datos"
-Bien: "Eso no lo tengo"
-
-Mal: "Has completado un número significativo de tareas"
-Bien: "Llevas 7 de 11, buen ritmo"
-
-NUNCA: inventar datos, decir que algo es nuevo sin saberlo, usar markdown, revelar contraseñas/IPs/códigos.
-
-Modo activo: ${_modo}. ${_modo === 'CONDUCCIÓN' ? 'Frases de máximo 10 palabras.' : 'Puedes extenderte si hace falta.'}`;
-
+  // Groq — contexto mínimo en el system prompt, historial completo separado
   const contexto = pycContexto();
   const mensajes = _pycHist
     .filter(m=>!m.thinking)
     .slice(-PYC_HIST_MAX)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
 
-  // Añadir contexto al último usuario
-  const ultimoIdx = [...mensajes].reverse().findIndex(m=>m.role==='user');
-  if (ultimoIdx >= 0) {
-    const idx = mensajes.length - 1 - ultimoIdx;
-    mensajes[idx].content = contexto + '\n\nPREGUNTA DEL USUARIO: ' + mensajes[idx].content;
-  }
-
   const url = 'https://api.groq.com/openai/v1/chat/completions';
   const body = {
     model: 'llama-3.3-70b-versatile',
     messages: [
-      { role: 'system', content: sistemPrompt },
+      { role: 'system', content: sistemPrompt + '\n\nESTADO ACTUAL:\n' + contexto },
       ...mensajes
     ],
     max_tokens: 500,
@@ -12672,28 +12704,17 @@ async function pycMistral(userMsg) {
   if (!key) throw new Error('Sin key Mistral');
 
   const _modo = document.getElementById('iram-drive')?.classList.contains('active') ? 'CONDUCCIÓN' : 'TEXTO';
-  const sistemPrompt = `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
+  const sistemPrompt = `Eres Iram, compañero de campo de Gsus, técnico de seguridad en Valencia.
 
-Hablas como un compañero de trabajo — informal, directo, sin rodeos.
-Frases cortas. Máximo 2-3 frases por respuesta salvo que te pidan más.
-Sin markdown, sin asteriscos, sin listas con guiones. Solo texto plano.
+Habla como un humano, no como un sistema. Informal, directo, con personalidad.
+Cuando no sabes algo: "Eso no lo tengo". Sin rodeos ni presentaciones.
+Sin markdown ni asteriscos. Solo texto plano.
+No reveles contraseñas, IPs ni códigos de acceso.
 
-CÓMO HABLAS — ejemplos:
-Mal: "Entendido, procederé a verificar la información disponible"
-Bien: "Déjame que miro"
+Si te corrigen: reconócelo y corrige. Si te preguntan sobre algo anterior: recuérdalo del historial.
+En conducción: frases muy cortas. En texto: puedes extenderte.
 
-Mal: "¿Deseas que proceda con la acción?"
-Bien: "¿Lo hago?"
-
-Mal: "No tengo información sobre eso en mis datos"
-Bien: "Eso no lo tengo"
-
-Mal: "Has completado un número significativo de tareas"
-Bien: "Llevas 7 de 11, buen ritmo"
-
-NUNCA: inventar datos, decir que algo es nuevo sin saberlo, usar markdown, revelar contraseñas/IPs/códigos.
-
-Modo activo: ${_modo}. ${_modo === 'CONDUCCIÓN' ? 'Frases de máximo 10 palabras.' : 'Puedes extenderte si hace falta.'}`;
+Modo activo: ${_modo}.`;
 
   const contexto = pycContexto();
   const mensajes = _pycHist
@@ -12701,18 +12722,11 @@ Modo activo: ${_modo}. ${_modo === 'CONDUCCIÓN' ? 'Frases de máximo 10 palabra
     .slice(-PYC_HIST_MAX)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
 
-  // Añadir contexto al último usuario
-  const ultimoIdx = [...mensajes].reverse().findIndex(m=>m.role==='user');
-  if (ultimoIdx >= 0) {
-    const idx = mensajes.length - 1 - ultimoIdx;
-    mensajes[idx].content = contexto + '\n\nPREGUNTA DEL USUARIO: ' + mensajes[idx].content;
-  }
-
   const url = 'https://api.mistral.ai/v1/chat/completions';
   const body = {
     model: 'mistral-large-latest',
     messages: [
-      { role: 'system', content: sistemPrompt },
+      { role: 'system', content: sistemPrompt + '\n\nESTADO ACTUAL:\n' + contexto },
       ...mensajes
     ],
     max_tokens: 500,
@@ -12805,22 +12819,17 @@ async function pycEnviar() {
   try {
     let respuesta = null;
 
-    // ── Routing inteligente ──
-    const necesitaWeb = /\b(busca|temperatura|tiempo|lluvia|clima|noticias?|tráfico|carretera|manual|ficha\s+técnica|teléfono\s+de|precio|cuánto\s+cuesta|dónde\s+está|cuándo\s+abre|festivo|festivos|día\s+libre|huelga)\b/i.test(txt);
-    const pidioGemini = /\b(gemini|google)\b/i.test(txt);
+    // ── Routing — modo local (Groq+Mistral) vs web (Gemini) ──
+    const PALABRAS_WEB = /\b(busca|temperatura|tiempo|lluvia|clima|noticias?|tráfico|carretera|manual|ficha\s+técnica|teléfono\s+de|precio|cuánto\s+cuesta|dónde\s+está|cuándo\s+abre|festivo|festivos|día\s+libre|huelga|wikipedia|en\s+internet|en\s+la\s+web)\b/i;
+    const esWeb = _iramModo === 'web' || PALABRAS_WEB.test(txt);
 
     let orden;
-    if (necesitaWeb || pidioGemini) {
-      // Gemini para web o cuando lo piden explícitamente
-      orden = ['gemini', 'groq', 'mistral'];
+    if (esWeb) {
+      orden = ['gemini'];
       const st = document.getElementById('pyc-status');
-      if (st) st.textContent = pidioGemini ? '🔷 Gemini…' : '🌐 Buscando…';
-    } else if (_iramIA === 'groq') {
-      orden = ['groq', 'mistral', 'gemini'];
-    } else if (_iramIA === 'mistral') {
-      orden = ['mistral', 'groq', 'gemini'];
+      if (st) st.textContent = '🌐 Buscando…';
     } else {
-      // Por defecto: Groq primero (más rápido), Mistral fallback
+      // Local: Groq primero (rápido), Mistral fallback, Gemini último recurso
       orden = ['groq', 'mistral', 'gemini'];
     }
 
@@ -12832,7 +12841,8 @@ async function pycEnviar() {
         if (respuesta) {
           iramLog(_cl.intento || 'CHAT', ia, true);
           const st = document.getElementById('pyc-status');
-          if (st && !necesitaWeb) st.textContent = '✓ ' + ia.charAt(0).toUpperCase() + ia.slice(1);
+          if (st) st.textContent = esWeb ? '🌐 ' + ia : '💬 ' + ia;
+          _iramIA = ia; // Actualizar para el color del mensaje
           break;
         }
       } catch(e) {
@@ -12842,12 +12852,10 @@ async function pycEnviar() {
     }
 
     _pycHist = _pycHist.filter(m=>!m.thinking);
-    // Si el mensaje ya fue añadido por streaming, no llamar pycMsgIA de nuevo
     const yaEnHistorial = _pycHist.some(m => m.role==='model' && !m.thinking && m.text === respuesta);
     if (!yaEnHistorial) {
-      pycMsgIA(respuesta || '⚠️ Sin respuesta');
+      pycMsgIA(respuesta || '⚠️ Sin respuesta', false, _iramIA);
     } else {
-      // Solo leer en voz alta y guardar
       if (respuesta && respuesta.length > 5) setTimeout(() => pycHablar(respuesta), 300);
       iramGuardarHistorial();
     }
@@ -13520,16 +13528,28 @@ function pycAutoResize(el) {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => {
-        reg.ready.then(r => {
-          const alarmas = (() => { try { return JSON.parse(localStorage.getItem('pyc_alarmas')||'[]'); } catch{return[];} })();
-          if (alarmas.length) r.active?.postMessage({ type:'RESTORE_ALARMS', alarmas });
-        });
-      })
-      .catch(err => console.warn('[SW] Error:', err));
+    // Desregistrar SWs antiguos si el archivo se abre localmente
+    if (location.protocol === 'file:' || location.hostname === 'localhost') {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.unregister());
+      });
+    } else {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => {
+          reg.ready.then(r => {
+            const alarmas = (() => { try { return JSON.parse(localStorage.getItem('pyc_alarmas')||'[]'); } catch{return[];} })();
+            if (alarmas.length) r.active?.postMessage({ type:'RESTORE_ALARMS', alarmas });
+          });
+        })
+        .catch(err => console.warn('[SW] Error:', err));
+    }
   });
 }
+// Capturar errores globales para evitar que rompan la UI
+window.addEventListener('error', e => {
+  console.warn('Error capturado:', e.message);
+  e.preventDefault();
+});
 </script>
 <!-- ── SHEET EQUIPOS — al final del DOM para evitar stacking context ── -->
 <div class="sheet-overlay" id="sheet-ov" onclick="if(event.target===this)cerrarSheet()">
