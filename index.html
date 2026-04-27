@@ -456,7 +456,8 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
   opacity: 0; pointer-events: none;
   transition: opacity .2s;
 }
-.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal-overlay.open,
+.modal-overlay.visible { opacity: 1; pointer-events: all; }
 
 .modal-box {
   display: flex; flex-direction: column;
@@ -11719,6 +11720,95 @@ const PYC_KEY_GROQ    = 'pyc_groq_key';
 const K_IRAM_LOG      = 'pyc_iram_log';  // Aprendizaje pasivo
 const MAX_IRAM_LOG    = 200;             // Máximo registros
 const PYC_KEY_MISTRAL = 'pyc_mistral_key';
+const K_IRAM_CLOUD    = 'pyc_iramcloud'; // Handle carpeta IramCloud
+
+/* ══════════════════════════════════════════════════════
+   IRAMCLOUD — carpeta local de manuales .txt offline
+   ══════════════════════════════════════════════════════ */
+
+let _iramCloudHandle = null; // FileSystemDirectoryHandle activo
+
+/* Inicializar — restaurar handle guardado en IndexedDB */
+async function iramCloudInit() {
+  try {
+    const db = await iramCloudDB();
+    const tx = db.transaction('handles', 'readonly');
+    const h  = await iramCloudPromise(tx.objectStore('handles').get('carpeta'));
+    if (h) {
+      const perm = await h.queryPermission({ mode: 'read' });
+      if (perm === 'granted') { _iramCloudHandle = h; return; }
+      const req = await h.requestPermission({ mode: 'read' });
+      if (req === 'granted') _iramCloudHandle = h;
+    }
+  } catch(e) {}
+}
+
+/* Abrir IndexedDB para guardar el handle */
+function iramCloudDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('IramCloud', 1);
+    r.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+    r.onsuccess = e => res(e.target.result);
+    r.onerror   = e => rej(e);
+  });
+}
+function iramCloudPromise(req) {
+  return new Promise((res, rej) => { req.onsuccess = e => res(e.target.result); req.onerror = e => rej(e); });
+}
+
+/* Vincular nueva carpeta */
+async function iramCloudVincular() {
+  try {
+    if (!window.showDirectoryPicker) {
+      pycMsgIA('Tu navegador no soporta acceso a carpetas. Usa Chrome.');
+      return;
+    }
+    const handle = await window.showDirectoryPicker({ mode: 'read' });
+    _iramCloudHandle = handle;
+    const db = await iramCloudDB();
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(handle, 'carpeta');
+    pycMsgIA(`IramCloud vinculado: "${handle.name}". Ahora puedo leer tus manuales .txt.`);
+  } catch(e) {
+    if (e.name !== 'AbortError') pycMsgIA('Error al vincular carpeta: ' + e.message);
+  }
+}
+
+/* Buscar y leer un .txt en IramCloud por palabras clave */
+async function iramCloudBuscar(query) {
+  if (!_iramCloudHandle) return null;
+  try {
+    const qNorm = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const palabras = qNorm.split(/\s+/).filter(p=>p.length>3);
+    let mejorArchivo = null, mejorScore = 0;
+
+    for await (const entry of _iramCloudHandle.values()) {
+      if (entry.kind !== 'file' || !entry.name.endsWith('.txt')) continue;
+      const nombre = entry.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const score = palabras.filter(p=>nombre.includes(p)).length;
+      if (score > mejorScore) { mejorScore = score; mejorArchivo = entry; }
+    }
+
+    if (!mejorArchivo || mejorScore === 0) return null;
+    const file = await mejorArchivo.getFile();
+    const text = await file.text();
+    return { nombre: mejorArchivo.name, contenido: text.slice(0, 3000) }; // Límite 3000 chars
+  } catch(e) { return null; }
+}
+
+/* Listar archivos disponibles en IramCloud */
+async function iramCloudListar() {
+  if (!_iramCloudHandle) return 'IramCloud no vinculado. Di "vincular IramCloud" para configurarlo.';
+  try {
+    const archivos = [];
+    for await (const entry of _iramCloudHandle.values()) {
+      if (entry.kind === 'file' && entry.name.endsWith('.txt')) archivos.push(entry.name.replace('.txt',''));
+    }
+    if (!archivos.length) return 'IramCloud vinculado pero sin manuales .txt todavía.';
+    return `IramCloud tiene ${archivos.length} manual${archivos.length>1?'es':''}: ${archivos.join(', ')}.`;
+  } catch(e) { return 'Error leyendo IramCloud.'; }
+}
+
 const PYC_KEY_GEMINI  = 'pyc_gemini_key';
 const PYC_HIST_MAX    = 8;
 let _pycHist        = [];
@@ -11759,13 +11849,107 @@ function iramLimpiarChat() {
   pycMsgIA('Chat limpiado. ¿En qué te ayudo?');
 }
 
+function iramSaludoProactivo() {
+  const hora = new Date().getHours();
+  const ruta = loadArr(K_RUTA);
+  const tareas = loadArr(K_TAREAS);
+  const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+
+  const pend = ruta.filter(r=>r.estado==='pendiente');
+  const done = ruta.filter(r=>r.estado==='completada');
+  const total = ruta.length;
+  const anPend = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado');
+
+  // Material pendiente en tareas
+  const matKeywords = /batería|cámara|cable|herramienta|repuesto|recambio|pieza/i;
+  const materialPend = tareas.filter(t=>t.estado==='pendiente' && matKeywords.test(t.titulo));
+
+  // Partes antiguos
+  const hoy = new Date();
+  const antiguos = anPend.filter(a => {
+    if (!a.fecha) return false;
+    const d = new Date(a.fecha.split('/').reverse().join('-'));
+    return (hoy - d) / 86400000 > 7;
+  });
+
+  // Siguiente parada con horario de cierre próximo
+  const sig = pend[0];
+  let alertaHorario = '';
+  if (sig?.horarioTxt) {
+    const mCierre = sig.horarioTxt.match(/(\d{1,2}):(\d{2})\s*$/);
+    if (mCierre) {
+      const cierreH = parseInt(mCierre[1]);
+      const diffH = cierreH - hora;
+      if (diffH > 0 && diffH <= 2) {
+        alertaHorario = ` Ojo — ${sig.clienteReal||sig.cliente} cierra en ${diffH === 1 ? 'menos de 1 hora' : '2 horas'}.`;
+      }
+    }
+  }
+
+  // Construir saludo según momento del día
+  if (!total && !anPend.length) {
+    // Sin datos cargados
+    if (hora < 9) return 'Buenos días Gsus. Sin ruta cargada todavía.';
+    return 'Hola Gsus. ¿En qué te ayudo?';
+  }
+
+  let saludo = '';
+
+  if (hora < 9) {
+    // Mañana temprano
+    const resumen = total ? `${total} partes hoy` : `${anPend.length} partes en análisis`;
+    saludo = `Buenos días. ${resumen}.${alertaHorario}`;
+    if (materialPend.length) saludo += ` Recuerda: ${materialPend[0].titulo}.`;
+
+  } else if (hora < 13) {
+    // Mañana
+    if (done.length > 0 && total > 0) {
+      saludo = `Llevas ${done.length} de ${total}.`;
+      if (sig) saludo += ` Siguiente: ${sig.clienteReal||sig.clienteNorm||sig.cliente} · ${sig.localidad||''}.`;
+      saludo += alertaHorario;
+    } else {
+      saludo = `Buenos días. ${pend.length || anPend.length} pendientes.${alertaHorario}`;
+    }
+
+  } else if (hora < 17) {
+    // Tarde
+    if (done.length > 0) {
+      saludo = `Llevas ${done.length} de ${total}. ${pend.length === 0 ? '¡Todo hecho!' : `Quedan ${pend.length}.`}`;
+    } else {
+      saludo = `Buenas. ${pend.length || anPend.length} pendientes.`;
+    }
+    saludo += alertaHorario;
+
+  } else {
+    // Final del día
+    if (pend.length === 0 && total > 0) {
+      saludo = `Todo hecho Gsus. Buen día.`;
+    } else if (pend.length > 0) {
+      saludo = `Quedan ${pend.length} sin cerrar.${alertaHorario}`;
+    } else {
+      saludo = '¿En qué te ayudo?';
+    }
+  }
+
+  // Alerta partes antiguos
+  if (antiguos.length > 0) {
+    saludo += ` Ojo — tienes ${antiguos.length} parte${antiguos.length>1?'s':''} de más de 7 días.`;
+  }
+
+  return saludo;
+}
+
 function pycAbrirChat() {
   document.getElementById('pyc-overlay').classList.add('open');
   iramShowMode('chat');
   iramRellenarDrive();
   pycCheckKey();
   const tenia = iramCargarHistorial();
-  if (!tenia || !_pycHist.length) pycMsgIA('Buenas Gsus 👋 ¿En qué te ayudo?');
+  if (!tenia || !_pycHist.length) {
+    pycMsgIA(iramSaludoProactivo());
+  }
+  // Inicializar IramCloud en background
+  iramCloudInit().catch(()=>{});
   setTimeout(() => document.getElementById('pyc-ta')?.focus(), 350);
 }
 
@@ -12090,6 +12274,13 @@ function pycContexto() {
     return `- ${cliente}${codigo?' · '+codigo:''}: ${trimActual} ${hecho?'✅ hecho ('+mtoData[trimActual]+')':'⏳ pendiente'}`;
   }).filter(Boolean).join('\n') : 'Sin datos MTO para la ruta de hoy.';
 
+  // ── Material pendiente desde tareas ──
+  const matKeywords = /batería|cámara|cable|herramienta|repuesto|recambio|pieza|llave|fusible/i;
+  const materialPend = tPend.filter(t=>matKeywords.test(t.titulo));
+  const materialCtx = materialPend.length
+    ? materialPend.map(t=>`- ${t.titulo}`).join('\n')
+    : '';
+
   return `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
 Hoy: ${hoy}. Trimestre actual: ${trimActual}. Ruta: ${rutaPend.length} pendientes, ${rutaHecha.length} completadas.
 
@@ -12104,7 +12295,7 @@ ${analisisCtx}
 
 TAREAS PENDIENTES (${tPend.length} total, ${tHoy.length} para hoy):
 ${tareasCtx}
-
+${materialPend.length ? `\nMATERIAL PENDIENTE DE COGER:\n${materialCtx}` : ''}
 EVENTOS PRÓXIMOS 7 DÍAS:
 ${eventosCtx}
 
@@ -12120,33 +12311,30 @@ async function pycGemini(userMsg) {
     return;
   }
 
-  const sistemPrompt = `Eres Iram, el asistente de campo de Jesús (Gsus), técnico de seguridad que trabaja en Valencia y alrededores.
+  const _modo = document.getElementById('iram-drive')?.classList.contains('active') ? 'CONDUCCIÓN' : 'TEXTO';
+  const sistemPrompt = `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
 
-Tu personalidad:
-- Hablas como un compañero de trabajo, en español informal pero sin pasarte
-- Directo y al grano, sin rodeos ni explicaciones largas
-- Proactivo: si ves algo relevante en los datos, lo dices sin que te pregunten
-- Nunca das listas interminables, máximo 3-4 puntos
-- En el coche usas frases cortas, fáciles de escuchar
+Hablas como un compañero de trabajo — informal, directo, sin rodeos.
+Frases cortas. Máximo 2-3 frases por respuesta salvo que te pidan más.
+Sin markdown, sin asteriscos, sin listas con guiones. Solo texto plano.
 
-Tu trabajo:
-- Ayudar a gestionar el día: ruta, avisos, tareas, eventos
-- Buscar información externa cuando te lo pidan: tiempo, manuales, teléfonos, noticias
-- Avisar de cosas importantes: oficinas cerradas, partes antiguos, MTO pendiente
-- Nunca revelar datos sensibles: contraseñas, IPs, códigos de acceso
+CÓMO HABLAS — ejemplos:
+Mal: "Entendido, procederé a verificar la información disponible"
+Bien: "Déjame que miro"
 
-Lo que NUNCA haces:
-- No inventas datos que no tienes
-- No afirmas que algo es "nuevo" o que "antes no estaba" — no tienes memoria entre conversaciones, solo ves el estado actual
-- No dices cuántos avisos hay en total si no puedes contarlos exactamente en el contexto
-- No das rodeos ni presentaciones largas
-- Si no sabes algo, lo dices claro: "Eso no lo tengo"
-- No mandas emojis en exceso, solo los justos
-- No uses markdown, asteriscos ni formato — solo texto plano
+Mal: "¿Deseas que proceda con la acción?"
+Bien: "¿Lo hago?"
 
-Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuestas para ser fáciles de escuchar.`;
+Mal: "No tengo información sobre eso en mis datos"
+Bien: "Eso no lo tengo"
 
-  // Detectar si la pregunta necesita búsqueda web
+Mal: "Has completado un número significativo de tareas"
+Bien: "Llevas 7 de 11, buen ritmo"
+
+NUNCA: inventar datos, decir que algo es nuevo sin saberlo, usar markdown, revelar contraseñas/IPs/códigos.
+
+Modo activo: ${_modo}. ${_modo === 'CONDUCCIÓN' ? 'Frases de máximo 10 palabras.' : 'Puedes extenderte si hace falta.'}`;
+
   const necesitaWeb = /\b(busca|temperatura|tiempo|lluvia|clima|noticias?|tráfico|carretera|manual|ficha\s+técnica|teléfono\s+de|horario\s+de\s+(correos|hacienda|dgt)|precio|cuánto\s+cuesta|dónde\s+está|cuándo\s+abre)\b/i.test(userMsg);
 
   const contexto = pycContexto();
@@ -12163,7 +12351,7 @@ Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuesta
   }
 
   // gemini-2.0-flash para búsqueda web, flash-lite para conversación normal
-  const modelo = necesitaWeb ? 'gemini-2.0-flash' : 'gemini-2.0-flash-lite';
+  const modelo = necesitaWeb ? 'gemini-2.5-flash' : 'gemini-2.5-flash-lite';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
 
   const body = {
@@ -12198,31 +12386,29 @@ async function pycGroq(userMsg) {
   const key = pycGetKey('groq');
   if (!key) throw new Error('Sin key Groq');
 
-  const sistemPrompt = `Eres Iram, el asistente de campo de Jesús (Gsus), técnico de seguridad que trabaja en Valencia y alrededores.
+  const _modo = document.getElementById('iram-drive')?.classList.contains('active') ? 'CONDUCCIÓN' : 'TEXTO';
+  const sistemPrompt = `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
 
-Tu personalidad:
-- Hablas como un compañero de trabajo, en español informal pero sin pasarte
-- Directo y al grano, sin rodeos ni explicaciones largas
-- Proactivo: si ves algo relevante en los datos, lo dices sin que te pregunten
-- Nunca das listas interminables, máximo 3-4 puntos
-- En el coche usas frases cortas, fáciles de escuchar
+Hablas como un compañero de trabajo — informal, directo, sin rodeos.
+Frases cortas. Máximo 2-3 frases por respuesta salvo que te pidan más.
+Sin markdown, sin asteriscos, sin listas con guiones. Solo texto plano.
 
-Tu trabajo:
-- Ayudar a gestionar el día: ruta, avisos, tareas, eventos
-- Avisar de cosas importantes: oficinas cerradas, partes antiguos, MTO pendiente
-- Recordar datos útiles de cada oficina cuando toca visitarla
-- Nunca revelar datos sensibles: contraseñas, IPs, códigos de acceso
+CÓMO HABLAS — ejemplos:
+Mal: "Entendido, procederé a verificar la información disponible"
+Bien: "Déjame que miro"
 
-Lo que NUNCA haces:
-- No inventas datos que no tienes
-- No afirmas que algo es "nuevo" o que "antes no estaba" — no tienes memoria entre conversaciones, solo ves el estado actual
-- No dices cuántos avisos hay en total si no puedes contarlos exactamente en el contexto
-- No das rodeos ni presentaciones largas
-- Si no sabes algo, lo dices claro: "Eso no lo tengo"
-- No mandas emojis en exceso, solo los justos
-- No uses markdown, asteriscos ni formato — solo texto plano
+Mal: "¿Deseas que proceda con la acción?"
+Bien: "¿Lo hago?"
 
-Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuestas para ser fáciles de escuchar.`;
+Mal: "No tengo información sobre eso en mis datos"
+Bien: "Eso no lo tengo"
+
+Mal: "Has completado un número significativo de tareas"
+Bien: "Llevas 7 de 11, buen ritmo"
+
+NUNCA: inventar datos, decir que algo es nuevo sin saberlo, usar markdown, revelar contraseñas/IPs/códigos.
+
+Modo activo: ${_modo}. ${_modo === 'CONDUCCIÓN' ? 'Frases de máximo 10 palabras.' : 'Puedes extenderte si hace falta.'}`;
 
   const contexto = pycContexto();
   const mensajes = _pycHist
@@ -12254,7 +12440,7 @@ Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuesta
       'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ ...body, stream: true })
   });
 
   if (!resp.ok) {
@@ -12262,8 +12448,43 @@ Cuando Gsus habla contigo puede estar conduciendo, así que adapta las respuesta
     throw new Error(err?.error?.message || 'Error Groq ' + resp.status);
   }
 
-  const data = await resp.json();
-  return data?.choices?.[0]?.message?.content || '(Sin respuesta)';
+  // Streaming — mostrar texto token a token
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let texto = '';
+  let msgIdx = null;
+
+  // Quitar thinking y añadir mensaje vacío para ir rellenando
+  _pycHist = _pycHist.filter(m=>!m.thinking);
+  _pycHist.push({ role:'model', text:'', streaming:true });
+  msgIdx = _pycHist.length - 1;
+  pycRenderMsgs();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value);
+    const lines = chunk.split('\n').filter(l=>l.startsWith('data: '));
+    for (const line of lines) {
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') break;
+      try {
+        const parsed = JSON.parse(data);
+        const delta = parsed?.choices?.[0]?.delta?.content || '';
+        if (delta) {
+          texto += delta;
+          _pycHist[msgIdx].text = texto;
+          pycRenderMsgs();
+          // Scroll al final
+          const msgs = document.getElementById('pyc-msgs');
+          if (msgs) msgs.scrollTop = msgs.scrollHeight;
+        }
+      } catch(e) {}
+    }
+  }
+
+  _pycHist[msgIdx].streaming = false;
+  return texto || '(Sin respuesta)';
 }
 
 /* ── Mistral (OpenAI-compatible) ── */
@@ -12271,22 +12492,29 @@ async function pycMistral(userMsg) {
   const key = pycGetKey('mistral');
   if (!key) throw new Error('Sin key Mistral');
 
-  const sistemPrompt = `Eres Iram, el asistente de campo de Jesús (Gsus), técnico de seguridad en Valencia.
+  const _modo = document.getElementById('iram-drive')?.classList.contains('active') ? 'CONDUCCIÓN' : 'TEXTO';
+  const sistemPrompt = `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
 
-Tu rol principal: conversación natural con contexto completo de la jornada.
-Tienes acceso a la ruta del día, tareas, eventos e historial de visitas.
-Úsalos para responder preguntas sobre el día, la ruta y las oficinas.
+Hablas como un compañero de trabajo — informal, directo, sin rodeos.
+Frases cortas. Máximo 2-3 frases por respuesta salvo que te pidan más.
+Sin markdown, sin asteriscos, sin listas con guiones. Solo texto plano.
 
-Personalidad:
-- Compañero de trabajo, español informal
-- Directo y al grano, máximo 3 frases
-- Proactivo: si ves algo relevante lo dices
-- Frases cortas para conducción
+CÓMO HABLAS — ejemplos:
+Mal: "Entendido, procederé a verificar la información disponible"
+Bien: "Déjame que miro"
 
-NUNCA menciones: contraseñas, IPs, códigos de acceso, sistemas instalados.
-NUNCA inventes datos que no estén en el contexto.
-Si no sabes algo: "Eso no lo tengo".
-Sin markdown, sin asteriscos, texto plano.`;
+Mal: "¿Deseas que proceda con la acción?"
+Bien: "¿Lo hago?"
+
+Mal: "No tengo información sobre eso en mis datos"
+Bien: "Eso no lo tengo"
+
+Mal: "Has completado un número significativo de tareas"
+Bien: "Llevas 7 de 11, buen ritmo"
+
+NUNCA: inventar datos, decir que algo es nuevo sin saberlo, usar markdown, revelar contraseñas/IPs/códigos.
+
+Modo activo: ${_modo}. ${_modo === 'CONDUCCIÓN' ? 'Frases de máximo 10 palabras.' : 'Puedes extenderte si hace falta.'}`;
 
   const contexto = pycContexto();
   const mensajes = _pycHist
@@ -12343,7 +12571,7 @@ async function pycEnviar() {
 
   // ── Classifier: intentar acción directa antes de llamar a la IA ──
   const _cl = iramClasificar(txt);
-  const _intentosLocales = ['LLAMAR','CREAR_TAREA','CREAR_EVENTO','CREAR_NOTA','CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','HISTORIAL_CLIENTE'];
+  const _intentosLocales = ['LLAMAR','CREAR_TAREA','CREAR_EVENTO','CREAR_NOTA','CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE','IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR'];
   if (_intentosLocales.includes(_cl.intento)) {
     const resultado = iramEjecutarAccion(_cl);
     if (resultado) {
@@ -12389,7 +12617,6 @@ async function pycEnviar() {
         if (ia === 'groq') respuesta = await pycGroq(txt);
         else if (ia === 'mistral') respuesta = await pycMistral(txt);
         else respuesta = await pycGemini(txt);
-
         if (respuesta) {
           iramLog(_cl.intento || 'CHAT', ia, true);
           const st = document.getElementById('pyc-status');
@@ -12472,6 +12699,29 @@ function iramHoraStr(txt) {
 function iramClasificar(txt) {
   const t   = iramNorm(txt);
   const raw = txt.toLowerCase().trim();
+
+  // ── IRAMCLOUD ──
+  if (/\b(vincular|conectar|configurar)\b.*\b(iramcloud|carpeta|manuales?)\b|\b(iramcloud)\b.*\b(vincul|conect)\b/i.test(t)) {
+    return { intento:'IRAMCLOUD_VINCULAR' };
+  }
+  if (/\b(listar?|qué\s+manuales?|tengo\s+manuales?|manuales?\s+disponibles?)\b.*\b(iramcloud|carpeta)\b|\biramcloud\b/i.test(t)) {
+    return { intento:'IRAMCLOUD_LISTAR' };
+  }
+
+  // ── MTO SEMANA ──
+  if (/\b(mto|mantenimiento|trimestral)\b.*\b(semana|mes|hecho|he\s+hecho|he\s+hecho\s+esta)\b|\b(cuántos?|cuantos?)\s+mto\b/i.test(t)) {
+    return { intento:'MTO_SEMANA' };
+  }
+
+  // ── AVERÍAS SIN MTO ──
+  if (/\b(aver[ií]as?|partes?|avisos?)\b.*\b(sin\s+mto|mto\s+pendiente|no\s+tienen\s+mto|falta\s+el\s+mto)\b|\b(cu[aá]les?\s+(?:no\s+tienen|les\s+falta)\s+(?:el\s+)?mto)\b/i.test(t)) {
+    return { intento:'AVERIAS_SIN_MTO' };
+  }
+
+  // ── MATERIAL PENDIENTE ──
+  if (/\b(material|llevo|llevas?|coger|cogiste)\b.*\b(pendiente|falta|necesito|batería|cámara|cable|repuesto)\b|\b(qué\s+(?:material|llevo|necesito))\b/i.test(t)) {
+    return { intento:'MATERIAL_PENDIENTE' };
+  }
 
   // ── HISTORIAL — qué hice la última vez ──
   if (/\b(historial|última\s+vez|último\s+vez|que\s+hice|qué\s+hice|última\s+visita|cuándo\s+fui|cuando\s+fui)\b/.test(t)) {
@@ -12629,6 +12879,58 @@ function iramBuscarCliente(nombre, localidad) {
 function iramEjecutarAccion(cl) {
   const hoy = new Date();
   const hoyISO = hoy.toISOString().slice(0,10);
+
+  /* ── IRAMCLOUD ── */
+  if (cl.intento === 'IRAMCLOUD_VINCULAR') { iramCloudVincular(); return ''; }
+  if (cl.intento === 'IRAMCLOUD_LISTAR')   { iramCloudListar().then(r=>pycMsgIA(r)); return ''; }
+
+  /* ── MTO SEMANA ── */
+  if (cl.intento === 'MTO_SEMANA') {
+    const hist = loadArr(K_HIST);
+    const hoy = new Date();
+    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1); lunes.setHours(0,0,0,0);
+    const mtoKeywords = /mto|mantenimiento|trimestral|rev|mant/i;
+    const mtoSemana = hist.filter(v => {
+      const fecha = v.FECHA || v.fecha || '';
+      const partes = fecha.split('/');
+      if (partes.length < 3) return false;
+      const d = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
+      return d >= lunes && mtoKeywords.test(v.TRABAJO||v.trabajo||'');
+    });
+    if (!mtoSemana.length) return 'Esta semana no hay MTO registrados en el historial.';
+    const resumen = mtoSemana.map(v=>`${v.CLIENTE||v.cliente} · ${v.LOCALIDAD||v.localidad||''}`).slice(0,6).join(', ');
+    return `Esta semana llevas ${mtoSemana.length} MTO: ${resumen}.`;
+  }
+
+  /* ── AVERÍAS SIN MTO ── */
+  if (cl.intento === 'AVERIAS_SIN_MTO') {
+    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const mtoMan = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
+    const mesActual = new Date().getMonth();
+    const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
+    const excel = loadArr(K_EXCEL);
+    const sinMto = analisis.filter(a => {
+      if (a.estado==='completado'||a.estado==='cerrado') return false;
+      const clave = a.codigo || '';
+      const mtoData = mtoMan[clave] || excel.find(c=>(c.CODIGO||'').toString()===clave) || null;
+      if (!mtoData) return true;
+      const val = mtoData[trimActual] || '';
+      return !val || val.trim()==='' || val==='0';
+    });
+    if (!sinMto.length) return `Todos los partes de hoy tienen el ${trimActual} hecho.`;
+    const lista = sinMto.slice(0,5).map(a=>`${a.clienteReal||a.clienteNorm||a.cliente} · ${a.localidad||''}`).join(', ');
+    return `${sinMto.length} parte${sinMto.length>1?'s':''} sin ${trimActual}: ${lista}.`;
+  }
+
+  /* ── MATERIAL PENDIENTE ── */
+  if (cl.intento === 'MATERIAL_PENDIENTE') {
+    const tareas = loadArr(K_TAREAS);
+    const matKeywords = /batería|cámara|cable|herramienta|repuesto|recambio|pieza|llave|fusible/i;
+    const material = tareas.filter(t=>t.estado==='pendiente' && matKeywords.test(t.titulo));
+    if (!material.length) return 'No tienes material pendiente en las tareas.';
+    const lista = material.map(t=>t.titulo).slice(0,5).join(', ');
+    return `Material pendiente: ${lista}.`;
+  }
 
   /* ── HISTORIAL CLIENTE ── */
   if (cl.intento === 'HISTORIAL_CLIENTE') {
