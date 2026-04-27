@@ -2484,6 +2484,21 @@ body { font-size: 14px; }
 </style>
 </head>
 <body>
+
+<!-- ══ PANTALLA PIN ══ -->
+<div id="pin-overlay" style="position:fixed;inset:0;z-index:9999;background:#0d1117;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:32px">
+  <div style="color:#7c3aed;font-size:13px;font-weight:800;letter-spacing:.2em">PYCLIBRETA</div>
+  <div style="color:#fff;font-size:20px;font-weight:700">Introduce tu código</div>
+  <input id="pin-input" type="password" inputmode="text" autocomplete="off" autocapitalize="none"
+    placeholder="Código de acceso"
+    style="width:100%;max-width:280px;padding:14px 16px;border-radius:12px;border:2px solid #1e1b4b;background:#060a14;color:#fff;font-size:18px;text-align:center;outline:none;letter-spacing:.15em"
+    onkeydown="if(event.key==='Enter')pinVerificar()">
+  <button onclick="pinVerificar()"
+    style="width:100%;max-width:280px;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:16px;font-weight:700;cursor:pointer">
+    Entrar
+  </button>
+  <div id="pin-error" style="color:#ef4444;font-size:13px;min-height:20px"></div>
+</div>
 <div class="app">
   <div class="spiral"><div class="ring"></div>
     <div class="ring"></div>
@@ -3608,6 +3623,10 @@ body { font-size: 14px; }
     <div class="ddanger">
       <span class="ddanger-txt">🗑️ Borrar todos los datos</span>
       <button class="ddanger-btn" onclick="datosPedirBorrar()">Borrar</button>
+    </div>
+    <div class="ddanger" style="margin-top:8px">
+      <span class="ddanger-txt">🔑 Cambiar código PIN</span>
+      <button class="ddanger-btn" onclick="pinCambiar()">Cambiar</button>
     </div>
 
   </div><!-- /datos-body -->
@@ -4764,19 +4783,12 @@ function renderizar() {
         const bAntiguo=dias>7&&!isRuta  ?`<span class="badge-antiguo">${dias}d</span>`:'';
         const bFijado =p.horaFijada&&!isRuta?`<span class="badge-fijado">FIJADO ${p.horaFijada}${p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''}</span>`:'';
 
-        // Chip MTO — solo si el trimestre actual está hecho
-        const _mesAct = new Date().getMonth();
+        // Chip MTO — normalizar clave para cruce con MTO
+        const _mesAct  = new Date().getMonth();
         const _trimAct = _mesAct<3?'Q1':_mesAct<6?'Q2':_mesAct<9?'Q3':'Q4';
-        const _mtoData = (() => {
-          try {
-            const manual = JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}');
-            const excelData = loadArr ? loadArr(K_EXCEL) : [];
-            const clave = p.codigo || '';
-            if (manual[clave]) return manual[clave];
-            const exRow = excelData.find(c => (c.CODIGO||c.codigo||'').toString() === clave);
-            return exRow || null;
-          } catch(e) { return null; }
-        })();
+        const _mtoData = (typeof iramGetMtoData === 'function')
+          ? iramGetMtoData(p.clienteReal||p.clienteNorm||p.cliente||'', p.codigo||'', p.localidad||'', _trimAct)
+          : null;
         const _mtoVal = _mtoData ? (_mtoData[_trimAct]||'') : '';
         const bMTO = _mtoVal && _mtoVal.trim() !== '' && _mtoVal !== '0'
           ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#dcfce7;color:#15803d;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;margin-left:4px">✅ ${_trimAct}</span>`
@@ -7250,6 +7262,11 @@ function mtoLabel(t) { return MTO_LABEL[t] || t; }
 function mtoKey(c) {
   const cli = (c.CLIENTE||c.cliente||'').toUpperCase().replace(/[\s\-\.\/]/g,'_');
   const cod = String(c.CODIGO||c.codigo||'').replace(/[\s\.\-]/g,'').replace(/^0+/,'').toLowerCase();
+  // Si código vacío — usar municipio para evitar colisiones entre oficinas sin código
+  if (!cod) {
+    const mun = (c.MUNICIPIO||c.municipio||'').toUpperCase().replace(/[\s\-\.\/]/g,'_').slice(0,10);
+    return cli + '_' + mun;
+  }
   return cli + '_' + cod;
 }
 
@@ -7309,6 +7326,62 @@ function getMtoBloque(cli) {
    INICIALIZAR
    ================================================================ */
 document.addEventListener('DOMContentLoaded', () => {
+  // ── PIN de acceso ──
+  const K_PIN      = 'pyc_pin';
+  const K_PIN_SES  = 'pyc_pin_sesion';
+  const pinOverlay = document.getElementById('pin-overlay');
+
+  function pinVerificar() {
+    const guardado = localStorage.getItem(K_PIN);
+    const input    = document.getElementById('pin-input')?.value.trim();
+    const error    = document.getElementById('pin-error');
+
+    if (!guardado) {
+      // Primera vez — establecer PIN
+      if (!input || input.length < 4) { if(error) error.textContent = 'Mínimo 4 caracteres'; return; }
+      localStorage.setItem(K_PIN, btoa(input));
+      localStorage.setItem(K_PIN_SES, Date.now());
+      if (pinOverlay) pinOverlay.style.display = 'none';
+      return;
+    }
+
+    // Verificar
+    if (btoa(input) === guardado) {
+      localStorage.setItem(K_PIN_SES, Date.now());
+      if (pinOverlay) pinOverlay.style.display = 'none';
+    } else {
+      if (error) { error.textContent = 'Código incorrecto'; }
+      if (document.getElementById('pin-input')) document.getElementById('pin-input').value = '';
+    }
+  }
+
+  // Exponer globalmente
+  window.pinVerificar = pinVerificar;
+
+  window.pinCambiar = function() {
+    localStorage.removeItem('pyc_pin');
+    localStorage.removeItem('pyc_pin_sesion');
+    location.reload();
+  };
+
+  // Comprobar si hay sesión activa (últimas 24h)
+  const guardado = localStorage.getItem(K_PIN);
+  if (guardado) {
+    const sesion = parseInt(localStorage.getItem(K_PIN_SES) || '0');
+    const horas  = (Date.now() - sesion) / 3600000;
+    if (horas < 24) {
+      if (pinOverlay) pinOverlay.style.display = 'none';
+    } else {
+      // Sesión expirada — pedir PIN
+      if (pinOverlay) setTimeout(() => document.getElementById('pin-input')?.focus(), 100);
+    }
+  } else {
+    // Sin PIN — primera vez, pedir que lo establezca
+    const titulo = pinOverlay?.querySelector('div:nth-child(2)');
+    if (titulo) titulo.textContent = 'Establece tu código de acceso';
+    if (pinOverlay) setTimeout(() => document.getElementById('pin-input')?.focus(), 100);
+  }
+
   // Fecha header
   const D = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const M = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -12085,17 +12158,105 @@ function iramRellenarDrive() {
 /* ── Waze / Llamar ── */
 function iramWaze() {
   try {
-    const ruta = loadArr('pyc_ruta_paradas');
-    const sig = ruta.find(r => r.estado === 'pendiente');
+    const ruta = loadArr(K_RUTA);
+    const sig  = ruta.find(r => r.estado === 'pendiente');
     if (!sig) { pycMsgIA('No hay paradas pendientes en la ruta.'); return; }
-    const cliente = sig.clienteReal || sig.clienteNorm || sig.cliente || '';
-    const loc     = sig.localidad || '';
-    // Usar dirección exacta si existe, sino cliente + localidad
-    const query   = sig.direccion
-      ? `${sig.direccion}, ${loc}`
-      : `${cliente} ${loc}`;
-    window.open(`https://waze.com/ul?q=${encodeURIComponent(query)}&navigate=yes`, '_blank');
-  } catch(e) {}
+    iramAbrirWazeParada(sig);
+  } catch(e) { pycMsgIA('Error al abrir Waze.'); }
+}
+
+/* ── Confirmación táctil para Waze — evita bloqueo Android ── */
+function iramConfirmarWaze(parada) {
+  const cliente = parada.clienteReal || parada.clienteNorm || parada.cliente || '?';
+  const loc     = parada.localidad || '';
+  const dir     = parada.direccion || '';
+
+  // Crear panel de confirmación
+  const existing = document.getElementById('iram-confirm-panel');
+  if (existing) existing.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'iram-confirm-panel';
+  panel.style.cssText = 'position:absolute;bottom:80px;left:16px;right:16px;background:#1e1b4b;border-radius:16px;padding:16px;z-index:50;box-shadow:0 8px 32px rgba(0,0,0,.5)';
+  panel.innerHTML = `
+    <div style="color:#a78bfa;font-size:11px;font-weight:700;letter-spacing:.1em;margin-bottom:8px">NAVEGAR A</div>
+    <div style="color:#fff;font-weight:700;font-size:16px">${cliente}</div>
+    <div style="color:#9ca3af;font-size:13px;margin-top:2px">${dir || loc}</div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="document.getElementById('iram-confirm-panel').remove()"
+        style="flex:1;padding:10px;border-radius:10px;border:1px solid #374151;background:transparent;color:#9ca3af;font-size:14px;cursor:pointer">
+        Cancelar
+      </button>
+      <button onclick="iramAbrirWazeParada(${JSON.stringify(parada).replace(/"/g,'&quot;')});document.getElementById('iram-confirm-panel').remove()"
+        style="flex:2;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:14px;font-weight:700;cursor:pointer">
+        🗺️ Abrir Waze
+      </button>
+    </div>`;
+
+  const body = document.getElementById('iram-chat') || document.getElementById('iram-drive');
+  if (body) body.appendChild(panel);
+  else document.getElementById('pyc-overlay')?.appendChild(panel);
+}
+
+/* ── Confirmación táctil para llamar ── */
+function iramConfirmarLlamar(contacto) {
+  const existing = document.getElementById('iram-confirm-panel');
+  if (existing) existing.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'iram-confirm-panel';
+  panel.style.cssText = 'position:absolute;bottom:80px;left:16px;right:16px;background:#1e1b4b;border-radius:16px;padding:16px;z-index:50;box-shadow:0 8px 32px rgba(0,0,0,.5)';
+  panel.innerHTML = `
+    <div style="color:#a78bfa;font-size:11px;font-weight:700;letter-spacing:.1em;margin-bottom:8px">LLAMAR A</div>
+    <div style="color:#fff;font-weight:700;font-size:16px">${contacto.NOMBRE}</div>
+    <div style="color:#9ca3af;font-size:13px;margin-top:2px">${contacto.TELEFONO}</div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="document.getElementById('iram-confirm-panel').remove()"
+        style="flex:1;padding:10px;border-radius:10px;border:1px solid #374151;background:transparent;color:#9ca3af;font-size:14px;cursor:pointer">
+        Cancelar
+      </button>
+      <button onclick="window.location.href='tel:${contacto.TELEFONO}';document.getElementById('iram-confirm-panel').remove()"
+        style="flex:2;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-size:14px;font-weight:700;cursor:pointer">
+        📞 Llamar
+      </button>
+    </div>`;
+
+  const body = document.getElementById('iram-chat') || document.getElementById('iram-drive');
+  if (body) body.appendChild(panel);
+  else document.getElementById('pyc-overlay')?.appendChild(panel);
+}
+
+/* ── Abre Waze hacia una parada — usa coordenadas GPS si existen ── */
+function iramAbrirWazeParada(parada) {
+  if (!parada) return;
+  const cliente = parada.clienteReal || parada.clienteNorm || parada.cliente || '?';
+  const loc     = parada.localidad || '';
+  const dir     = parada.direccion || '';
+
+  // Buscar coordenadas GPS guardadas para esta parada
+  const coords = cargarCoords ? cargarCoords() : {};
+  const codigo = parada.codigo || '';
+  const locKey = iramNorm(loc);
+  let lat = null, lng = null;
+
+  // Intentar por código primero, luego por localidad
+  if (codigo && coords[codigo]) { lat = coords[codigo].lat; lng = coords[codigo].lng; }
+  else if (locKey && coords[locKey]) { lat = coords[locKey].lat; lng = coords[locKey].lng; }
+
+  let url;
+  if (lat && lng) {
+    // Coordenadas exactas — lo más preciso
+    url = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+  } else if (dir) {
+    // Dirección exacta de la parada
+    url = `https://waze.com/ul?q=${encodeURIComponent(dir + ', ' + loc)}&navigate=yes`;
+  } else {
+    // Solo localidad como fallback — nunca texto inventado
+    url = `https://waze.com/ul?q=${encodeURIComponent(loc)}&navigate=yes`;
+  }
+
+  window.open(url, '_blank');
+  pycMsgIA(`Waze → ${cliente} · ${loc}${dir ? ' · ' + dir : ''}`);
 }
 
 function iramMostrarContactos() {
@@ -12234,7 +12395,23 @@ function pycContexto() {
       return cn.includes(ck) && (!lk || cl.includes(lk));
     });
     const horario = exRow?.HORARIO || '';
-    const visitas = hist.filter(v => iramNorm(v.CLIENTE||v.cliente||'').includes(iramNorm(cliente).slice(0,6)));
+    const codigo  = p.codigo || '';
+    const visitas = hist.filter(v => {
+      // Filtrar por código primero (más preciso)
+      const vKey = String(v.KEY||'').replace(/^sis_/,'');
+      if (codigo && vKey) {
+        const cNorm = codigo.replace(/^0+/,'').toLowerCase();
+        const kNorm = vKey.replace(/^0+/,'').toLowerCase();
+        if (cNorm === kNorm || kNorm.includes(cNorm) || cNorm.includes(kNorm)) return true;
+        if (cNorm.length >= 3 && kNorm.length >= 3) return false; // Tienen código pero no coincide
+      }
+      // Fallback: cliente + localidad
+      const vc = iramNorm(v.CLIENTE||v.cliente||'');
+      const vl = iramNorm(v.LOCALIDAD||v.localidad||'');
+      const clienteMatch = vc.includes(iramNorm(cliente).slice(0,6));
+      const locMatch = !loc || vl.includes(iramNorm(loc).slice(0,4));
+      return clienteMatch && locMatch;
+    });
     const ultima  = visitas.sort((a,b)=>(b.FECHA||'').localeCompare(a.FECHA||''))[0];
     const ultStr  = ultima ? `última visita ${ultima.FECHA}: ${ultima.TRABAJO||ultima.trabajo||''}` : '';
     return `${estado} ${i+1}. ${cliente}${loc?' · '+loc:''}${dir?' · '+dir:''}${horario?' · Horario: '+horario:''}
@@ -12266,13 +12443,11 @@ function pycContexto() {
   const mtoCtx = ruta.length ? ruta.map(p => {
     const cliente = p.clienteReal || p.clienteNorm || p.cliente || '?';
     const codigo  = p.codigo || '';
-    const exRow   = excel.find(c => iramNorm(c.CLIENTE||'').includes(iramNorm(cliente).slice(0,6)));
-    const clave   = codigo || (exRow ? iramNorm(exRow.CLIENTE||'').slice(0,8) : '');
-    const mtoData = mtoMan[clave] || (exRow ? { Q1: exRow.Q1||'', Q2: exRow.Q2||'', Q3: exRow.Q3||'', Q4: exRow.Q4||'' } : null);
-    if (!mtoData) return null;
-    const hecho = mtoData[trimActual] && mtoData[trimActual].trim() !== '' && mtoData[trimActual] !== '0';
+    const loc     = p.localidad || '';
+    const mtoData = iramGetMtoData(cliente, codigo, loc, trimActual);
+    const hecho   = mtoData && mtoData[trimActual] && mtoData[trimActual].trim() !== '' && mtoData[trimActual] !== '0';
     return `- ${cliente}${codigo?' · '+codigo:''}: ${trimActual} ${hecho?'✅ hecho ('+mtoData[trimActual]+')':'⏳ pendiente'}`;
-  }).filter(Boolean).join('\n') : 'Sin datos MTO para la ruta de hoy.';
+  }).join('\n') : 'Sin datos MTO para la ruta de hoy.';
 
   // ── Material pendiente desde tareas ──
   const matKeywords = /batería|cámara|cable|herramienta|repuesto|recambio|pieza|llave|fusible/i;
@@ -12282,24 +12457,28 @@ function pycContexto() {
     : '';
 
   return `Eres Iram, asistente de campo de Gsus, técnico de seguridad en Valencia.
-Hoy: ${hoy}. Trimestre actual: ${trimActual}. Ruta: ${rutaPend.length} pendientes, ${rutaHecha.length} completadas.
+Hoy: ${hoy}. Trimestre actual: ${trimActual}.
 
-RUTA DEL DÍA:
+AVISOS/PARADAS DE RUTA HOY (${rutaPend.length} pendientes, ${rutaHecha.length} completados):
+IMPORTANTE: Estas son paradas de trabajo de campo, NO son tareas personales.
 ${rutaCtx}
 
-MTO ${trimActual} DE LA RUTA:
+MTO ${trimActual} DE LOS AVISOS DE RUTA:
 ${mtoCtx}
 
-PARTES/ANÁLISIS HOY (${anPend.length} pendientes, ${anDone.length} completados):
+PARTES EN ANÁLISIS HOY (${anPend.length} pendientes, ${anDone.length} completados):
+IMPORTANTE: Estos son partes/avisos técnicos del sistema Beta, NO son tareas personales.
 ${analisisCtx}
 
-TAREAS PENDIENTES (${tPend.length} total, ${tHoy.length} para hoy):
+TAREAS PERSONALES PENDIENTES (${tPend.length} total, ${tHoy.length} para hoy):
+IMPORTANTE: Estas son tareas del módulo Tareas — recordatorios y pendientes personales de Gsus.
 ${tareasCtx}
 ${materialPend.length ? `\nMATERIAL PENDIENTE DE COGER:\n${materialCtx}` : ''}
 EVENTOS PRÓXIMOS 7 DÍAS:
 ${eventosCtx}
 
-USA ESTOS DATOS para responder. No digas que no tienes información si está aquí arriba.
+USA ESTOS DATOS para responder. Distingue siempre entre avisos de ruta (trabajo de campo) y tareas personales.
+No digas que no tienes información si está aquí arriba.
 Nunca menciones contraseñas, IPs ni códigos de acceso — di "búscalo en Info técnica".`;
 }
 
@@ -12546,7 +12725,7 @@ Modo activo: ${_modo}. ${_modo === 'CONDUCCIÓN' ? 'Frases de máximo 10 palabra
       'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ ...body, stream: true })
   });
 
   if (!resp.ok) {
@@ -12554,8 +12733,41 @@ Modo activo: ${_modo}. ${_modo === 'CONDUCCIÓN' ? 'Frases de máximo 10 palabra
     throw new Error(err?.error?.message || 'Error Mistral ' + resp.status);
   }
 
-  const data = await resp.json();
-  return data?.choices?.[0]?.message?.content || '(Sin respuesta)';
+  // Streaming Mistral — mismo formato que Groq (OpenAI-compatible)
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let texto = '';
+  let msgIdx = null;
+
+  _pycHist = _pycHist.filter(m=>!m.thinking);
+  _pycHist.push({ role:'model', text:'', streaming:true });
+  msgIdx = _pycHist.length - 1;
+  pycRenderMsgs();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value);
+    const lines = chunk.split('\n').filter(l=>l.startsWith('data: '));
+    for (const line of lines) {
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') break;
+      try {
+        const parsed = JSON.parse(data);
+        const delta = parsed?.choices?.[0]?.delta?.content || '';
+        if (delta) {
+          texto += delta;
+          _pycHist[msgIdx].text = texto;
+          pycRenderMsgs();
+          const msgs = document.getElementById('pyc-msgs');
+          if (msgs) msgs.scrollTop = msgs.scrollHeight;
+        }
+      } catch(e) {}
+    }
+  }
+
+  _pycHist[msgIdx].streaming = false;
+  return texto || '(Sin respuesta)';
 }
 
 /* ── Enviar mensaje ── */
@@ -12571,7 +12783,7 @@ async function pycEnviar() {
 
   // ── Classifier: intentar acción directa antes de llamar a la IA ──
   const _cl = iramClasificar(txt);
-  const _intentosLocales = ['LLAMAR','CREAR_TAREA','CREAR_EVENTO','CREAR_NOTA','CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE','IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR'];
+  const _intentosLocales = ['LLAMAR','CREAR_TAREA','CREAR_EVENTO','CREAR_NOTA','CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE','IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR','SIGUIENTE_PARADA'];
   if (_intentosLocales.includes(_cl.intento)) {
     const resultado = iramEjecutarAccion(_cl);
     if (resultado) {
@@ -12630,7 +12842,15 @@ async function pycEnviar() {
     }
 
     _pycHist = _pycHist.filter(m=>!m.thinking);
-    pycMsgIA(respuesta || '⚠️ Sin respuesta');
+    // Si el mensaje ya fue añadido por streaming, no llamar pycMsgIA de nuevo
+    const yaEnHistorial = _pycHist.some(m => m.role==='model' && !m.thinking && m.text === respuesta);
+    if (!yaEnHistorial) {
+      pycMsgIA(respuesta || '⚠️ Sin respuesta');
+    } else {
+      // Solo leer en voz alta y guardar
+      if (respuesta && respuesta.length > 5) setTimeout(() => pycHablar(respuesta), 300);
+      iramGuardarHistorial();
+    }
   } catch(e) {
     _pycHist = _pycHist.filter(m=>!m.thinking);
     pycMsgIA('⚠️ Error: ' + e.message);
@@ -12739,6 +12959,11 @@ function iramClasificar(txt) {
   // ── URGENTE — reordenar ruta ──
   if (/cambio\s+de\s+ruta|ve\s+a\s+por\s+el\s+urgente|urgente\s+primero|mover?\s+urgente/.test(t)) {
     return { intento:'URGENTE' };
+  }
+
+  // ── SIGUIENTE PARADA ──
+  if (/\b(siguiente\s+parada|próxima\s+parada|proxima\s+parada|siguiente\s+stop)\b/.test(t)) {
+    return { intento:'SIGUIENTE_PARADA' };
   }
 
   // ── NAVEGAR / WAZE ──
@@ -12861,6 +13086,56 @@ function iramNorm(s) {
     .replace(/[^a-z0-9\s]/g,'').trim();
 }
 
+/* ── Clave MTO — idéntica a mtoKey() del módulo principal ── */
+function iramMtoKey(cliente, codigo) {
+  const cli = (cliente||'').toUpperCase().replace(/[\s\-\.\/]/g,'_');
+  const cod = String(codigo||'').replace(/[\s\.\-]/g,'').replace(/^0+/,'').toLowerCase();
+  // Si código vacío — usar municipio como desambiguador igual que el módulo
+  return cli + '_' + cod;
+}
+
+/* ── Buscar datos MTO de una parada — tres capas ── */
+function iramGetMtoData(cliente, codigo, localidad, trimActual) {
+  const mtoMan = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
+  const excel  = loadArr(K_EXCEL);
+  const hist   = loadArr(K_HIST);
+
+  // Clave principal — igual que mtoKey() del módulo
+  const clave = iramMtoKey(cliente, codigo);
+
+  // Capa 1: pyc_mto_manual con clave exacta
+  if (mtoMan[clave]) return mtoMan[clave];
+
+  // Capa 2: pyc_mto_manual buscando por código normalizado
+  const codNorm = String(codigo||'').replace(/^0+/,'').toLowerCase();
+  if (codNorm) {
+    const match = Object.keys(mtoMan).find(k => {
+      const kCod = k.split('_').pop();
+      return kCod === codNorm;
+    });
+    if (match) return mtoMan[match];
+  }
+
+  // Capa 3: Excel por código normalizado → leer Q1-Q4
+  const exRow = excel.find(c => {
+    const ec = String(c.CODIGO||c.codigo||'').replace(/^0+/,'').toLowerCase();
+    return codNorm && ec && (ec === codNorm);
+  });
+  if (exRow) return { Q1: exRow.Q1||'', Q2: exRow.Q2||'', Q3: exRow.Q3||'', Q4: exRow.Q4||'', INT: exRow.INT||'' };
+
+  // Capa 4: Historial — buscar "mto/mantenimiento/Q1/Q2/Q3/Q4" por código
+  if (codNorm && trimActual) {
+    const mtoKw = new RegExp(`\\b(mto|mantenimiento|${trimActual}|pci)\\b`, 'i');
+    const visita = hist.find(v => {
+      const vKey = String(v.KEY||'').replace(/^sis_/,'').replace(/^0+/,'').toLowerCase();
+      return vKey === codNorm && mtoKw.test(v.TRABAJO||v.trabajo||'');
+    });
+    if (visita) return { [trimActual]: visita.FECHA || 'hecho' };
+  }
+
+  return null;
+}
+
 /* ── Buscar cliente en Excel por nombre y/o localidad ── */
 function iramBuscarCliente(nombre, localidad) {
   const excel = loadArr(K_EXCEL);
@@ -12937,12 +13212,23 @@ function iramEjecutarAccion(cl) {
     const hist   = loadArr(K_HIST);
     const nC     = iramNorm(cl.cliente || '');
     const nL     = iramNorm(cl.localidad || '');
-    if (!nC) return 'Dime el nombre del cliente para buscar en el historial.';
+    const nCod   = (cl.codigo || '').replace(/^0+/,'').toLowerCase();
+    if (!nC && !nCod) return 'Dime el nombre del cliente para buscar en el historial.';
     const visitas = hist.filter(v => {
+      // Filtrar por código primero
+      if (nCod) {
+        const vKey = String(v.KEY||'').replace(/^sis_/,'').replace(/^0+/,'').toLowerCase();
+        if (vKey && vKey.length >= 3) {
+          return vKey.includes(nCod) || nCod.includes(vKey);
+        }
+      }
+      // Fallback: cliente + localidad
       const vc = iramNorm(v.CLIENTE||v.cliente||'');
       const vl = iramNorm(v.LOCALIDAD||v.localidad||v.MUNICIPIO||'');
-      return vc.includes(nC) || nC.includes(vc.slice(0,4));
-    }).filter(v => !nL || iramNorm(v.LOCALIDAD||v.localidad||'').includes(nL));
+      const cliMatch = vc.includes(nC) || nC.includes(vc.slice(0,4));
+      const locMatch = !nL || vl.includes(nL);
+      return cliMatch && locMatch;
+    });
 
     if (!visitas.length) return `No encuentro visitas a ${cl.cliente}${cl.localidad ? ' en '+cl.localidad : ''} en el historial.`;
 
@@ -12961,10 +13247,13 @@ function iramEjecutarAccion(cl) {
     const contactos = loadArr('pyc_contactos');
     if (!contactos.length) return 'No tienes contactos cargados. Importa el Excel con la hoja Contactos.';
     const nQ = iramNorm(cl.quien || '');
-    const match = contactos.find(c => iramNorm(c.NOMBRE).includes(nQ) || nQ.includes(iramNorm(c.NOMBRE)));
+    const match = contactos.find(c => {
+      const nN = iramNorm(c.NOMBRE);
+      return nN.includes(nQ) || nQ.includes(nN);
+    });
     if (!match) return `No encuentro a "${cl.quien}" en tus contactos.`;
-    window.location.href = `tel:${match.TELEFONO}`;
-    return `Llamando a ${match.NOMBRE} · ${match.TELEFONO}`;
+    iramConfirmarLlamar(match);
+    return `${match.NOMBRE} · ${match.TELEFONO} — pulsa para llamar.`;
   }
 
   /* ── CONTAR AVISOS ── */
@@ -13005,21 +13294,38 @@ function iramEjecutarAccion(cl) {
   }
 
   /* ── NAVEGAR A ── */
-  if (cl.intento === 'NAVEGAR') {
-    // Intentar buscar en ruta primero
+  /* ── SIGUIENTE PARADA ── */
+  if (cl.intento === 'SIGUIENTE_PARADA') {
     const ruta = loadArr(K_RUTA);
-    const nD = iramNorm(cl.destino||'');
-    const parada = ruta.find(p => {
+    const sig  = ruta.find(r => r.estado === 'pendiente');
+    if (!sig) return 'No hay paradas pendientes en la ruta.';
+    const cliente = sig.clienteReal || sig.clienteNorm || sig.cliente || '?';
+    const loc     = sig.localidad || '';
+    const dir     = sig.direccion || '';
+    // Mostrar confirmación táctil — no abrir Waze sin gesto del usuario
+    iramConfirmarWaze(sig);
+    return `Siguiente parada: ${cliente} · ${loc}${dir ? ' · ' + dir : ''}`;
+  }
+
+  /* ── NAVEGAR ── */
+  if (cl.intento === 'NAVEGAR') {
+    const ruta = loadArr(K_RUTA);
+    const nD   = iramNorm(cl.destino || '');
+    // Buscar en ruta por código o localidad — nunca usar el texto libre como destino
+    const parada = nD ? ruta.find(p => {
       const nC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
       const nL = iramNorm(p.localidad||'');
-      return nC.includes(nD) || nD.includes(nC) || nL.includes(nD) || nD.includes(nL);
-    });
-    const dir = parada
-      ? (parada.direccion || `${parada.clienteReal||parada.cliente} ${parada.localidad}`)
-      : cl.destino;
-    const url = `https://waze.com/ul?q=${encodeURIComponent(dir)}&navigate=yes`;
-    window.open(url, '_blank');
-    return `Abriendo Waze hacia ${parada ? (parada.clienteReal||parada.cliente)+' · '+(parada.localidad||'') : cl.destino}.`;
+      const nK = iramNorm(p.codigo||'');
+      return nC.includes(nD.slice(0,5)) || nD.includes(nC.slice(0,5)) ||
+             nL.includes(nD.slice(0,4)) || nD.includes(nL.slice(0,4)) ||
+             (nK && nD.includes(nK));
+    }) : null;
+    if (!parada) {
+      return `No encuentro "${cl.destino}" en tu ruta de hoy. Pulsa Waze en la tarjeta de la parada.`;
+    }
+    iramConfirmarWaze(parada);
+    const cliente = parada.clienteReal || parada.clienteNorm || parada.cliente || '';
+    return `${cliente} · ${parada.localidad || ''} — pulsa para abrir Waze.`;
   }
 
   /* ── URGENTE — mover al inicio de ruta ── */
