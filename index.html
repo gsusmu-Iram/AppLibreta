@@ -12589,10 +12589,11 @@ Si ves algo importante en los datos (urgente sin resolver, MTO pendiente en la r
 Una advertencia por respuesta máximo.
 
 LÍMITES:
-Nunca reveles contraseñas, IPs ni códigos de acceso — di "búscalo en Info técnica".
+"Búscalo en Info técnica" → SOLO para contraseñas, IPs, códigos de acceso a sistemas de clientes. NUNCA para preguntas sobre la propia app.
+Si preguntan "¿dónde guardaste el trabajo?" → "En el historial de la app. Lo ves en la tarjeta de la parada en Ruta."
+Si preguntan "¿se guardó?" → "Sí, está en el historial."
 Nunca inventes datos que no estén en el contexto.
 Si no tienes el dato: di "Eso no lo tengo" y para. NO ofrezcas alternativas ni desvíes a otro tema.
-Si preguntan por eventos y no los ves: di "No veo ese evento" — no digas que no hay ninguno si no estás seguro.
 
 MODO: ${modo}${modo === 'CONDUCCIÓN' ? ' — respuestas muy cortas, fáciles de escuchar al volante.' : ''}`;
 }
@@ -12839,10 +12840,11 @@ async function pycEnviar() {
   const _cl = iramClasificar(txt);
   const _intentosLocales = [
     'LLAMAR','CREAR_TAREA','CONSULTA_TAREAS','CONSULTA_EVENTOS','CREAR_EVENTO','CREAR_NOTA',
-    'CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE',
+    'CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','SIGUIENTE_PARADA',
     'HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE',
-    'IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR','SIGUIENTE_PARADA',
-    'ANALIZAR_PARTES','CREAR_RUTA','COMPLETAR_PARADA'
+    'IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR',
+    'ANALIZAR_PARTES','CREAR_RUTA','ANADIR_RUTA',
+    'COMPLETAR_PARADA','REGISTRAR_MTO','MARCAR_TAREA_HECHA'
   ];
 
   if (_intentosLocales.includes(_cl.intento)) {
@@ -13052,37 +13054,153 @@ function iramClasificar(txt) {
     return { intento:'CONSULTA_TAREAS' };
   }
 
-  // ── CREAR EVENTO ──
-  const tieneHora   = /a\s+las?\s+\d|(\d{1,2}):(\d{2})/.test(t);
-  const esEvento    = /\b(evento|cita|reuni[oó]n|visita)\b/.test(t);
-  const esProgramar = /\b(programa|agenda|bloquea)\b/.test(t);
-  if ((tieneHora && esEvento) || esProgramar) {
-    const fecha  = iramFechaISO(t);
-    const hora   = iramHoraStr(raw);
-    const titulo = txt
+  // ── COMPLETAR PARADA ──
+  if (/\b(finaliza|finalizado|finalizar|completado|completar|trabajo\s+hecho|parada\s+hecha|marcar\s+como\s+completad)\b/i.test(raw)) {
+    const trabajo = txt
+      .replace(/\b(finaliza[dr]?|completad[ao]|trabajo\s+hecho|marcar?\s+como\s+completad[ao])\b/gi,'')
+      .replace(/\s+/g,' ').trim();
+    return { intento:'COMPLETAR_PARADA', trabajo };
+  }
+
+  // ── REGISTRAR MTO ──
+  if (/\b(mto|mantenimiento|trimestral|q[1-4])\b.*\b(hecho|finalizado|completado|listo|realizado)\b|\b(hecho|finalizado)\b.*\b(mto|mantenimiento|trimestral|q[1-4])\b/i.test(raw)) {
+    const trimM = raw.match(/\b(q[1-4])\b/i);
+    return { intento:'REGISTRAR_MTO', trim: trimM ? trimM[1].toUpperCase() : null };
+  }
+
+  // ── ANALIZAR PARTES ──
+  if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?)\b/i.test(raw)) {
+    return { intento:'ANALIZAR_PARTES' };
+  }
+
+  // ── CREAR RUTA ──
+  if (/\b(crea|haz|hacer|genera|prepara)\b.*\b(ruta|paradas?)\b|\b(ruta\s+con|añad[ei]r?\s+a\s+ruta)\b/i.test(raw)) {
+    const mN = raw.match(/(\d+)\s+(?:avisos?|partes?|paradas?)/i);
+    return { intento:'CREAR_RUTA', n: mN ? parseInt(mN[1]) : 0 };
+  }
+
+  // ── AÑADIR A RUTA ──
+  if (/\b(a[ñn]ade?|pon|mete)\b.*\b(a\s+la\s+ruta|en\s+la\s+ruta)\b/i.test(raw)) {
+    const m = raw.match(/(?:a[ñn]ade?|pon|mete)\s+(?:a\s+la\s+ruta\s+)?(?:el\s+|la\s+)?(.+?)(?:\s+a\s+la\s+ruta)?$/i);
+    return { intento:'ANADIR_RUTA', destino: m?.[1]?.trim()||'' };
+  }
+
+  // ── MARCAR TAREA HECHA ──
+  if (/\b(tarea|pendiente)\b.*\b(hecha|finalizada|completada|hecho|listo)\b|\b(marca[r]?\s+(?:la\s+)?tarea)\b/i.test(raw)) {
+    const m = raw.match(/(?:tarea|pendiente)\s+(?:de\s+)?(.+?)\s+(?:hecha|finalizada|completada|hecho|listo)/i);
+    return { intento:'MARCAR_TAREA_HECHA', titulo: m?.[1]?.trim()||'' };
+  }
+
+  // ── IRAMCLOUD ──
+  if (/\b(vincular|conectar|configurar)\b.*\b(iramcloud|carpeta|manuales?)\b/i.test(t)) {
+    return { intento:'IRAMCLOUD_VINCULAR' };
+  }
+  if (/\biramcloud\b|\b(listar?|qu[eé]\s+manuales?)\b.*\b(iramcloud|carpeta)\b/i.test(t)) {
+    return { intento:'IRAMCLOUD_LISTAR' };
+  }
+
+  // ── MTO SEMANA ──
+  if (/\b(cu[aá]ntos?|cu[aá]nto)\b.*\b(mto|mantenimiento)\b.*\b(semana|mes)\b/i.test(t)) {
+    return { intento:'MTO_SEMANA' };
+  }
+
+  // ── AVERÍAS SIN MTO ──
+  if (/\b(cu[aá]les?|qu[eé])\b.*\b(no\s+tienen|sin|falta)\b.*\b(mto|mantenimiento|q[1-4])\b/i.test(t)) {
+    return { intento:'AVERIAS_SIN_MTO' };
+  }
+
+  // ── MATERIAL PENDIENTE ──
+  if (/\b(qu[eé]\s+material|material\s+pendiente|qu[eé]\s+llevo|qu[eé]\s+me\s+falta)\b/i.test(t)) {
+    return { intento:'MATERIAL_PENDIENTE' };
+  }
+
+  // ── HISTORIAL ──
+  if (/\b([uú]ltima\s+(?:vez|visita)|historial|cu[aá]ndo\s+fui)\b/i.test(t)) {
+    const m = raw.match(/(?:[uú]ltima\s+(?:vez|visita)|historial|fui)\s+(?:en\s+|al?\s+)?(.+?)(?:\s+(?:de|en)\s+(.+))?$/i);
+    return { intento:'HISTORIAL_CLIENTE', cliente: m?.[1]?.trim()||'', localidad: m?.[2]?.trim()||'' };
+  }
+
+  // ── CONTAR AVISOS ──
+  if (/\b(cu[aá]ntos?\s+avisos?|cu[aá]ntas?\s+paradas?|cu[aá]nto\s+me\s+queda)\b/i.test(t)) {
+    return { intento:'CONTAR_AVISOS' };
+  }
+
+  // ── URGENTE AL INICIO ──
+  if (/\b(urgente\s+primero|pon\s+el\s+urgente|sube\s+el\s+urgente|cambio\s+de\s+ruta)\b/i.test(t)) {
+    return { intento:'URGENTE' };
+  }
+
+  // ── SIGUIENTE PARADA ──
+  if (/\b(siguiente\s+parada|pr[oó]xima\s+parada|siguiente\s+stop|ll[eé]vame\s+a\s+la\s+siguiente)\b/i.test(t)) {
+    return { intento:'SIGUIENTE_PARADA' };
+  }
+
+  // ── NAVEGAR / WAZE ──
+  if (/\b(ll[eé]vame|navega|waze|ir\s+a|vamos\s+a|c[oó]mo\s+llego)\b/i.test(t)) {
+    const m = raw.match(/(?:ll[eé]vame|navega|waze|ir|vamos|llego)\s+(?:a\s+|al?\s+|hasta\s+)?(.+)/i);
+    return { intento:'NAVEGAR', destino: m?.[1]?.trim()||'' };
+  }
+
+  // ── LLAMAR ──
+  if (/\b(llama[r]?|llamar|marca[r]?)\s+a\b/i.test(raw)) {
+    const m = raw.match(/(?:llama[r]?|marca[r]?)\s+a\s+(.+)/i);
+    return { intento:'LLAMAR', quien: m?.[1]?.trim()||'' };
+  }
+
+  // ── HORARIO ──
+  if (/\b(horario|a\s+qu[eé]\s+hora\s+(?:abre|cierra)|cu[aá]ndo\s+(?:abre|cierra))\b/i.test(t)) {
+    const m = raw.match(/(?:horario|abre|cierra)\s+(?:del?\s+|de\s+la\s+)?(.+?)(?:\s+(?:de|en)\s+(.+))?$/i);
+    return { intento:'HORARIO', cliente: m?.[1]?.trim()||'', localidad: m?.[2]?.trim()||'' };
+  }
+
+  // ── MTO ESTADO ──
+  if (/\b(mto|mantenimiento)\b.*\b(del?|de\s+la)\b/i.test(t) && !/semana|mes|hecho|finalizado/.test(t)) {
+    const m = raw.match(/(?:mto|mantenimiento)\s+(?:del?\s+|de\s+)?(.+?)(?:\s+(?:de|en)\s+(.+))?$/i);
+    return { intento:'MTO_ESTADO', cliente: m?.[1]?.trim()||'', localidad: m?.[2]?.trim()||'' };
+  }
+
+  // ── CONSULTA EVENTOS ──
+  if (/\b(dime\s+(?:los\s+)?eventos?|eventos?\s+de\s+(?:este\s+)?mes|qu[eé]\s+eventos?\s+tengo|agenda\s+(?:de\s+)?(?:hoy|esta\s+semana|este\s+mes))\b/i.test(raw)) {
+    return { intento:'CONSULTA_EVENTOS' };
+  }
+
+  // ── CONSULTA TAREAS ──
+  if (/\b(dime\s+(?:las\s+)?tareas?|tareas?\s+(?:que\s+tengo|pendientes?|de\s+hoy)|qu[eé]\s+tareas?\s+tengo)\b/i.test(raw)) {
+    return { intento:'CONSULTA_TAREAS' };
+  }
+
+  // ── CREAR EVENTO — solo con "crea un evento" explícito ──
+  if (/\bcrea[r]?\s+(?:un\s+)?evento\b/i.test(raw)) {
+    const fecha = iramFechaISO(t);
+    const hora  = iramHoraStr(raw);
+    const titulo= txt
+      .replace(/\bcrea[r]?\s+(?:un\s+)?evento\b/gi,'')
       .replace(/\bel\s+(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*\d*\b/gi,'')
       .replace(/\ba\s+las?\s+\d{1,2}(:\d{2})?\b/gi,'')
-      .replace(/\b(hay|que|programa|agenda|bloquea)\b/gi,'')
       .replace(/\s+/g,' ').trim();
+    if (!titulo) return { intento:'CHAT' }; // Sin título → chat
     return { intento:'CREAR_EVENTO', titulo, fecha, hora };
   }
 
-  // ── CREAR NOTA ──
-  if (/\b(apunta|anota|guarda\s+que|recuerda\s+que)\b/.test(t) && !tieneHora) {
-    const texto = txt.replace(/\b(apuntar?|anotar?|guarda\s+que|recuerda\s+que)\s*/i,'').trim();
+  // ── CREAR NOTA — solo con "crea una nota" explícito ──
+  if (/\bcrea[r]?\s+(?:una?\s+)?nota\b/i.test(raw)) {
+    const texto = txt.replace(/\bcrea[r]?\s+(?:una?\s+)?nota\b/gi,'').replace(/\s+/g,' ').trim();
+    if (!texto) return { intento:'CHAT' };
     return { intento:'CREAR_NOTA', texto };
   }
 
-  // ── CREAR TAREA — solo con verbos explícitos de creación ──
-  // NO se activa con "dime las tareas" ni "qué tareas tengo"
-  if (/\b(a[ñn]ade|crea|apunta|recuerda\s+(coger|ir|llamar|comprar|hacer)|hay\s+que|tenemos\s+que|tarea:)\b/i.test(raw)) {
-    const fecha  = iramFechaISO(t);
-    const titulo = txt
-      .replace(/\b(ma[ñn]ana|hoy|pasado\s+ma[ñn]ana)\b/gi,'')
-      .replace(/\bel\s+(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*\d*\b/gi,'')
-      .replace(/\b(a[ñn]ade|crea[r]?|apunta[r]?|recuerda[r]?|hay\s+que|tenemos\s+que|tarea:)\s*/gi,'')
+  // ── CREAR TAREA — SOLO con "crea una tarea" o "añade una tarea" ──
+  if (/\b(crea[r]?\s+(?:una?\s+)?tarea|a[ñn]ade?\s+(?:una?\s+)?tarea)\b/i.test(raw)) {
+    // Fecha SOLO si el usuario la dice explícitamente
+    const tieneFecha = /\b(hoy|ma[ñn]ana|pasado\s+ma[ñn]ana|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+\w+)\b/i.test(raw);
+    const fecha      = tieneFecha ? iramFechaISO(t) : '';
+    const titulo     = txt
+      .replace(/\bcrea[r]?\s+(?:una?\s+)?tarea\b/gi,'')
+      .replace(/\ba[ñn]ade?\s+(?:una?\s+)?tarea\b/gi,'')
+      .replace(/\bpara\s+(hoy|ma[ñn]ana|el\s+\w+)\b/gi,'')
       .replace(/\s+/g,' ').trim();
-    if (titulo.length > 2) return { intento:'CREAR_TAREA', titulo, fecha };
+    if (!titulo) return { intento:'CHAT' };
+    return { intento:'CREAR_TAREA', titulo, fecha };
   }
 
   return { intento:'CHAT' };
@@ -13309,13 +13427,18 @@ function iramEjecutarAccion(cl) {
   }
 
   /* ── CREAR TAREA ── */
+  /* ── CREAR TAREA ── */
   if (cl.intento === 'CREAR_TAREA' && cl.titulo) {
     const tareas = loadArr(K_TAREAS);
     tareas.unshift({
-      id:'T_'+Date.now(), titulo:cl.titulo,
-      descripcion:'', prioridad:'normal',
-      fecha:cl.fecha||'', estado:'pendiente',
-      etiquetas:'iram', alarma:'',
+      id:          'T_'+Date.now(),
+      titulo:      cl.titulo,
+      descripcion: '',
+      prioridad:   'normal',
+      fecha:       cl.fecha || '', // Solo si el usuario la dijo
+      estado:      'pendiente',
+      etiquetas:   'iram',
+      alarma:      '07:00',       // Siempre alarma a las 7:00
     });
     save(K_TAREAS, tareas);
     if (typeof renderTareas === 'function') renderTareas();
@@ -13324,7 +13447,7 @@ function iramEjecutarAccion(cl) {
     const fStr = cl.fecha
       ? new Date(cl.fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})
       : 'sin fecha';
-    return `✅ "${cl.titulo}" — ${fStr}.`;
+    return `✅ Tarea "${cl.titulo}" — ${fStr} · alarma 7:00.`;
   }
 
   /* ── CREAR EVENTO ── */
@@ -13554,6 +13677,80 @@ function iramEjecutarAccion(cl) {
     if (pci.length) r += ` 🔥 ${pci.length} PCI.`;
     if (antiguos.length) r += ` ⚠️ ${antiguos.length} de más de 14 días.`;
     return r;
+  }
+
+  /* ── REGISTRAR MTO ── */
+  if (cl.intento === 'REGISTRAR_MTO') {
+    const ruta = loadArr(K_RUTA);
+    const sig  = ruta.find(r => r.estado === 'pendiente');
+    if (!sig) return 'No hay paradas activas en la ruta.';
+
+    const mesActual  = new Date().getMonth();
+    const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
+    const trim       = cl.trim || trimActual;
+    const cliente    = sig.clienteReal || sig.clienteNorm || sig.cliente || '';
+    const codigo     = sig.codigo || '';
+
+    // Guardar en pyc_mto_manual
+    const mtoMan  = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
+    const clave   = iramMtoKey(cliente, codigo);
+    if (!mtoMan[clave]) mtoMan[clave] = {};
+    const fechaStr = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
+    mtoMan[clave][trim] = fechaStr;
+    localStorage.setItem('pyc_mto_manual', JSON.stringify(mtoMan));
+    if (typeof renderMTO === 'function') renderMTO();
+    iramDiarioAccion(`MTO ${trim} registrado: ${cliente} · ${sig.localidad||''}`);
+    return `✅ MTO ${trim} registrado para ${cliente} · ${sig.localidad||''} — ${fechaStr}.`;
+  }
+
+  /* ── MARCAR TAREA HECHA ── */
+  if (cl.intento === 'MARCAR_TAREA_HECHA') {
+    const tareas = loadArr(K_TAREAS);
+    const nQ     = iramNorm(cl.titulo||'');
+    const idx    = tareas.findIndex(t => {
+      const nT = iramNorm(t.titulo||'');
+      return t.estado === 'pendiente' && (nT.includes(nQ) || nQ.includes(nT.slice(0,6)));
+    });
+    if (idx === -1) return `No encuentro la tarea "${cl.titulo}" entre las pendientes.`;
+    tareas[idx].estado = 'hecha';
+    save(K_TAREAS, tareas);
+    if (typeof renderTareas === 'function') renderTareas();
+    return `✅ Tarea "${tareas[idx].titulo}" marcada como hecha.`;
+  }
+
+  /* ── AÑADIR A RUTA ── */
+  if (cl.intento === 'ANADIR_RUTA') {
+    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const rutaAct  = loadArr(K_RUTA);
+    const nD       = iramNorm(cl.destino||'');
+    const parte    = analisis.find(a => {
+      if (a.estado==='completado'||a.estado==='cerrado'||a.enRuta) return false;
+      const nC = iramNorm(a.clienteReal||a.clienteNorm||a.cliente||'');
+      const nL = iramNorm(a.localidad||'');
+      const nK = iramNorm(a.codigo||'');
+      return nC.includes(nD.slice(0,5)) || nD.includes(nC.slice(0,5)) ||
+             nL.includes(nD.slice(0,4)) || nD.includes(nL.slice(0,4)) ||
+             (nK && nD.includes(nK));
+    });
+    if (!parte) return `No encuentro "${cl.destino}" en los partes de análisis.`;
+    parte.enRuta = true;
+    localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+    rutaAct.push({
+      id: 'R_'+Date.now(),
+      clienteReal: parte.clienteReal||parte.clienteNorm||parte.cliente,
+      clienteNorm: parte.clienteNorm||parte.cliente,
+      cliente:     parte.cliente,
+      codigo:      parte.codigo||'',
+      localidad:   parte.localidad||'',
+      direccion:   parte.direccion||'',
+      trabajo:     parte.trabajo||parte.descripcion||'',
+      horarioTxt:  parte.horarioTxt||'',
+      urgente:     parte.urgente||false,
+      estado:      'pendiente',
+    });
+    save(K_RUTA, rutaAct);
+    if (typeof renderRuta === 'function') renderRuta();
+    return `✅ ${parte.clienteReal||parte.cliente} · ${parte.localidad||''} añadido a la ruta.`;
   }
 
   /* ── CREAR RUTA ── */
