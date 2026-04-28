@@ -3805,13 +3805,13 @@ body { font-size: 14px; }
     <button class="bav-close" onclick="cerrarBavTareas()">✕</button>
   </div>
   <!-- Banner Eventos hoy -->
-  <div class="banner-aviso bav-eventos" id="bav-eventos" style="display:none">
-    <span class="bav-ico">📅</span>
-    <div class="bav-txt">
-      <div class="bav-title" id="bav-ev-titulo">Eventos hoy</div>
-      <div class="bav-sub" id="bav-ev-sub"></div>
+  <div id="bav-eventos" style="display:none;position:relative;margin:4px 12px 0;background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(6,182,212,.06));border:1.5px solid rgba(6,182,212,.35);border-radius:12px;padding:10px 14px;display:none;align-items:center;gap:10px;animation:bavIn .4s cubic-bezier(.34,1.56,.64,1)">
+    <span style="font-size:20px">📅</span>
+    <div style="flex:1;min-width:0">
+      <div id="bav-ev-titulo" style="font-size:13px;font-weight:800;color:#06b6d4;line-height:1.2">Evento hoy</div>
+      <div id="bav-ev-sub" style="font-size:11px;color:#64748b;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
     </div>
-    <button class="bav-close" onclick="cerrarBavEventos()">✕</button>
+    <button onclick="cerrarBavEventos()" style="background:rgba(6,182,212,.15);border:none;border-radius:50%;width:26px;height:26px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#06b6d4">✕</button>
   </div>
 </div>
 <!-- ── FIN BANNERS AVISO ── -->
@@ -11014,21 +11014,38 @@ function actualizarBavTareas() {
 
 /* ── EVENTOS HOY ────────────────────────────────────────────────── */
 function checkAvisoEventosHoy() {
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy    = new Date().toISOString().slice(0,10);
+  const ahoraH = new Date().getHours() * 60 + new Date().getMinutes();
+
+  // No mostrar si ya se cerró hoy
+  const K_BAV_EV = 'pyc_bav_ev_cerrado';
+  if (localStorage.getItem(K_BAV_EV) === hoy) return;
+
   const eventos = loadArr(K_EVENTOS).filter(ev => {
-    const f = ev.fecha || '';
+    const f  = ev.fecha || '';
     const ff = ev.fechaFin || '';
-    return f === hoy || (f <= hoy && ff >= hoy);
+    const enRango = f === hoy || (f <= hoy && ff >= hoy);
+    if (!enRango) return false;
+    // Si tiene hora, no mostrar si ya pasó hace más de 2 horas
+    if (ev.hora && !ev.todoDia) {
+      const [hh, mm] = ev.hora.split(':').map(Number);
+      const evMin = hh * 60 + mm;
+      if (ahoraH > evMin + 120) return false;
+    }
+    return true;
   });
+
   if (!eventos.length) return;
 
   const bav = document.getElementById('bav-eventos');
   if (!bav) return;
 
-  const n = eventos.length;
-  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  setText('bav-ev-titulo', '📅 ' + n + ' evento' + (n > 1 ? 's' : '') + ' hoy');
-  setText('bav-ev-sub', eventos.map(ev => (ev.hora ? ev.hora + ' ' : '') + (ev.titulo || '')).join('  ·  ').slice(0, 80));
+  const n   = eventos.length;
+  const sub = eventos.map(ev => (ev.hora ? ev.hora + ' ' : '') + (ev.titulo || '')).join('  ·  ').slice(0, 80);
+  const tit = document.getElementById('bav-ev-titulo');
+  const sub2= document.getElementById('bav-ev-sub');
+  if (tit) tit.textContent = n + ' evento' + (n > 1 ? 's' : '') + ' hoy';
+  if (sub2) sub2.textContent = sub;
 
   bav.style.display = 'flex';
   _vibrar();
@@ -11037,6 +11054,8 @@ function checkAvisoEventosHoy() {
 function cerrarBavEventos() {
   const bav = document.getElementById('bav-eventos');
   if (bav) bav.style.display = 'none';
+  // Recordar que ya se cerró hoy
+  localStorage.setItem('pyc_bav_ev_cerrado', new Date().toISOString().slice(0,10));
 }
 /* ── FIN AVISOS MATUTINOS ── */
 
@@ -12823,7 +12842,7 @@ async function pycEnviar() {
     'CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE',
     'HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE',
     'IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR','SIGUIENTE_PARADA',
-    'ANALIZAR_PARTES','CREAR_RUTA'
+    'ANALIZAR_PARTES','CREAR_RUTA','COMPLETAR_PARADA'
   ];
 
   if (_intentosLocales.includes(_cl.intento)) {
@@ -12937,6 +12956,11 @@ function iramHoraStr(txt) {
 function iramClasificar(txt) {
   const t   = iramNorm(txt);
   const raw = txt.toLowerCase().trim();
+
+  // ── COMPLETAR PARADA ──
+  if (/\b(completado|completar|marcar.*complet|apunt.*complet|finaliz.*parada|parada.*finaliz|trabajo\s+hecho|ya\s+est[aá]\s+hecho)\b/i.test(raw)) {
+    return { intento:'COMPLETAR_PARADA', trabajo: txt };
+  }
 
   // ── ANALIZAR PARTES ──
   if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?)\b/i.test(raw)) {
@@ -13456,6 +13480,53 @@ function iramEjecutarAccion(cl) {
   const hoy = new Date();
   const hoyISO = hoy.toISOString().slice(0,10);
   const hoyD   = hoy;
+
+  /* ── COMPLETAR PARADA ── */
+  if (cl.intento === 'COMPLETAR_PARADA') {
+    const ruta = loadArr(K_RUTA);
+    const sig  = ruta.find(r => r.estado === 'pendiente');
+    if (!sig) return 'No hay paradas pendientes en la ruta.';
+
+    // Extraer trabajo del texto si lo hay
+    const trabajo = cl.trabajo
+      .replace(/\b(complet[ao]r?|marcar?|apunt[ao]r?|finaliz[ao]r?|trabajo\s+hecho|ya\s+est[aá]\s+hecho|como\s+completado)\b/gi, '')
+      .replace(/\s+/g,' ').trim() || sig.trabajo || '';
+
+    // Marcar como completada
+    const idx = ruta.findIndex(r => r.id === sig.id);
+    if (idx !== -1) {
+      ruta[idx].estado = 'completada';
+      ruta[idx].trabajoRealizado = trabajo;
+      save(K_RUTA, ruta);
+    }
+
+    // Añadir al historial
+    const hist     = loadArr(K_HIST);
+    const fechaHoy = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}).split('/').join('/');
+    hist.unshift({
+      KEY:       sig.codigo ? 'sis_' + sig.codigo : sig.id,
+      FECHA:     fechaHoy,
+      CLIENTE:   sig.clienteReal || sig.clienteNorm || sig.cliente || '',
+      LOCALIDAD: sig.localidad || '',
+      TRABAJO:   trabajo,
+      OT:        sig.ot || '',
+      ESTADO:    'Finalizado',
+    });
+    save(K_HIST, hist);
+
+    if (typeof renderRuta === 'function') renderRuta();
+    iramDiarioAccion(`Completado: ${sig.clienteReal||sig.cliente} · ${sig.localidad||''}`);
+
+    // Siguiente parada
+    const rutaAct = loadArr(K_RUTA);
+    const sig2    = rutaAct.find(r => r.estado === 'pendiente');
+    const resto   = rutaAct.filter(r => r.estado === 'pendiente').length;
+
+    let resp = `✅ ${sig.clienteReal||sig.cliente} · ${sig.localidad||''} completado.`;
+    if (sig2) resp += ` Siguiente: ${sig2.clienteReal||sig2.clienteNorm||sig2.cliente} · ${sig2.localidad||''}.`;
+    else if (resto === 0) resp += ' Ruta completada. ¡Buen trabajo!';
+    return resp;
+  }
 
   /* ── ANALIZAR PARTES ── */
   if (cl.intento === 'ANALIZAR_PARTES') {
