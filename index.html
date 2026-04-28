@@ -11970,7 +11970,7 @@ function pycRenderMsgs() {
   // Actualizar "Iram dice" en modo conducción
   const last = _pycHist.filter(m => m.role==='model' && !m.thinking).slice(-1)[0];
   if (last) {
-    const d = document.getElementById('drive-iram-txt');
+    const d = document.getElementById('drive-response-txt');
     if (d) d.textContent = last.text;
   }
 }
@@ -12057,6 +12057,14 @@ function pycCerrarChat() {
   document.getElementById('pyc-overlay').classList.remove('open');
   pycPararVoz();
 }
+
+// Guardar historial cuando el usuario sale de la app o cambia de pestaña
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && _pycHist.length) iramGuardarHistorial();
+});
+window.addEventListener('pagehide', () => {
+  if (_pycHist.length) iramGuardarHistorial();
+});
 
 /* ══════════════════════════════════════════════════════
    IRAM — Resumen vivo del día
@@ -12453,7 +12461,7 @@ async function pycGemini(userMsg) {
     systemTxt += '\n\n' + pycContexto();
   }
 
-  const modelo = 'gemini-2.0-flash';
+  const modelo = 'gemini-1.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
 
   const body = {
@@ -12558,6 +12566,7 @@ async function pycGroq(userMsg) {
   }
 
   _pycHist[msgIdx].streaming = false;
+  iramGuardarHistorial(); // Guardar después del streaming
   return texto || '(Sin respuesta)';
 }
 
@@ -12629,13 +12638,14 @@ async function pycMistral(userMsg) {
   }
 
   _pycHist[msgIdx].streaming = false;
+  iramGuardarHistorial(); // Guardar después del streaming
   return texto || '(Sin respuesta)';
 }
 
 /* ══════════════════════════════════════════════════════
    IRAM — Routing y envío
    ══════════════════════════════════════════════════════ */
-const PALABRAS_WEB = /\b(busca|temperatura|tiempo|lluvia|clima|noticias?|tráfico|carretera|precio|cuánto\s+cuesta|dónde\s+está|cuándo\s+abre|festivo|festivos|día\s+libre|huelga|wikipedia|en\s+internet|en\s+la\s+web|juega|partido|resultado|clasificación|noticias?)\b/i;
+const PALABRAS_WEB = /\b(busca\s+en\s+internet|temperatura|tiempo\s+en|lluvia|clima|noticias|tráfico\s+en|precio\s+de|cuánto\s+cuesta|festivo|festivos|día\s+libre|huelga|wikipedia|en\s+internet|en\s+la\s+web|juega|partido\s+de|resultado\s+de|clasificación\s+de)\b/i;
 
 async function pycEnviar() {
   if (_pycThinking) return;
@@ -12670,7 +12680,8 @@ async function pycEnviar() {
     'LLAMAR','CREAR_TAREA','CONSULTA_TAREAS','CREAR_EVENTO','CREAR_NOTA',
     'CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE',
     'HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE',
-    'IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR','SIGUIENTE_PARADA'
+    'IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR','SIGUIENTE_PARADA',
+    'ANALIZAR_PARTES','CREAR_RUTA'
   ];
 
   if (_intentosLocales.includes(_cl.intento)) {
@@ -12784,6 +12795,18 @@ function iramHoraStr(txt) {
 function iramClasificar(txt) {
   const t   = iramNorm(txt);
   const raw = txt.toLowerCase().trim();
+
+  // ── ANALIZAR PARTES ──
+  if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?)\b/i.test(raw)) {
+    return { intento:'ANALIZAR_PARTES' };
+  }
+
+  // ── CREAR RUTA ──
+  if (/\b(crea|haz|hacer|genera|prepara)\b.*\b(ruta|paradas?)\b|\b(ruta\s+con|añad[ei]r?\s+a\s+ruta)\b/i.test(raw)) {
+    const mN = raw.match(/(\d+)\s+(?:avisos?|partes?|paradas?)/i);
+    const n  = mN ? parseInt(mN[1]) : 0;
+    return { intento:'CREAR_RUTA', n };
+  }
 
   // ── IRAMCLOUD ──
   if (/\b(vincular|conectar|configurar)\b.*\b(iramcloud|carpeta|manuales?)\b|\b(iramcloud)\b.*\b(vincul|conect)\b/i.test(t)) {
@@ -13269,6 +13292,68 @@ function iramBuscarCliente(nombre, localidad) {
 function iramEjecutarAccion(cl) {
   const hoy = new Date();
   const hoyISO = hoy.toISOString().slice(0,10);
+  const hoyD   = hoy;
+
+  /* ── ANALIZAR PARTES ── */
+  if (cl.intento === 'ANALIZAR_PARTES') {
+    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const pend = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado');
+    if (!pend.length) return 'No hay partes cargados hoy.';
+    const porCliente = {};
+    pend.forEach(a => {
+      const c = a.clienteReal||a.clienteNorm||a.cliente||'?';
+      if (!porCliente[c]) porCliente[c] = 0;
+      porCliente[c]++;
+    });
+    const urgentes = pend.filter(a => a.urgente);
+    const pci      = pend.filter(a => a.tipo==='PCI'||a.esPCI);
+    const antiguos = pend.filter(a => {
+      if (!a.fecha) return false;
+      const p = a.fecha.split('/');
+      if (p.length<3) return false;
+      return (hoyD-new Date(`${p[2]}-${p[1]}-${p[0]}`))/86400000 > 14;
+    });
+    let r = `${pend.length} partes.`;
+    const clientes = Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(', ');
+    r += ` ${clientes}.`;
+    if (urgentes.length) r += ` 🚨 Urgentes: ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}.`;
+    if (pci.length) r += ` 🔥 ${pci.length} PCI.`;
+    if (antiguos.length) r += ` ⚠️ ${antiguos.length} de más de 14 días.`;
+    return r;
+  }
+
+  /* ── CREAR RUTA ── */
+  if (cl.intento === 'CREAR_RUTA') {
+    const analisis   = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const rutaActual = loadArr(K_RUTA);
+    const candidatos = analisis.filter(a =>
+      a.estado!=='completado' && a.estado!=='cerrado' && !a.enRuta &&
+      !rutaActual.some(r => r.codigo === a.codigo)
+    ).sort((a,b) => (a.urgente?-1:0) - (b.urgente?-1:0));
+    if (!candidatos.length) return 'Todos los partes ya están en la ruta.';
+    const n     = cl.n > 0 ? Math.min(cl.n, candidatos.length) : Math.min(candidatos.length, 6);
+    const selec = candidatos.slice(0, n);
+    selec.forEach(a => { a.enRuta = true; });
+    localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+    const nuevas = selec.map(a => ({
+      id: 'R_'+Date.now()+'_'+Math.random().toString(36).slice(2),
+      clienteReal: a.clienteReal||a.clienteNorm||a.cliente,
+      clienteNorm: a.clienteNorm||a.cliente,
+      cliente:     a.cliente,
+      codigo:      a.codigo||'',
+      localidad:   a.localidad||'',
+      direccion:   a.direccion||'',
+      trabajo:     a.trabajo||a.descripcion||'',
+      horarioTxt:  a.horarioTxt||'',
+      urgente:     a.urgente||false,
+      estado:      'pendiente',
+      _zona:       a._zona||'',
+    }));
+    save(K_RUTA, [...rutaActual, ...nuevas]);
+    if (typeof renderRuta === 'function') renderRuta();
+    iramDiarioAccion(`Ruta creada: ${n} paradas`);
+    return `✅ ${n} parada${n>1?'s':''} añadidas a la ruta: ${selec.map(a=>`${a.clienteReal||a.cliente} · ${a.localidad||''}`).join(', ')}.`;
+  }
 
   /* ── IRAMCLOUD ── */
   if (cl.intento === 'IRAMCLOUD_VINCULAR') { iramCloudVincular(); return ''; }
