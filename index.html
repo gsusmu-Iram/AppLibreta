@@ -5996,9 +5996,16 @@ function cargarUltVisitas(p) {
   const cli  = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
 
   const visitas = hist.filter(h => {
-    if (key && nrm(h.KEY||'').includes(key)) return true;
-    if (key && nrm(h.KEY||'').endsWith(key)) return true;
-    return nrm(h.CLIENTE||'') === cli;
+    const hKey = nrm(h.KEY||'').replace(/^sis_/,'');
+    // Con código → solo por código (nunca por nombre — evita mezclar Cajamar con Cajamar)
+    if (key) {
+      return hKey === key || hKey.endsWith(key) || key.endsWith(hKey);
+    }
+    // Sin código → por nombre exacto + localidad
+    const hCli = nrm(h.CLIENTE||'');
+    const hLoc = nrm(h.LOCALIDAD||h.MUNICIPIO||'');
+    const pLoc = nrm(p.localidad||'');
+    return hCli === cli && (!pLoc || hLoc === pLoc);
   }).slice(0, 5);
 
   const hdr = document.querySelector('.ult-vis-hdr .ult-vis-lbl');
@@ -6168,9 +6175,12 @@ function guardarFinalizar() {
   clis.forEach(c => {
     const codMatch = p.codigo && (nrmCod(c.CODIGO||c.codigo||'') === nrmCod(p.codigo) ||
       codigoVariantes(p.codigo).includes(nrmCod(c.CODIGO||c.codigo||'')));
-    const cliMatch = (c.CLIENTE||c.cliente||'').toUpperCase() === (p.clienteNorm||p.cliente||'').toUpperCase();
     const locMatch = !p.localidad || (c.MUNICIPIO||c.municipio||'').toUpperCase() === p.localidad.toUpperCase();
-    if ((codMatch || cliMatch) && locMatch) {
+    // Con código → solo por código. Sin código → por nombre + localidad
+    const sinCodigo = !p.codigo;
+    const cliMatch  = sinCodigo &&
+      (c.CLIENTE||c.cliente||'').toUpperCase() === (p.clienteNorm||p.cliente||'').toUpperCase();
+    if ((p.codigo ? codMatch : cliMatch) && locMatch) {
       if (nuevoHorario) c.HORARIO = nuevoHorario;
       if (obs) c.OBSERVACIONES = obs;
       if (!cliRowExcel) cliRowExcel = c;
@@ -13015,9 +13025,32 @@ async function pycEnviar() {
   let _cl;
   const _clIA = await iramClasificarIA(txt).catch(() => null);
   if (_clIA) {
-    // Normalizar campos que el ejecutor espera
-    if (_clIA.intento === 'CREAR_TAREA' && _clIA.fecha) {
-      _clIA.fecha = iramFechaISO(iramNorm(_clIA.fecha));
+    // ── Limpiar palabras de comando de los campos que Groq devuelve ──
+    const limpiarTitulo = (s) => (s||'')
+      .replace(/\bcrea[r]?\s+un[ao]?\s+(tarea|evento|nota)\b/gi, '')
+      .replace(/\ba[ñn]ade?\s+un[ao]?\s+tarea\b/gi, '')
+      .replace(/\bpara\s+(hoy|ma[ñn]ana|el\s+\w+\s*\d*)\b/gi, '')
+      .replace(/\b(hoy|ma[ñn]ana|pasado\s+ma[ñn]ana)\b/gi, '')
+      .replace(/\bel\s+(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*\d*\b/gi, '')
+      .replace(/\s+/g,' ').trim();
+
+    const limpiarTexto = (s) => (s||'')
+      .replace(/\bcrea[r]?\s+una?\s+nota\b/gi, '')
+      .replace(/\bapta\s+que\b|\banota\s+que\b/gi, '')
+      .replace(/\s+/g,' ').trim();
+
+    const convertirFecha = (f) => f ? iramFechaISO(iramNorm(f)) : '';
+
+    if (_clIA.intento === 'CREAR_TAREA') {
+      if (_clIA.titulo) _clIA.titulo = limpiarTitulo(_clIA.titulo);
+      if (_clIA.fecha)  _clIA.fecha  = convertirFecha(_clIA.fecha);
+    }
+    if (_clIA.intento === 'CREAR_EVENTO') {
+      if (_clIA.titulo) _clIA.titulo = limpiarTitulo(_clIA.titulo);
+      if (_clIA.fecha)  _clIA.fecha  = convertirFecha(_clIA.fecha);
+    }
+    if (_clIA.intento === 'CREAR_NOTA') {
+      if (_clIA.texto)  _clIA.texto  = limpiarTexto(_clIA.texto);
     }
     _cl = _clIA;
   } else {
@@ -13831,21 +13864,6 @@ function iramEjecutarAccion(cl) {
     save(K_NOTAS, notas);
     if (typeof renderNotas === 'function') renderNotas();
     return `✅ Nota guardada.`;
-  }
-
-  /* ── CREAR EVENTO (antiguo — sin diálogo) ── */
-  if (cl.intento === 'CREAR_EVENTO' && cl.titulo && cl.fecha && !cl.texto) {
-    const eventos = loadArr(K_EVENTOS);
-    eventos.push({
-      id:'EV_'+Date.now(), titulo:cl.titulo,
-      fecha:cl.fecha, fechaFin:cl.fecha,
-      hora:cl.hora||'', todoDia:!cl.hora,
-      descripcion:'Creado por Iram', tipo:'evento',
-    });
-    save(K_EVENTOS, eventos);
-    if (typeof refreshFCEvents === 'function') refreshFCEvents();
-    const fStr = new Date(cl.fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
-    return `✅ Evento "${cl.titulo}" el ${fStr}${cl.hora?' a las '+cl.hora:''}.`;
   }
 
   /* ── COMPLETAR AVISO ── */
