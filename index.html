@@ -11882,7 +11882,11 @@ function iramConfirmarWaze(parada) {
         🗺️ Abrir Waze
       </button>
     </div>`;
-  (document.getElementById('iram-chat') || document.getElementById('iram-drive') || document.getElementById('pyc-overlay'))?.appendChild(panel);
+  const driveActivo = document.getElementById('iram-drive')?.classList.contains('active');
+  const contenedor  = driveActivo
+    ? document.getElementById('iram-drive')
+    : (document.getElementById('iram-chat') || document.getElementById('pyc-overlay'));
+  if (contenedor) contenedor.appendChild(panel);
 }
 
 /* Panel de confirmación táctil para llamar */
@@ -12208,7 +12212,12 @@ function pycAbrirChat() {
   pycCheckKey();
   const tenia = iramCargarHistorial();
   if (!tenia || !_pycHist.length) {
-    pycMsgIA(iramSaludoProactivo(), false, 'local');
+    // Solo mostrar saludo si no hay historial del día
+    const saludo = iramSaludoProactivo();
+    _pycHist.push({ role:'model', text:saludo, ia:'local' });
+    pycRenderMsgs();
+    setTimeout(() => pycHablar(saludo), 300);
+    // NO llamar iramGuardarHistorial aquí — el saludo no debe sobrescribir historial real
   }
   iramCloudInit().catch(()=>{});
   setTimeout(() => document.getElementById('pyc-ta')?.focus(), 350);
@@ -12631,7 +12640,7 @@ async function pycGemini(userMsg) {
     systemTxt += '\n\n' + pycContexto();
   }
 
-  const modelo = 'gemini-2.0-flash-lite';
+  const modelo = 'gemini-2.5-flash-lite';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
 
   const body = {
@@ -12846,16 +12855,29 @@ async function pycEnviar() {
     }
   }
 
-  // ── Classifier ──
-  const _cl = iramClasificar(txt);
+  // ── Classifier — IA traduce lenguaje natural, local como fallback ──
+  // Mostrar indicador de escucha mientras clasifica
   const _intentosLocales = [
-    'LLAMAR','CREAR_TAREA','CONSULTA_TAREAS','CONSULTA_EVENTOS','CREAR_EVENTO','CREAR_NOTA',
+    'LLAMAR','CREAR_TAREA','CONSULTA_TAREAS','CONSULTA_RUTA','CONSULTA_EVENTOS','CREAR_EVENTO','CREAR_NOTA',
     'CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','SIGUIENTE_PARADA',
     'HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE',
     'IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR',
     'ANALIZAR_PARTES','CREAR_RUTA','ANADIR_RUTA',
     'COMPLETAR_PARADA','REGISTRAR_MTO','MARCAR_TAREA_HECHA'
   ];
+
+  // Clasificar con IA (rápido) o fallback local
+  let _cl;
+  const _clIA = await iramClasificarIA(txt).catch(() => null);
+  if (_clIA) {
+    // Normalizar campos que el ejecutor espera
+    if (_clIA.intento === 'CREAR_TAREA' && _clIA.fecha) {
+      _clIA.fecha = iramFechaISO(iramNorm(_clIA.fecha));
+    }
+    _cl = _clIA;
+  } else {
+    _cl = iramClasificar(txt); // Fallback local
+  }
 
   if (_intentosLocales.includes(_cl.intento)) {
     const resultado = iramEjecutarAccion(_cl);
@@ -12925,8 +12947,77 @@ async function pycEnviar() {
 }
 
 /* ══════════════════════════════════════════════════════
-   IRAM CLASSIFIER
+   IRAM CLASSIFIER — IA traduce lenguaje natural a JSON
+   Fallback local por regex
    ══════════════════════════════════════════════════════ */
+
+const IRAM_INTENTOS_SCHEMA = `Eres un clasificador de intenciones para un técnico de seguridad. Convierte la frase en JSON.
+Responde SOLO JSON válido, sin explicaciones.
+
+INTENTOS:
+COMPLETAR_PARADA(trabajo?), REGISTRAR_MTO(trim?), SIGUIENTE_PARADA,
+NAVEGAR(destino), CONSULTA_RUTA, ANADIR_RUTA(destino), CREAR_RUTA(n?),
+ANALIZAR_PARTES(localidad?), AVERIAS_SIN_MTO, MTO_ESTADO(cliente,localidad?), MTO_SEMANA,
+CREAR_TAREA(titulo,fecha?), CONSULTA_TAREAS, MARCAR_TAREA_HECHA(titulo),
+CREAR_NOTA(texto), CREAR_EVENTO(titulo,fecha?,hora?), CONSULTA_EVENTOS,
+LLAMAR(quien), HORARIO(cliente,localidad?), HISTORIAL_CLIENTE(cliente,localidad?),
+MATERIAL_PENDIENTE, CONTAR_AVISOS, URGENTE, CHAT
+
+Ejemplo: "se ha quedao arreglao el cajero" → {"intento":"COMPLETAR_PARADA","trabajo":"cajero arreglado"}
+Ejemplo: "recuérdame coger baterías mañana" → {"intento":"CREAR_TAREA","titulo":"coger baterías","fecha":"mañana"}
+Ejemplo: "qué tiempo hace" → {"intento":"CHAT"}`;
+
+async function iramClasificarIA(txt) {
+  const keyGroq = pycGetKey('groq');
+  if (keyGroq) {
+    try {
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${keyGroq}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: IRAM_INTENTOS_SCHEMA },
+            { role: 'user', content: txt }
+          ],
+          max_tokens: 80, temperature: 0,
+          response_format: { type: 'json_object' }
+        })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const json = JSON.parse(data?.choices?.[0]?.message?.content || '{}');
+        if (json.intento && json.intento !== 'CHAT') return json;
+        if (json.intento === 'CHAT') return json; // CHAT válido también
+      }
+    } catch(e) {}
+  }
+  const keyMistral = pycGetKey('mistral');
+  if (keyMistral) {
+    try {
+      const resp = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${keyMistral}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'mistral-small-latest',
+          messages: [
+            { role: 'system', content: IRAM_INTENTOS_SCHEMA },
+            { role: 'user', content: txt }
+          ],
+          max_tokens: 80, temperature: 0,
+          response_format: { type: 'json_object' }
+        })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const json = JSON.parse(data?.choices?.[0]?.message?.content || '{}');
+        if (json.intento) return json;
+      }
+    } catch(e) {}
+  }
+  return null;
+}
+
 const _DIAS_IDX = {
   lunes:1, martes:2, 'miercoles':3, 'miércoles':3,
   jueves:4, viernes:5, 'sabado':6, 'sábado':6, domingo:0
@@ -13176,6 +13267,11 @@ function iramClasificar(txt) {
     return { intento:'CONSULTA_EVENTOS' };
   }
 
+  // ── CONSULTA RUTA / PARADAS ──
+  if (/\b(paradas?|ruta|trabajos?|avisos?)\s+(de\s+hoy|que\s+tengo|del\s+día|pendientes?|activos?|en\s+la\s+ruta)\b|\b(dime\s+(las\s+)?paradas?|dime\s+(los\s+)?trabajos?|dime\s+(la\s+)?ruta|cu[aá]ntas?\s+paradas?|cu[aá]ntos?\s+trabajos?)\b/i.test(raw)) {
+    return { intento:'CONSULTA_RUTA' };
+  }
+
   // ── CONSULTA TAREAS ──
   if (/\b(dime\s+(?:las\s+)?tareas?|tareas?\s+(?:que\s+tengo|pendientes?|de\s+hoy)|qu[eé]\s+tareas?\s+tengo)\b/i.test(raw)) {
     return { intento:'CONSULTA_TAREAS' };
@@ -13245,14 +13341,32 @@ function iramEjecutarAccion(cl) {
     return `Eventos de este mes (${evMes.length}):\n${lista}`;
   }
 
+  /* ── CONSULTA RUTA ── */
+  if (cl.intento === 'CONSULTA_RUTA') {
+    const ruta   = loadArr(K_RUTA);
+    const pend   = ruta.filter(r => r.estado === 'pendiente');
+    const hechas = ruta.filter(r => r.estado === 'completada');
+    if (!ruta.length) return 'No hay ruta cargada hoy.';
+    const lista = pend.map((p,i) => {
+      const c = p.clienteReal||p.clienteNorm||p.cliente||'?';
+      const l = p.localidad||'';
+      const t = (p.trabajo||'').slice(0,50);
+      return `${i+1}. ${c}${l?' · '+l:''}: ${t}`;
+    }).join('\n');
+    let resp = `${pend.length} paradas pendientes`;
+    if (hechas.length) resp += `, ${hechas.length} completadas`;
+    resp += '.\n' + lista;
+    return resp;
+  }
+
   /* ── CONSULTA TAREAS ── */
   if (cl.intento === 'CONSULTA_TAREAS') {
-    const tareas = loadArr(K_TAREAS);
+    const tareas = loadArr(K_TAREAS); // K_TAREAS — solo tareas personales
     const tPend  = tareas.filter(t => t.estado === 'pendiente');
     const tHoy   = tPend.filter(t => t.fecha === hoyISO);
     if (!tPend.length) return 'No tienes tareas pendientes.';
-    const lista = tPend.slice(0,6).map(t => `${t.titulo}${t.fecha?' ('+t.fecha+')':''}`).join(', ');
-    return `${tPend.length} tareas pendientes${tHoy.length?' · '+tHoy.length+' para hoy':''}: ${lista}.`;
+    const lista = tPend.map(t => `- ${t.titulo}${t.fecha?' ('+t.fecha+')':''}`).join('\n');
+    return `${tPend.length} tarea${tPend.length>1?'s':''} pendiente${tPend.length>1?'s':''}${tHoy.length?' · '+tHoy.length+' para hoy':''}:\n${lista}`;
   }
 
   /* ── MTO SEMANA ── */
