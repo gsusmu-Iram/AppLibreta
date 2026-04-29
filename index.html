@@ -12087,10 +12087,92 @@ function pycGetKey(ia) {
   return localStorage.getItem(stores[ia] || '') || '';
 }
 
+function pycMostrarKeyCtx(ia) {
+  const box = document.getElementById('pyc-key-box');
+  if (!box) return;
+  const lbl  = document.getElementById('pyc-key-lbl');
+  const desc = document.getElementById('pyc-key-desc');
+  const link = document.getElementById('pyc-key-link');
+  const btn  = document.getElementById('pyc-key-btn-ctx');
+  const nombres = { groq:'Groq', mistral:'Mistral', gemini:'Gemini' };
+  const urls    = { groq:'https://console.groq.com/keys', mistral:'https://console.mistral.ai/api-keys/', gemini:'https://aistudio.google.com/app/apikey' };
+  if (lbl)  lbl.textContent  = `🔑 Configura tu key de ${nombres[ia]||ia}`;
+  if (desc) desc.textContent = 'Se guarda solo en tu móvil. Nunca sale de aquí.';
+  if (link) link.innerHTML   = `<a href="${urls[ia]||'#'}" target="_blank" style="color:#a78bfa;text-decoration:none">Obtener key gratuita →</a>`;
+  if (btn) { btn.dataset.ia = ia; btn.textContent = 'Guardar'; }
+  box.style.display = 'flex';
+  box.style.flexDirection = 'column';
+  // Asegurar que el input esté vacío y visible
+  const input = document.getElementById('pyc-key-input-ctx');
+  if (input) { input.value = ''; input.placeholder = `Pega tu key de ${nombres[ia]||ia} aquí…`; }
+}
+
+function pycOcultarKeyBox() {
+  const box = document.getElementById('pyc-key-box');
+  if (box) box.style.display = 'none';
+  const boxAll = document.getElementById('pyc-key-box-all');
+  if (boxAll) boxAll.style.display = 'none';
+}
+
+function pycGuardarKeyCtx() {
+  const input = document.getElementById('pyc-key-input-ctx');
+  const btn   = document.getElementById('pyc-key-btn-ctx');
+  const ia    = btn?.dataset?.ia || 'groq';
+  const val   = input?.value?.trim();
+  if (!val) return;
+  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
+  localStorage.setItem(stores[ia] || PYC_KEY_GROQ, val);
+  if (input) input.value = '';
+  pycOcultarKeyBox();
+  pycMsgIA(`✅ Key de ${ia} guardada. Ya puedo funcionar.`, false, 'local');
+}
+
+function pycGuardarKey(ia) {
+  const ids    = { groq:'pyc-key-groq', mistral:'pyc-key-mistral', gemini:'pyc-key-gemini' };
+  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
+  const input  = document.getElementById(ids[ia]);
+  const val    = input?.value?.trim();
+  if (!val) return;
+  localStorage.setItem(stores[ia], val);
+  if (input) input.value = '';
+  const btn = input?.nextElementSibling;
+  if (btn) { btn.textContent = '✅'; setTimeout(() => btn.textContent = '✓', 1500); }
+}
+
+function pycMostrarTodasKeys() {
+  const box = document.getElementById('pyc-key-box');
+  if (box) box.style.display = 'none';
+  const boxAll = document.getElementById('pyc-key-box-all');
+  if (boxAll) {
+    boxAll.style.display = 'block';
+    // Rellenar con keys actuales (enmascaradas)
+    const fills = { 'pyc-key-groq': PYC_KEY_GROQ, 'pyc-key-mistral': PYC_KEY_MISTRAL, 'pyc-key-gemini': PYC_KEY_GEMINI };
+    Object.entries(fills).forEach(([id, store]) => {
+      const el = document.getElementById(id);
+      if (el) el.placeholder = localStorage.getItem(store) ? '●●●●●●●● (guardada)' : el.placeholder;
+    });
+  }
+}
+
+function pycOcultarTodasKeys() {
+  const boxAll = document.getElementById('pyc-key-box-all');
+  if (boxAll) boxAll.style.display = 'none';
+  pycCheckKey();
+}
+
 function pycCheckKey() {
-  const ia = _iramIA === 'gemini' ? 'gemini' : 'groq';
-  if (!pycGetKey(ia)) pycMostrarKeyCtx(ia);
-  else pycOcultarKeyBox();
+  // Groq primero — clasificador principal
+  if (!pycGetKey('groq')) {
+    pycMostrarKeyCtx('groq');
+  // Mistral segundo — fallback del clasificador
+  } else if (!pycGetKey('mistral')) {
+    pycMostrarKeyCtx('mistral');
+  // Gemini solo en modo WEB
+  } else if (_iramModo === 'web' && !pycGetKey('gemini')) {
+    pycMostrarKeyCtx('gemini');
+  } else {
+    pycOcultarKeyBox();
+  }
 }
 
 /* ── Mensajes ── */
@@ -12206,18 +12288,26 @@ function iramLimpiarChat() {
 }
 
 function pycAbrirChat() {
+  // Siempre arrancar en modo IRAM (local), nunca en WEB
+  _iramModo = 'local';
+  _iramIA   = 'groq';
+
   document.getElementById('pyc-overlay').classList.add('open');
   iramShowMode('chat');
   iramRellenarDrive();
+
+  // Resetear toggle visualmente a IRAM
+  document.querySelectorAll('.ia-btn').forEach(b => b.classList.remove('on'));
+  const btnIram = document.getElementById('btn-iram');
+  if (btnIram) btnIram.classList.add('on');
+
   pycCheckKey();
   const tenia = iramCargarHistorial();
   if (!tenia || !_pycHist.length) {
-    // Solo mostrar saludo si no hay historial del día
     const saludo = iramSaludoProactivo();
     _pycHist.push({ role:'model', text:saludo, ia:'local' });
     pycRenderMsgs();
     setTimeout(() => pycHablar(saludo), 300);
-    // NO llamar iramGuardarHistorial aquí — el saludo no debe sobrescribir historial real
   }
   iramCloudInit().catch(()=>{});
   setTimeout(() => document.getElementById('pyc-ta')?.focus(), 350);
@@ -12290,7 +12380,8 @@ function iramResumenDia() {
 /* ══════════════════════════════════════════════════════
    IRAM — Última acción propuesta (para resolver "sí"/"va")
    ══════════════════════════════════════════════════════ */
-let _iramUltimaAccion = null; // { tipo: 'llamar'|'waze', datos: {} }
+let _iramDialogo = null; // { esperando: 'CREAR_TAREA', datos: {} }
+let _iramUltimaAccion = null;
 
 /* ══════════════════════════════════════════════════════
    IRAM — Saludo proactivo inteligente
@@ -12838,6 +12929,36 @@ async function pycEnviar() {
   pycAutoResize(ta);
   pycMsgUser(txt);
 
+  // ── ¿Hay un diálogo pendiente? ──
+  if (_iramDialogo) {
+    const dialogo = _iramDialogo;
+    _iramDialogo  = null;
+    if (dialogo.esperando === 'CREAR_TAREA') {
+      const cl2 = { ...dialogo.datos, titulo: txt };
+      const res  = iramEjecutarAccion(cl2);
+      if (res) pycMsgIA(res, false, 'local');
+      return;
+    }
+    if (dialogo.esperando === 'CREAR_EVENTO') {
+      const cl2 = { ...dialogo.datos, titulo: txt };
+      const res  = iramEjecutarAccion(cl2);
+      if (res) pycMsgIA(res, false, 'local');
+      return;
+    }
+    if (dialogo.esperando === 'CREAR_EVENTO_FECHA') {
+      const cl2 = { ...dialogo.datos, fecha: iramFechaISO(iramNorm(txt)) };
+      const res  = iramEjecutarAccion(cl2);
+      if (res) pycMsgIA(res, false, 'local');
+      return;
+    }
+    if (dialogo.esperando === 'CREAR_NOTA') {
+      const cl2 = { ...dialogo.datos, texto: txt };
+      const res  = iramEjecutarAccion(cl2);
+      if (res) pycMsgIA(res, false, 'local');
+      return;
+    }
+  }
+
   // ── ¿Es una confirmación de acción pendiente? ──
   const esConfirmacion = /^(s[íi]|va|dale|venga|ok|claro|hazlo|llama|abre|sí|si)$/i.test(txt.trim());
   if (esConfirmacion && _iramUltimaAccion) {
@@ -12983,6 +13104,8 @@ HISTORIAL_CLIENTE(cliente,localidad?) — cuándo fui, qué hice en una oficina
 MATERIAL_PENDIENTE — qué material tengo pendiente de recoger
 CONTAR_AVISOS — cuántos avisos me quedan (alias de CONSULTA_AVISOS)
 URGENTE — mover el urgente al inicio de la ruta
+IRAMCLOUD_VINCULAR — vincular carpeta de manuales IramCloud
+IRAMCLOUD_LISTAR — listar manuales disponibles en IramCloud
 CHAT — conversación sin acción, pregunta web, o no reconocido
 
 EJEMPLOS:
@@ -13298,8 +13421,8 @@ function iramClasificar(txt) {
     return { intento:'CONSULTA_EVENTOS' };
   }
 
-  // ── CONSULTA RUTA / PARADAS ──
-  if (/\b(paradas?|ruta|trabajos?|avisos?)\s+(de\s+hoy|que\s+tengo|del\s+día|pendientes?|activos?|en\s+la\s+ruta)\b|\b(dime\s+(las\s+)?paradas?|dime\s+(los\s+)?trabajos?|dime\s+(la\s+)?ruta|cu[aá]ntas?\s+paradas?|cu[aá]ntos?\s+trabajos?)\b/i.test(raw)) {
+  // ── CONSULTA RUTA / AVISOS ──
+  if (/\b(qu[eé]\s+avisos?|cu[aá]ntos?\s+avisos?|dime\s+(los\s+)?avisos?|avisos?\s+(que\s+tengo|de\s+hoy|pendientes?|tengo)|paradas?\s+(de\s+hoy|que\s+tengo)|dime\s+(la\s+)?ruta|trabajos?\s+de\s+hoy|cu[aá]nto\s+me\s+queda)\b/i.test(raw)) {
     return { intento:'CONSULTA_AVISOS' };
   }
 
@@ -13621,17 +13744,22 @@ function iramEjecutarAccion(cl) {
 
   /* ── CREAR TAREA ── */
   /* ── CREAR TAREA ── */
-  if (cl.intento === 'CREAR_TAREA' && cl.titulo) {
+  if (cl.intento === 'CREAR_TAREA') {
+    // Si no hay título → modo diálogo, esperar siguiente mensaje
+    if (!cl.titulo || cl.titulo.trim().length < 2) {
+      _iramDialogo = { esperando: 'CREAR_TAREA', datos: cl };
+      return '¿Cómo se llama la tarea?';
+    }
     const tareas = loadArr(K_TAREAS);
     tareas.unshift({
       id:          'T_'+Date.now(),
-      titulo:      cl.titulo,
+      titulo:      cl.titulo.trim(),
       descripcion: '',
       prioridad:   'normal',
-      fecha:       cl.fecha || '', // Solo si el usuario la dijo
+      fecha:       cl.fecha || '',
       estado:      'pendiente',
       etiquetas:   'iram',
-      alarma:      '07:00',       // Siempre alarma a las 7:00
+      alarma:      '07:00',
     });
     save(K_TAREAS, tareas);
     if (typeof renderTareas === 'function') renderTareas();
@@ -13644,7 +13772,46 @@ function iramEjecutarAccion(cl) {
   }
 
   /* ── CREAR EVENTO ── */
-  if (cl.intento === 'CREAR_EVENTO' && cl.titulo && cl.fecha) {
+  if (cl.intento === 'CREAR_EVENTO') {
+    if (!cl.titulo || cl.titulo.trim().length < 2) {
+      _iramDialogo = { esperando: 'CREAR_EVENTO', datos: cl };
+      return '¿Cómo se llama el evento?';
+    }
+    if (!cl.fecha) {
+      _iramDialogo = { esperando: 'CREAR_EVENTO_FECHA', datos: cl };
+      return '¿Para qué día?';
+    }
+    const eventos = loadArr(K_EVENTOS);
+    eventos.push({
+      id: 'EV_'+Date.now(), titulo: cl.titulo.trim(),
+      fecha: cl.fecha, fechaFin: cl.fecha,
+      hora: cl.hora||'', todoDia: !cl.hora,
+      descripcion: 'Creado por Iram', tipo: 'evento',
+    });
+    save(K_EVENTOS, eventos);
+    if (typeof refreshFCEvents === 'function') refreshFCEvents();
+    const fStr = new Date(cl.fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+    return `✅ Evento "${cl.titulo}" el ${fStr}${cl.hora?' a las '+cl.hora:''}.`;
+  }
+
+  /* ── CREAR NOTA ── */
+  if (cl.intento === 'CREAR_NOTA') {
+    if (!cl.texto || cl.texto.trim().length < 3) {
+      _iramDialogo = { esperando: 'CREAR_NOTA', datos: cl };
+      return 'Dime el texto de la nota.';
+    }
+    const notas = loadArr(K_NOTAS);
+    notas.unshift({
+      id: 'N_'+Date.now(), titulo: cl.texto.slice(0,40),
+      texto: cl.texto, fecha: new Date().toISOString().slice(0,10), etiquetas: 'iram',
+    });
+    save(K_NOTAS, notas);
+    if (typeof renderNotas === 'function') renderNotas();
+    return `✅ Nota guardada.`;
+  }
+
+  /* ── CREAR EVENTO (antiguo — sin diálogo) ── */
+  if (cl.intento === 'CREAR_EVENTO' && cl.titulo && cl.fecha && !cl.texto) {
     const eventos = loadArr(K_EVENTOS);
     eventos.push({
       id:'EV_'+Date.now(), titulo:cl.titulo,
@@ -13658,16 +13825,195 @@ function iramEjecutarAccion(cl) {
     return `✅ Evento "${cl.titulo}" el ${fStr}${cl.hora?' a las '+cl.hora:''}.`;
   }
 
-  /* ── CREAR NOTA ── */
-  if (cl.intento === 'CREAR_NOTA' && cl.texto) {
-    const notas = loadArr(K_NOTAS);
-    notas.unshift({
-      id:'N_'+Date.now(), titulo:cl.texto.slice(0,40),
-      texto:cl.texto, fecha:hoyISO, etiquetas:'iram',
+  /* ── COMPLETAR AVISO ── */
+  if (cl.intento === 'COMPLETAR_AVISO') {
+    const ruta = loadArr(K_RUTA);
+    const sig  = ruta.find(r => r.estado === 'pendiente');
+    if (!sig) return 'No hay avisos pendientes en la ruta.';
+    const trabajo = (cl.trabajo||'')
+      .replace(/\biram\b/gi,'')
+      .replace(/\b(finaliza[dr]?o?|completad[ao]|trabajo\s+finalizado|trabajo\s+hecho|aviso\s+hecho|listo|hecho)\b/gi,'')
+      .replace(/\s+/g,' ').trim() || sig.trabajo || '';
+    const idx = ruta.findIndex(r => r.id === sig.id);
+    if (idx !== -1) { ruta[idx].estado='completada'; ruta[idx].trabajoRealizado=trabajo; save(K_RUTA, ruta); }
+    const hist = loadArr(K_HIST);
+    const fechaHoy = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+    hist.unshift({ KEY: sig.codigo?'sis_'+sig.codigo:sig.id, FECHA:fechaHoy, CLIENTE:sig.clienteReal||sig.clienteNorm||sig.cliente||'', LOCALIDAD:sig.localidad||'', TRABAJO:trabajo, OT:sig.ot||'', ESTADO:'Finalizado' });
+    save(K_HIST, hist);
+    let mtoMsg = '';
+    if (cl.mto) {
+      const trim   = cl.mto.toUpperCase();
+      const clave  = iramMtoKey(sig.clienteReal||sig.clienteNorm||sig.cliente||'', sig.codigo||'');
+      const mtoMan = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
+      if (!mtoMan[clave]) mtoMan[clave] = {};
+      mtoMan[clave][trim] = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
+      localStorage.setItem('pyc_mto_manual', JSON.stringify(mtoMan));
+      if (typeof renderMTO === 'function') renderMTO();
+      mtoMsg = ` MTO ${trim} registrado.`;
+    }
+    if (typeof renderRuta === 'function') renderRuta();
+    iramDiarioAccion(`Completado: ${sig.clienteReal||sig.cliente} · ${sig.localidad||''}${cl.mto?' + MTO '+cl.mto:''}`);
+    const rutaAct = loadArr(K_RUTA);
+    const sig2 = rutaAct.find(r => r.estado==='pendiente');
+    let resp = `✅ ${sig.clienteReal||sig.cliente} · ${sig.localidad||''} completado.${mtoMsg}`;
+    if (sig2) resp += ` Siguiente: ${sig2.clienteReal||sig2.clienteNorm||sig2.cliente} · ${sig2.localidad||''}.`;
+    else resp += ' Ruta completada. ¡Buen trabajo!';
+    return resp;
+  }
+
+  /* ── REGISTRAR MTO ── */
+  if (cl.intento === 'REGISTRAR_MTO') {
+    const ruta = loadArr(K_RUTA);
+    const sig  = ruta.find(r => r.estado === 'pendiente');
+    if (!sig) return 'No hay avisos activos en la ruta.';
+    const mesActual  = new Date().getMonth();
+    const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
+    const trim       = (cl.trim||trimActual).toUpperCase();
+    const clave      = iramMtoKey(sig.clienteReal||sig.clienteNorm||sig.cliente||'', sig.codigo||'');
+    const mtoMan     = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
+    if (!mtoMan[clave]) mtoMan[clave] = {};
+    mtoMan[clave][trim] = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
+    localStorage.setItem('pyc_mto_manual', JSON.stringify(mtoMan));
+    if (typeof renderMTO === 'function') renderMTO();
+    iramDiarioAccion(`MTO ${trim}: ${sig.clienteReal||sig.cliente} · ${sig.localidad||''}`);
+    return `✅ MTO ${trim} registrado — ${sig.clienteReal||sig.cliente} · ${sig.localidad||''}.`;
+  }
+
+  /* ── MARCAR TAREA HECHA ── */
+  if (cl.intento === 'MARCAR_TAREA_HECHA') {
+    const tareas = loadArr(K_TAREAS);
+    const nQ     = iramNorm(cl.titulo||'');
+    const idx    = tareas.findIndex(t => t.estado==='pendiente' && iramNorm(t.titulo||'').includes(nQ.slice(0,6)));
+    if (idx === -1) return `No encuentro la tarea "${cl.titulo}".`;
+    tareas[idx].estado = 'hecha';
+    save(K_TAREAS, tareas);
+    if (typeof renderTareas === 'function') renderTareas();
+    return `✅ Tarea "${tareas[idx].titulo}" completada.`;
+  }
+
+  /* ── ANADIR AVISO ── */
+  if (cl.intento === 'ANADIR_AVISO') {
+    const analisis  = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const rutaActual= loadArr(K_RUTA);
+    const nD        = iramNorm(cl.destino||'');
+    const parte     = analisis.find(a => {
+      if (a.estado==='completado'||a.estado==='cerrado'||a.enRuta) return false;
+      const nC = iramNorm(a.clienteReal||a.clienteNorm||a.cliente||'');
+      const nL = iramNorm(a.localidad||'');
+      return nC.includes(nD.slice(0,5))||nD.includes(nC.slice(0,5))||nL.includes(nD.slice(0,4))||nD.includes(nL.slice(0,4));
     });
-    save(K_NOTAS, notas);
-    if (typeof renderNotas === 'function') renderNotas();
-    return `✅ Nota guardada: "${cl.texto.slice(0,40)}".`;
+    if (!parte) return `No encuentro "${cl.destino}" en los partes de hoy.`;
+    parte.enRuta = true;
+    localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+    rutaActual.push({ id:'R_'+Date.now(), clienteReal:parte.clienteReal||parte.clienteNorm||parte.cliente, clienteNorm:parte.clienteNorm||parte.cliente, cliente:parte.cliente, codigo:parte.codigo||'', localidad:parte.localidad||'', direccion:parte.direccion||'', trabajo:parte.trabajo||parte.descripcion||'', horarioTxt:parte.horarioTxt||'', urgente:parte.urgente||false, estado:'pendiente' });
+    save(K_RUTA, rutaActual);
+    if (typeof renderRuta === 'function') renderRuta();
+    return `✅ ${parte.clienteReal||parte.cliente} · ${parte.localidad||''} añadido a la ruta.`;
+  }
+
+  /* ── CREAR RUTA ── */
+  if (cl.intento === 'CREAR_RUTA') {
+    const analisis   = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const rutaActual = loadArr(K_RUTA);
+    const candidatos = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado'&&!a.enRuta&&!rutaActual.some(r=>r.codigo===a.codigo)).sort((a,b)=>(a.urgente?-1:0)-(b.urgente?-1:0));
+    if (!candidatos.length) return 'Todos los partes ya están en la ruta.';
+    const n     = cl.n>0 ? Math.min(cl.n,candidatos.length) : Math.min(candidatos.length,6);
+    const selec = candidatos.slice(0,n);
+    selec.forEach(a => { a.enRuta=true; });
+    localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+    const nuevas = selec.map(a => ({ id:'R_'+Date.now()+'_'+Math.random().toString(36).slice(2), clienteReal:a.clienteReal||a.clienteNorm||a.cliente, clienteNorm:a.clienteNorm||a.cliente, cliente:a.cliente, codigo:a.codigo||'', localidad:a.localidad||'', direccion:a.direccion||'', trabajo:a.trabajo||a.descripcion||'', horarioTxt:a.horarioTxt||'', urgente:a.urgente||false, estado:'pendiente' }));
+    save(K_RUTA, [...rutaActual, ...nuevas]);
+    if (typeof renderRuta === 'function') renderRuta();
+    iramDiarioAccion(`Ruta creada: ${n} avisos`);
+    return `✅ ${n} aviso${n>1?'s':''} añadidos a la ruta.`;
+  }
+
+  /* ── RUTA SIN MTO ── */
+  if (cl.intento === 'RUTA_SIN_MTO') {
+    const ruta  = loadArr(K_RUTA);
+    const mes   = new Date().getMonth();
+    const trim  = (cl.trim||(mes<3?'Q1':mes<6?'Q2':mes<9?'Q3':'Q4')).toUpperCase();
+    const pend  = ruta.filter(r => r.estado==='pendiente');
+    if (!pend.length) return 'No hay avisos pendientes.';
+    const sinMto = pend.filter(p => {
+      const d = iramGetMtoData(p.clienteReal||p.clienteNorm||p.cliente||'',p.codigo||'',p.localidad||'',trim);
+      if (!d) return true;
+      const v = d[trim]||'';
+      return !v||v.trim()===''||v==='0';
+    });
+    if (!sinMto.length) return `Todos los avisos tienen el ${trim} hecho ✅`;
+    return `${sinMto.length} sin ${trim}: ${sinMto.map(p=>`${p.clienteReal||p.clienteNorm||p.cliente} · ${p.localidad||''}`).join(', ')}.`;
+  }
+
+  /* ── ANALIZAR PARTES ── */
+  if (cl.intento === 'ANALIZAR_PARTES') {
+    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const hoyD     = new Date();
+    let pend = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado');
+    if (cl.localidad) {
+      const nL = iramNorm(cl.localidad);
+      const filtrados = pend.filter(a => iramNorm(a.localidad||'').includes(nL)||nL.includes(iramNorm(a.localidad||'').slice(0,4)));
+      if (filtrados.length) {
+        const lista = filtrados.map(a=>`${a.clienteReal||a.clienteNorm||a.cliente} (${a.codigo||''}): ${(a.trabajo||a.descripcion||'').slice(0,60)}`).join('\n');
+        return `${filtrados.length} parte${filtrados.length>1?'s':''} en ${cl.localidad}:\n${lista}`;
+      }
+      return `No hay partes en ${cl.localidad}.`;
+    }
+    if (!pend.length) return 'No hay partes cargados hoy.';
+    const porCliente = {};
+    pend.forEach(a => { const c=a.clienteReal||a.clienteNorm||a.cliente||'?'; if(!porCliente[c])porCliente[c]=0; porCliente[c]++; });
+    const urgentes = pend.filter(a=>a.urgente);
+    const pci      = pend.filter(a=>a.tipo==='PCI'||a.esPCI);
+    const antiguos = pend.filter(a => { if(!a.fecha)return false; const p=a.fecha.split('/'); if(p.length<3)return false; return (hoyD-new Date(`${p[2]}-${p[1]}-${p[0]}`))/86400000>14; });
+    let r = `${pend.length} partes. `;
+    r += Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(', ')+'.';
+    if (urgentes.length) r+=` 🚨 ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}.`;
+    if (pci.length) r+=` 🔥 ${pci.length} PCI.`;
+    if (antiguos.length) r+=` ⚠️ ${antiguos.length} de más de 14 días.`;
+    return r;
+  }
+
+  /* ── CONSULTA AVISOS ── */
+  if (cl.intento === 'CONSULTA_AVISOS' || cl.intento === 'CONTAR_AVISOS') {
+    const ruta   = loadArr(K_RUTA);
+    const pend   = ruta.filter(r => r.estado==='pendiente');
+    const hechas = ruta.filter(r => r.estado==='completada');
+    if (!ruta.length) return 'No hay ruta cargada hoy.';
+    const lista = pend.map((p,i) => `${i+1}. ${p.clienteReal||p.clienteNorm||p.cliente||'?'} · ${p.localidad||''}: ${(p.trabajo||'').slice(0,50)}`).join('\n');
+    return `${pend.length} pendientes${hechas.length?' · '+hechas.length+' completados':''}.\n${lista}`;
+  }
+
+  /* ── SIGUIENTE AVISO ── */
+  if (cl.intento === 'SIGUIENTE_AVISO') {
+    const ruta = loadArr(K_RUTA);
+    const sig  = ruta.find(r => r.estado==='pendiente');
+    if (!sig) return 'No hay avisos pendientes.';
+    _iramUltimaAccion = { tipo:'waze', datos: sig };
+    iramDiarioAccion(`Siguiente aviso: ${sig.clienteReal||sig.cliente} · ${sig.localidad||''}`);
+    iramConfirmarWaze(sig);
+    return `${sig.clienteReal||sig.clienteNorm||sig.cliente} · ${sig.localidad||''}.`;
+  }
+
+  /* ── NAVEGAR ── */
+  if (cl.intento === 'NAVEGAR') {
+    const ruta  = loadArr(K_RUTA);
+    const ubics = loadArr(K_UBICS);
+    const nD    = iramNorm(cl.destino||'');
+    const parada = nD ? ruta.find(p => { const nC=iramNorm(p.clienteReal||p.clienteNorm||p.cliente||''); const nL=iramNorm(p.localidad||''); return nC.includes(nD.slice(0,5))||nD.includes(nC.slice(0,5))||nL.includes(nD.slice(0,4))||nD.includes(nL.slice(0,4)); }) : null;
+    if (parada) { _iramUltimaAccion={tipo:'waze',datos:parada}; iramConfirmarWaze(parada); return `${parada.clienteReal||parada.cliente} · ${parada.localidad||''} — pulsa para abrir Waze.`; }
+    const ubic = nD ? ubics.find(u => { const nN=iramNorm(u.nombre||''); return nN.includes(nD.slice(0,4))||nD.includes(nN.slice(0,4)); }) : null;
+    if (ubic) { const p={clienteReal:ubic.nombre,direccion:ubic.addr||ubic.direccion||'',localidad:'',codigo:''}; _iramUltimaAccion={tipo:'waze',datos:p}; iramConfirmarWaze(p); return `${ubic.nombre} — pulsa para abrir Waze.`; }
+    return `No encuentro "${cl.destino}" en la ruta ni en ubicaciones.`;
+  }
+
+  /* ── URGENTE ── */
+  if (cl.intento === 'URGENTE') {
+    const ruta = loadArr(K_RUTA);
+    const idx  = ruta.findIndex(p => p.urgente===true||/urgente/i.test(p.trabajo||''));
+    if (idx<=0) return idx===0?'El urgente ya está primero.':'No hay urgente en la ruta.';
+    const u = ruta.splice(idx,1)[0]; ruta.unshift(u); save(K_RUTA,ruta);
+    if (typeof renderRuta==='function') renderRuta();
+    return `Urgente primero: ${u.clienteReal||u.cliente} · ${u.localidad||''}.`;
   }
 
   return null;
@@ -13791,448 +14137,7 @@ function iramBuscarCliente(nombre, localidad) {
   });
 }
 
-/* ── Ejecuta la acción detectada — devuelve string o null ── */
-function iramEjecutarAccion(cl) {
-  const hoy = new Date();
-  const hoyISO = hoy.toISOString().slice(0,10);
-  const hoyD   = hoy;
 
-  /* ── COMPLETAR PARADA ── */
-  if (cl.intento === 'COMPLETAR_AVISO') {
-    const ruta = loadArr(K_RUTA);
-    const sig  = ruta.find(r => r.estado === 'pendiente');
-    if (!sig) return 'No hay paradas pendientes en la ruta.';
-
-    // Extraer trabajo del texto — quitar palabras de comando
-    const trabajo = (cl.trabajo || '')
-      .replace(/\biram\b/gi, '')
-      .replace(/\b(finaliza[dr]?o?|completad[ao]|trabajo\s+finalizado|trabajo\s+hecho|marcar?\s+como\s+completad[ao]|parada\s+hecha|listo|hecho)\b/gi, '')
-      .replace(/\s+/g,' ').trim() || sig.trabajo || '';
-
-    // Marcar como completada
-    const idx = ruta.findIndex(r => r.id === sig.id);
-    if (idx !== -1) {
-      ruta[idx].estado = 'completada';
-      ruta[idx].trabajoRealizado = trabajo;
-      save(K_RUTA, ruta);
-    }
-
-    // Añadir al historial
-    const hist     = loadArr(K_HIST);
-    const fechaHoy = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}).split('/').join('/');
-    hist.unshift({
-      KEY:       sig.codigo ? 'sis_' + sig.codigo : sig.id,
-      FECHA:     fechaHoy,
-      CLIENTE:   sig.clienteReal || sig.clienteNorm || sig.cliente || '',
-      LOCALIDAD: sig.localidad || '',
-      TRABAJO:   trabajo,
-      OT:        sig.ot || '',
-      ESTADO:    'Finalizado',
-    });
-    save(K_HIST, hist);
-
-    if (typeof renderRuta === 'function') renderRuta();
-    iramDiarioAccion(`Completado: ${sig.clienteReal||sig.cliente} · ${sig.localidad||''}`);
-
-    // Siguiente parada
-    const rutaAct = loadArr(K_RUTA);
-    const sig2    = rutaAct.find(r => r.estado === 'pendiente');
-    const resto   = rutaAct.filter(r => r.estado === 'pendiente').length;
-
-    let resp = `✅ ${sig.clienteReal||sig.cliente} · ${sig.localidad||''} completado.`;
-    if (sig2) resp += ` Siguiente: ${sig2.clienteReal||sig2.clienteNorm||sig2.cliente} · ${sig2.localidad||''}.`;
-    else if (resto === 0) resp += ' Ruta completada. ¡Buen trabajo!';
-    return resp;
-  }
-
-  /* ── ANALIZAR PARTES ── */
-  if (cl.intento === 'ANALIZAR_PARTES') {
-    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
-    let pend = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado');
-
-    // Filtrar por localidad si se especificó
-    if (cl.localidad) {
-      const nL = iramNorm(cl.localidad);
-      const filtrados = pend.filter(a => iramNorm(a.localidad||'').includes(nL) || nL.includes(iramNorm(a.localidad||'').slice(0,4)));
-      if (filtrados.length) {
-        const lista = filtrados.map(a => `${a.clienteReal||a.clienteNorm||a.cliente} (${a.codigo||''}): ${(a.trabajo||a.descripcion||'').slice(0,60)}`).join('\n');
-        return `${filtrados.length} parte${filtrados.length>1?'s':''} en ${cl.localidad}:\n${lista}`;
-      }
-      return `No hay partes en ${cl.localidad}.`;
-    }
-
-    if (!pend.length) return 'No hay partes cargados hoy.';
-    const porCliente = {};
-    pend.forEach(a => {
-      const c = a.clienteReal||a.clienteNorm||a.cliente||'?';
-      if (!porCliente[c]) porCliente[c] = 0;
-      porCliente[c]++;
-    });
-    const urgentes = pend.filter(a => a.urgente);
-    const pci      = pend.filter(a => a.tipo==='PCI'||a.esPCI);
-    const antiguos = pend.filter(a => {
-      if (!a.fecha) return false;
-      const p = a.fecha.split('/');
-      if (p.length<3) return false;
-      return (hoyD-new Date(`${p[2]}-${p[1]}-${p[0]}`))/86400000 > 14;
-    });
-    let r = `${pend.length} partes.`;
-    const clientes = Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(', ');
-    r += ` ${clientes}.`;
-    if (urgentes.length) r += ` 🚨 Urgentes: ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}.`;
-    if (pci.length) r += ` 🔥 ${pci.length} PCI.`;
-    if (antiguos.length) r += ` ⚠️ ${antiguos.length} de más de 14 días.`;
-    return r;
-  }
-
-  /* ── REGISTRAR MTO ── */
-  if (cl.intento === 'REGISTRAR_MTO') {
-    const ruta = loadArr(K_RUTA);
-    const sig  = ruta.find(r => r.estado === 'pendiente');
-    if (!sig) return 'No hay paradas activas en la ruta.';
-
-    const mesActual  = new Date().getMonth();
-    const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
-    const trim       = cl.trim || trimActual;
-    const cliente    = sig.clienteReal || sig.clienteNorm || sig.cliente || '';
-    const codigo     = sig.codigo || '';
-
-    // Guardar en pyc_mto_manual
-    const mtoMan  = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
-    const clave   = iramMtoKey(cliente, codigo);
-    if (!mtoMan[clave]) mtoMan[clave] = {};
-    const fechaStr = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
-    mtoMan[clave][trim] = fechaStr;
-    localStorage.setItem('pyc_mto_manual', JSON.stringify(mtoMan));
-    if (typeof renderMTO === 'function') renderMTO();
-    iramDiarioAccion(`MTO ${trim} registrado: ${cliente} · ${sig.localidad||''}`);
-    return `✅ MTO ${trim} registrado para ${cliente} · ${sig.localidad||''} — ${fechaStr}.`;
-  }
-
-  /* ── MARCAR TAREA HECHA ── */
-  if (cl.intento === 'MARCAR_TAREA_HECHA') {
-    const tareas = loadArr(K_TAREAS);
-    const nQ     = iramNorm(cl.titulo||'');
-    const idx    = tareas.findIndex(t => {
-      const nT = iramNorm(t.titulo||'');
-      return t.estado === 'pendiente' && (nT.includes(nQ) || nQ.includes(nT.slice(0,6)));
-    });
-    if (idx === -1) return `No encuentro la tarea "${cl.titulo}" entre las pendientes.`;
-    tareas[idx].estado = 'hecha';
-    save(K_TAREAS, tareas);
-    if (typeof renderTareas === 'function') renderTareas();
-    return `✅ Tarea "${tareas[idx].titulo}" marcada como hecha.`;
-  }
-
-  /* ── AÑADIR A RUTA ── */
-  if (cl.intento === 'ANADIR_AVISO') {
-    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
-    const rutaAct  = loadArr(K_RUTA);
-    const nD       = iramNorm(cl.destino||'');
-    const parte    = analisis.find(a => {
-      if (a.estado==='completado'||a.estado==='cerrado'||a.enRuta) return false;
-      const nC = iramNorm(a.clienteReal||a.clienteNorm||a.cliente||'');
-      const nL = iramNorm(a.localidad||'');
-      const nK = iramNorm(a.codigo||'');
-      return nC.includes(nD.slice(0,5)) || nD.includes(nC.slice(0,5)) ||
-             nL.includes(nD.slice(0,4)) || nD.includes(nL.slice(0,4)) ||
-             (nK && nD.includes(nK));
-    });
-    if (!parte) return `No encuentro "${cl.destino}" en los partes de análisis.`;
-    parte.enRuta = true;
-    localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
-    rutaAct.push({
-      id: 'R_'+Date.now(),
-      clienteReal: parte.clienteReal||parte.clienteNorm||parte.cliente,
-      clienteNorm: parte.clienteNorm||parte.cliente,
-      cliente:     parte.cliente,
-      codigo:      parte.codigo||'',
-      localidad:   parte.localidad||'',
-      direccion:   parte.direccion||'',
-      trabajo:     parte.trabajo||parte.descripcion||'',
-      horarioTxt:  parte.horarioTxt||'',
-      urgente:     parte.urgente||false,
-      estado:      'pendiente',
-    });
-    save(K_RUTA, rutaAct);
-    if (typeof renderRuta === 'function') renderRuta();
-    return `✅ ${parte.clienteReal||parte.cliente} · ${parte.localidad||''} añadido a la ruta.`;
-  }
-
-  /* ── CREAR RUTA ── */
-  if (cl.intento === 'CREAR_RUTA') {
-    const analisis   = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
-    const rutaActual = loadArr(K_RUTA);
-    const candidatos = analisis.filter(a =>
-      a.estado!=='completado' && a.estado!=='cerrado' && !a.enRuta &&
-      !rutaActual.some(r => r.codigo === a.codigo)
-    ).sort((a,b) => (a.urgente?-1:0) - (b.urgente?-1:0));
-    if (!candidatos.length) return 'Todos los partes ya están en la ruta.';
-    const n     = cl.n > 0 ? Math.min(cl.n, candidatos.length) : Math.min(candidatos.length, 6);
-    const selec = candidatos.slice(0, n);
-    selec.forEach(a => { a.enRuta = true; });
-    localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
-    const nuevas = selec.map(a => ({
-      id: 'R_'+Date.now()+'_'+Math.random().toString(36).slice(2),
-      clienteReal: a.clienteReal||a.clienteNorm||a.cliente,
-      clienteNorm: a.clienteNorm||a.cliente,
-      cliente:     a.cliente,
-      codigo:      a.codigo||'',
-      localidad:   a.localidad||'',
-      direccion:   a.direccion||'',
-      trabajo:     a.trabajo||a.descripcion||'',
-      horarioTxt:  a.horarioTxt||'',
-      urgente:     a.urgente||false,
-      estado:      'pendiente',
-      _zona:       a._zona||'',
-    }));
-    save(K_RUTA, [...rutaActual, ...nuevas]);
-    if (typeof renderRuta === 'function') renderRuta();
-    iramDiarioAccion(`Ruta creada: ${n} paradas`);
-    return `✅ ${n} parada${n>1?'s':''} añadidas a la ruta: ${selec.map(a=>`${a.clienteReal||a.cliente} · ${a.localidad||''}`).join(', ')}.`;
-  }
-
-  /* ── IRAMCLOUD ── */
-  if (cl.intento === 'IRAMCLOUD_VINCULAR') { iramCloudVincular(); return ''; }
-  if (cl.intento === 'IRAMCLOUD_LISTAR') {
-    if (!_iramCloudHandle) {
-      return 'IramCloud no está vinculado. Di "vincular IramCloud" para conectar tu carpeta de manuales.';
-    }
-    iramCloudListar().then(r => pycMsgIA(r, false, 'local'));
-    return '';
-  }
-
-  /* ── MTO SEMANA ── */
-  if (cl.intento === 'MTO_SEMANA') {
-    const hist = loadArr(K_HIST);
-    const hoy = new Date();
-    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1); lunes.setHours(0,0,0,0);
-    const mtoKeywords = /mto|mantenimiento|trimestral|rev|mant/i;
-    const mtoSemana = hist.filter(v => {
-      const fecha = v.FECHA || v.fecha || '';
-      const partes = fecha.split('/');
-      if (partes.length < 3) return false;
-      const d = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
-      return d >= lunes && mtoKeywords.test(v.TRABAJO||v.trabajo||'');
-    });
-    if (!mtoSemana.length) return 'Esta semana no hay MTO registrados en el historial.';
-    const resumen = mtoSemana.map(v=>`${v.CLIENTE||v.cliente} · ${v.LOCALIDAD||v.localidad||''}`).slice(0,6).join(', ');
-    return `Esta semana llevas ${mtoSemana.length} MTO: ${resumen}.`;
-  }
-
-  /* ── AVERÍAS SIN MTO ── */
-  if (cl.intento === 'AVERIAS_SIN_MTO') {
-    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
-    const mtoMan = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
-    const mesActual = new Date().getMonth();
-    const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
-    const excel = loadArr(K_EXCEL);
-    const sinMto = analisis.filter(a => {
-      if (a.estado==='completado'||a.estado==='cerrado') return false;
-      const clave = a.codigo || '';
-      const mtoData = mtoMan[clave] || excel.find(c=>(c.CODIGO||'').toString()===clave) || null;
-      if (!mtoData) return true;
-      const val = mtoData[trimActual] || '';
-      return !val || val.trim()==='' || val==='0';
-    });
-    if (!sinMto.length) return `Todos los partes de hoy tienen el ${trimActual} hecho.`;
-    const lista = sinMto.slice(0,5).map(a=>`${a.clienteReal||a.clienteNorm||a.cliente} · ${a.localidad||''}`).join(', ');
-    return `${sinMto.length} parte${sinMto.length>1?'s':''} sin ${trimActual}: ${lista}.`;
-  }
-
-  /* ── MATERIAL PENDIENTE ── */
-  if (cl.intento === 'MATERIAL_PENDIENTE') {
-    const tareas = loadArr(K_TAREAS);
-    const matKeywords = /batería|cámara|cable|herramienta|repuesto|recambio|pieza|llave|fusible/i;
-    const material = tareas.filter(t=>t.estado==='pendiente' && matKeywords.test(t.titulo));
-    if (!material.length) return 'No tienes material pendiente en las tareas.';
-    const lista = material.map(t=>t.titulo).slice(0,5).join(', ');
-    return `Material pendiente: ${lista}.`;
-  }
-
-  /* ── HISTORIAL CLIENTE ── */
-  if (cl.intento === 'HISTORIAL_CLIENTE') {
-    const hist   = loadArr(K_HIST);
-    const nC     = iramNorm(cl.cliente || '');
-    const nL     = iramNorm(cl.localidad || '');
-    const nCod   = (cl.codigo || '').replace(/^0+/,'').toLowerCase();
-    if (!nC && !nCod) return 'Dime el nombre del cliente para buscar en el historial.';
-    const visitas = hist.filter(v => {
-      // Filtrar por código primero
-      if (nCod) {
-        const vKey = String(v.KEY||'').replace(/^sis_/,'').replace(/^0+/,'').toLowerCase();
-        if (vKey && vKey.length >= 3) {
-          return vKey.includes(nCod) || nCod.includes(vKey);
-        }
-      }
-      // Fallback: cliente + localidad
-      const vc = iramNorm(v.CLIENTE||v.cliente||'');
-      const vl = iramNorm(v.LOCALIDAD||v.localidad||v.MUNICIPIO||'');
-      const cliMatch = vc.includes(nC) || nC.includes(vc.slice(0,4));
-      const locMatch = !nL || vl.includes(nL);
-      return cliMatch && locMatch;
-    });
-
-    if (!visitas.length) return `No encuentro visitas a ${cl.cliente}${cl.localidad ? ' en '+cl.localidad : ''} en el historial.`;
-
-    const ultima = visitas.sort((a,b)=>(b.FECHA||'').localeCompare(a.FECHA||''))[0];
-    const fecha  = ultima.FECHA || ultima.fecha || '?';
-    const trabajo = ultima.TRABAJO || ultima.trabajo || '?';
-    const estado = ultima.ESTADO || ultima.estado || '';
-    const cliente = ultima.CLIENTE || ultima.cliente || cl.cliente;
-    const loc    = ultima.LOCALIDAD || ultima.localidad || cl.localidad;
-
-    return `Última visita a ${cliente}${loc?' · '+loc:''}: ${fecha} — ${trabajo}${estado?' ('+estado+')':''}. Total visitas: ${visitas.length}.`;
-  }
-
-  /* ── LLAMAR ── */
-  if (cl.intento === 'LLAMAR') {
-    const contactos = loadArr('pyc_contactos');
-    if (!contactos.length) return 'No tienes contactos cargados. Importa el Excel con la hoja Contactos.';
-    const nQ = iramNorm(cl.quien || '');
-    const match = contactos.find(c => {
-      const nN = iramNorm(c.NOMBRE);
-      return nN.includes(nQ) || nQ.includes(nN);
-    });
-    if (!match) return `No encuentro a "${cl.quien}" en tus contactos.`;
-    iramConfirmarLlamar(match);
-    return `${match.NOMBRE} · ${match.TELEFONO} — pulsa para llamar.`;
-  }
-
-  /* ── CONTAR AVISOS ── */
-  if (cl.intento === 'CONTAR_AVISOS') {
-    const ruta = loadArr(K_RUTA);
-    const pend = ruta.filter(r=>r.estado==='pendiente').length;
-    const done = ruta.filter(r=>r.estado==='completada').length;
-    if (pend === 0) return `No te queda ningún aviso pendiente. Llevas ${done} completado${done!==1?'s':''}.`;
-    return `Tienes ${pend} aviso${pend!==1?'s':''} pendiente${pend!==1?'s':''}. Llevas ${done} completado${done!==1?'s':''}.`;
-  }
-
-  /* ── HORARIO OFICINA ── */
-  if (cl.intento === 'HORARIO') {
-    const cli = iramBuscarCliente(cl.cliente, cl.localidad);
-    if (!cli) return `No encuentro a ${cl.cliente||cl.localidad} en la base de datos.`;
-    const horario = cli.HORARIO || cli.horario || '';
-    const nombre  = cli.CLIENTE || cli.cliente || cl.cliente;
-    const muni    = cli.MUNICIPIO || cli.municipio || cl.localidad;
-    if (!horario) return `${nombre} en ${muni} no tiene horario registrado.`;
-    return `${nombre} · ${muni}: ${horario}`;
-  }
-
-  /* ── MTO — ¿está hecho? ── */
-  if (cl.intento === 'MTO_ESTADO') {
-    const cli = iramBuscarCliente(cl.cliente, cl.localidad);
-    if (!cli) return `No encuentro a ${cl.cliente||cl.localidad} en la base de datos.`;
-    const nombre = cli.CLIENTE || cli.cliente || cl.cliente;
-    const muni   = cli.MUNICIPIO || cli.municipio || cl.localidad;
-    // Calcular trimestre actual
-    const mes = hoy.getMonth(); // 0-11
-    const trimActual = mes < 3 ? 'Q1' : mes < 6 ? 'Q2' : mes < 9 ? 'Q3' : 'Q4';
-    const mtoManual = loadArr ? (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })() : {};
-    const key = Object.keys(mtoManual).find(k => k.toUpperCase().includes(iramNorm(nombre).toUpperCase().slice(0,6)));
-    const override = key ? mtoManual[key] : null;
-    const valorTrim = override?.[trimActual] || cli[trimActual] || '';
-    const hecho = valorTrim && valorTrim.trim() !== '' && valorTrim !== '0';
-    return `MTO ${trimActual} de ${nombre} en ${muni}: ${hecho ? `✅ hecho (${valorTrim})` : '⏳ pendiente'}.`;
-  }
-
-  /* ── NAVEGAR A ── */
-  /* ── SIGUIENTE PARADA ── */
-  if (cl.intento === 'SIGUIENTE_AVISO') {
-    const ruta = loadArr(K_RUTA);
-    const sig  = ruta.find(r => r.estado === 'pendiente');
-    if (!sig) return 'No hay paradas pendientes en la ruta.';
-    const cliente = sig.clienteReal || sig.clienteNorm || sig.cliente || '?';
-    const loc     = sig.localidad || '';
-    const dir     = sig.direccion || '';
-    // Mostrar confirmación táctil — no abrir Waze sin gesto del usuario
-    iramConfirmarWaze(sig);
-    return `Siguiente parada: ${cliente} · ${loc}${dir ? ' · ' + dir : ''}`;
-  }
-
-  /* ── NAVEGAR ── */
-  if (cl.intento === 'NAVEGAR') {
-    const ruta = loadArr(K_RUTA);
-    const nD   = iramNorm(cl.destino || '');
-    // Buscar en ruta por código o localidad — nunca usar el texto libre como destino
-    const parada = nD ? ruta.find(p => {
-      const nC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
-      const nL = iramNorm(p.localidad||'');
-      const nK = iramNorm(p.codigo||'');
-      return nC.includes(nD.slice(0,5)) || nD.includes(nC.slice(0,5)) ||
-             nL.includes(nD.slice(0,4)) || nD.includes(nL.slice(0,4)) ||
-             (nK && nD.includes(nK));
-    }) : null;
-    if (!parada) {
-      return `No encuentro "${cl.destino}" en tu ruta de hoy. Pulsa Waze en la tarjeta de la parada.`;
-    }
-    iramConfirmarWaze(parada);
-    const cliente = parada.clienteReal || parada.clienteNorm || parada.cliente || '';
-    return `${cliente} · ${parada.localidad || ''} — pulsa para abrir Waze.`;
-  }
-
-  /* ── URGENTE — mover al inicio de ruta ── */
-  if (cl.intento === 'URGENTE') {
-    const ruta = loadArr(K_RUTA);
-    const idx  = ruta.findIndex(p=>p.urgente===true || /urgente/i.test(p.trabajo||''));
-    if (idx <= 0) return idx === 0 ? 'El urgente ya está en primera posición.' : 'No veo ningún aviso urgente en tu ruta.';
-    const urgente = ruta.splice(idx,1)[0];
-    ruta.unshift(urgente);
-    save(K_RUTA, ruta);
-    if (typeof renderRuta === 'function') renderRuta();
-    return `Urgente movido al inicio: ${urgente.clienteReal||urgente.cliente} · ${urgente.localidad||''}.`;
-  }
-
-  /* ── CREAR TAREA ── */
-  if (cl.intento === 'CREAR_TAREA' && cl.titulo) {
-    const tareas = loadArr(K_TAREAS);
-    tareas.unshift({
-      id:'T_'+Date.now(), titulo:cl.titulo,
-      descripcion:'', prioridad:'normal',
-      fecha:cl.fecha||'', estado:'pendiente',
-      etiquetas:'iram', alarma:'',
-    });
-    save(K_TAREAS, tareas);
-    if (typeof renderTareas === 'function') renderTareas();
-    if (typeof actualizarBavTareas === 'function') actualizarBavTareas();
-    const fStr = cl.fecha
-      ? new Date(cl.fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})
-      : 'sin fecha';
-    return `✅ Tarea guardada: "${cl.titulo}" — ${fStr}`;
-  }
-
-  /* ── CREAR EVENTO ── */
-  if (cl.intento === 'CREAR_EVENTO' && cl.titulo && cl.fecha) {
-    const eventos = loadArr(K_EVENTOS);
-    eventos.push({
-      id:'EV_'+Date.now(), titulo:cl.titulo,
-      fecha:cl.fecha, fechaFin:cl.fecha,
-      hora:cl.hora||'', todoDia:!cl.hora,
-      descripcion:'Creado por Iram', tipo:'evento',
-    });
-    save(K_EVENTOS, eventos);
-    if (typeof refreshFCEvents === 'function') refreshFCEvents();
-    const fStr = new Date(cl.fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
-    return `📅 Evento guardado: "${cl.titulo}" — ${fStr}${cl.hora ? ' a las '+cl.hora : ''}`;
-  }
-
-  /* ── CREAR NOTA ── */
-  if (cl.intento === 'CREAR_NOTA' && cl.texto) {
-    const notas = loadArr(K_NOTAS);
-    notas.unshift({
-      id:'N_'+Date.now(),
-      titulo:cl.texto.slice(0,40),
-      texto:`<p>${cl.texto}</p>`,
-      fecha:hoy.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}),
-      etiquetas:'iram',
-    });
-    save(K_NOTAS, notas);
-    if (typeof renderNotas === 'function') renderNotas();
-    return `📝 Nota guardada: "${cl.texto.slice(0,50)}"`;
-  }
-
-  return null;
-}
 
 /* ── Pulir respuesta local con Groq (hace la frase más natural) ── */
 async function iramPulir(respuestaLocal) {
