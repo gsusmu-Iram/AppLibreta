@@ -12858,12 +12858,13 @@ async function pycEnviar() {
   // ── Classifier — IA traduce lenguaje natural, local como fallback ──
   // Mostrar indicador de escucha mientras clasifica
   const _intentosLocales = [
-    'LLAMAR','CREAR_TAREA','CONSULTA_TAREAS','CONSULTA_RUTA','CONSULTA_EVENTOS','CREAR_EVENTO','CREAR_NOTA',
-    'CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','SIGUIENTE_PARADA',
+    'LLAMAR','CREAR_TAREA','CONSULTA_TAREAS','CONSULTA_AVISOS','CONSULTA_LOCALIDADES',
+    'CONSULTA_EVENTOS','CREAR_EVENTO','CREAR_NOTA',
+    'CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','SIGUIENTE_AVISO',
     'HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE',
     'IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR',
-    'ANALIZAR_PARTES','CREAR_RUTA','ANADIR_RUTA',
-    'COMPLETAR_PARADA','REGISTRAR_MTO','MARCAR_TAREA_HECHA'
+    'ANALIZAR_PARTES','CREAR_RUTA','ANADIR_AVISO','RUTA_SIN_MTO',
+    'COMPLETAR_AVISO','REGISTRAR_MTO','MARCAR_TAREA_HECHA'
   ];
 
   // Clasificar con IA (rápido) o fallback local
@@ -12951,21 +12952,51 @@ async function pycEnviar() {
    Fallback local por regex
    ══════════════════════════════════════════════════════ */
 
-const IRAM_INTENTOS_SCHEMA = `Eres un clasificador de intenciones para un técnico de seguridad. Convierte la frase en JSON.
+const IRAM_INTENTOS_SCHEMA = `Eres un clasificador de intenciones para Gsus, técnico de seguridad en campo. Convierte su frase en JSON.
 Responde SOLO JSON válido, sin explicaciones.
 
-INTENTOS:
-COMPLETAR_PARADA(trabajo?), REGISTRAR_MTO(trim?), SIGUIENTE_PARADA,
-NAVEGAR(destino), CONSULTA_RUTA, ANADIR_RUTA(destino), CREAR_RUTA(n?),
-ANALIZAR_PARTES(localidad?), AVERIAS_SIN_MTO, MTO_ESTADO(cliente,localidad?), MTO_SEMANA,
-CREAR_TAREA(titulo,fecha?), CONSULTA_TAREAS, MARCAR_TAREA_HECHA(titulo),
-CREAR_NOTA(texto), CREAR_EVENTO(titulo,fecha?,hora?), CONSULTA_EVENTOS,
-LLAMAR(quien), HORARIO(cliente,localidad?), HISTORIAL_CLIENTE(cliente,localidad?),
-MATERIAL_PENDIENTE, CONTAR_AVISOS, URGENTE, CHAT
+VOCABULARIO IMPORTANTE: Gsus dice "aviso" no "parada". Un aviso = parte de trabajo del día.
 
-Ejemplo: "se ha quedao arreglao el cajero" → {"intento":"COMPLETAR_PARADA","trabajo":"cajero arreglado"}
-Ejemplo: "recuérdame coger baterías mañana" → {"intento":"CREAR_TAREA","titulo":"coger baterías","fecha":"mañana"}
-Ejemplo: "qué tiempo hace" → {"intento":"CHAT"}`;
+INTENTOS DISPONIBLES:
+COMPLETAR_AVISO(trabajo?,mto?) — finalizar aviso activo. trabajo=descripción, mto=Q1/Q2/Q3/Q4 si lo dice
+SIGUIENTE_AVISO — ir al siguiente aviso pendiente
+NAVEGAR(destino) — ir a un lugar o aviso concreto
+CONSULTA_AVISOS — cuántos avisos tengo, lista de avisos pendientes
+CONSULTA_LOCALIDADES — en qué localidades/pueblos hay avisos
+ANADIR_AVISO(destino) — añadir aviso de X a la ruta del día
+CREAR_RUTA(n?) — crear ruta con N avisos (urgentes primero)
+ANALIZAR_PARTES(localidad?) — qué hay que hacer en los avisos, qué hay en X
+RUTA_SIN_MTO(trim?) — qué avisos de la ruta no tienen el MTO hecho
+REGISTRAR_MTO(trim?,cliente?) — registrar mantenimiento trimestral hecho
+AVERIAS_SIN_MTO — de todos los partes cuáles no tienen MTO
+MTO_ESTADO(cliente,localidad?) — estado del MTO de un cliente concreto
+MTO_SEMANA — resumen de MTO hechos esta semana
+CREAR_TAREA(titulo,fecha?) — crear recordatorio. fecha SOLO si la dice explícitamente
+CONSULTA_TAREAS — ver mis tareas pendientes
+MARCAR_TAREA_HECHA(titulo) — marcar tarea como completada
+CREAR_NOTA(texto) — crear nota de texto libre
+CREAR_EVENTO(titulo,fecha?,hora?) — crear evento en el calendario
+CONSULTA_EVENTOS — ver eventos del mes
+LLAMAR(quien) — llamar a un contacto
+HORARIO(cliente,localidad?) — horario de apertura de una oficina
+HISTORIAL_CLIENTE(cliente,localidad?) — cuándo fui, qué hice en una oficina
+MATERIAL_PENDIENTE — qué material tengo pendiente de recoger
+CONTAR_AVISOS — cuántos avisos me quedan (alias de CONSULTA_AVISOS)
+URGENTE — mover el urgente al inicio de la ruta
+CHAT — conversación sin acción, pregunta web, o no reconocido
+
+EJEMPLOS:
+"finaliza, Q2 hecho, se cambia batería" → {"intento":"COMPLETAR_AVISO","trabajo":"se cambia batería","mto":"Q2"}
+"se ha quedao arreglao" → {"intento":"COMPLETAR_AVISO","trabajo":"arreglado"}
+"siguiente aviso" → {"intento":"SIGUIENTE_AVISO"}
+"llévame al aviso de Buñol" → {"intento":"NAVEGAR","destino":"Buñol"}
+"añade el aviso de Chiva" → {"intento":"ANADIR_AVISO","destino":"Chiva"}
+"dónde son los avisos" → {"intento":"CONSULTA_LOCALIDADES"}
+"qué avisos no tienen el Q2" → {"intento":"RUTA_SIN_MTO","trim":"Q2"}
+"cuántos me quedan" → {"intento":"CONTAR_AVISOS"}
+"recuérdame coger baterías mañana" → {"intento":"CREAR_TAREA","titulo":"coger baterías","fecha":"mañana"}
+"crea una nota el Cajamar de Utiel tiene llave en recepción" → {"intento":"CREAR_NOTA","texto":"Cajamar Utiel tiene llave en recepción"}
+"qué temperatura hace en Utiel" → {"intento":"CHAT"}`;
 
 async function iramClasificarIA(txt) {
   const keyGroq = pycGetKey('groq');
@@ -13062,7 +13093,7 @@ function iramClasificar(txt) {
 
   // ── COMPLETAR PARADA ──
   if (/\b(completado|completar|marcar.*complet|apunt.*complet|finaliz.*parada|parada.*finaliz|trabajo\s+hecho|ya\s+est[aá]\s+hecho)\b/i.test(raw)) {
-    return { intento:'COMPLETAR_PARADA', trabajo: txt };
+    return { intento:'COMPLETAR_AVISO', trabajo: txt };
   }
 
   // ── ANALIZAR PARTES (con localidad opcional) ──
@@ -13119,7 +13150,7 @@ function iramClasificar(txt) {
 
   // ── SIGUIENTE PARADA ──
   if (/\b(siguiente\s+parada|pr[oó]xima\s+parada|siguiente\s+stop|siguiente|llev[aá]me\s+a\s+la\s+siguiente)\b/.test(t)) {
-    return { intento:'SIGUIENTE_PARADA' };
+    return { intento:'SIGUIENTE_AVISO' };
   }
 
   // ── NAVEGAR / WAZE ──
@@ -13161,7 +13192,7 @@ function iramClasificar(txt) {
     const trabajo = txt
       .replace(/\b(finaliza[dr]?|completad[ao]|trabajo\s+hecho|marcar?\s+como\s+completad[ao])\b/gi,'')
       .replace(/\s+/g,' ').trim();
-    return { intento:'COMPLETAR_PARADA', trabajo };
+    return { intento:'COMPLETAR_AVISO', trabajo };
   }
 
   // ── REGISTRAR MTO ──
@@ -13185,7 +13216,7 @@ function iramClasificar(txt) {
   // ── AÑADIR A RUTA ──
   if (/\b(a[ñn]ade?|pon|mete)\b.*\b(a\s+la\s+ruta|en\s+la\s+ruta)\b/i.test(raw)) {
     const m = raw.match(/(?:a[ñn]ade?|pon|mete)\s+(?:a\s+la\s+ruta\s+)?(?:el\s+|la\s+)?(.+?)(?:\s+a\s+la\s+ruta)?$/i);
-    return { intento:'ANADIR_RUTA', destino: m?.[1]?.trim()||'' };
+    return { intento:'ANADIR_AVISO', destino: m?.[1]?.trim()||'' };
   }
 
   // ── MARCAR TAREA HECHA ──
@@ -13235,7 +13266,7 @@ function iramClasificar(txt) {
 
   // ── SIGUIENTE PARADA ──
   if (/\b(siguiente\s+parada|pr[oó]xima\s+parada|siguiente\s+stop|ll[eé]vame\s+a\s+la\s+siguiente)\b/i.test(t)) {
-    return { intento:'SIGUIENTE_PARADA' };
+    return { intento:'SIGUIENTE_AVISO' };
   }
 
   // ── NAVEGAR / WAZE ──
@@ -13269,7 +13300,7 @@ function iramClasificar(txt) {
 
   // ── CONSULTA RUTA / PARADAS ──
   if (/\b(paradas?|ruta|trabajos?|avisos?)\s+(de\s+hoy|que\s+tengo|del\s+día|pendientes?|activos?|en\s+la\s+ruta)\b|\b(dime\s+(las\s+)?paradas?|dime\s+(los\s+)?trabajos?|dime\s+(la\s+)?ruta|cu[aá]ntas?\s+paradas?|cu[aá]ntos?\s+trabajos?)\b/i.test(raw)) {
-    return { intento:'CONSULTA_RUTA' };
+    return { intento:'CONSULTA_AVISOS' };
   }
 
   // ── CONSULTA TAREAS ──
@@ -13341,8 +13372,44 @@ function iramEjecutarAccion(cl) {
     return `Eventos de este mes (${evMes.length}):\n${lista}`;
   }
 
+  /* ── CONSULTA LOCALIDADES ── */
+  if (cl.intento === 'CONSULTA_LOCALIDADES') {
+    const ruta = loadArr(K_RUTA);
+    const pend = ruta.filter(r => r.estado === 'pendiente');
+    if (!pend.length) return 'No hay avisos en la ruta.';
+    const porLoc = {};
+    pend.forEach(p => {
+      const l = p.localidad || 'Sin localidad';
+      if (!porLoc[l]) porLoc[l] = 0;
+      porLoc[l]++;
+    });
+    const lista = Object.entries(porLoc)
+      .sort((a,b) => b[1]-a[1])
+      .map(([loc,n]) => `${loc} ${n}`)
+      .join(', ');
+    return `Avisos en ${Object.keys(porLoc).length} localidades: ${lista}.`;
+  }
+
+  /* ── RUTA SIN MTO ── */
+  if (cl.intento === 'RUTA_SIN_MTO') {
+    const ruta      = loadArr(K_RUTA);
+    const mesActual = new Date().getMonth();
+    const trim      = cl.trim || (mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4');
+    const pend      = ruta.filter(r => r.estado === 'pendiente');
+    if (!pend.length) return 'No hay avisos pendientes en la ruta.';
+    const sinMto = pend.filter(p => {
+      const d = iramGetMtoData(p.clienteReal||p.clienteNorm||p.cliente||'', p.codigo||'', p.localidad||'', trim);
+      if (!d) return true;
+      const v = d[trim]||'';
+      return !v || v.trim()==='' || v==='0';
+    });
+    if (!sinMto.length) return `Todos los avisos tienen el ${trim} hecho ✅`;
+    const lista = sinMto.map(p=>`${p.clienteReal||p.clienteNorm||p.cliente} · ${p.localidad||''}`).join(', ');
+    return `${sinMto.length} sin ${trim}: ${lista}.`;
+  }
+
   /* ── CONSULTA RUTA ── */
-  if (cl.intento === 'CONSULTA_RUTA') {
+  if (cl.intento === 'CONSULTA_AVISOS') {
     const ruta   = loadArr(K_RUTA);
     const pend   = ruta.filter(r => r.estado === 'pendiente');
     const hechas = ruta.filter(r => r.estado === 'completada');
@@ -13484,7 +13551,7 @@ function iramEjecutarAccion(cl) {
   }
 
   /* ── SIGUIENTE PARADA ── */
-  if (cl.intento === 'SIGUIENTE_PARADA') {
+  if (cl.intento === 'SIGUIENTE_AVISO') {
     const ruta = loadArr(K_RUTA);
     const sig  = ruta.find(r => r.estado === 'pendiente');
     if (!sig) return 'No hay paradas pendientes.';
@@ -13731,7 +13798,7 @@ function iramEjecutarAccion(cl) {
   const hoyD   = hoy;
 
   /* ── COMPLETAR PARADA ── */
-  if (cl.intento === 'COMPLETAR_PARADA') {
+  if (cl.intento === 'COMPLETAR_AVISO') {
     const ruta = loadArr(K_RUTA);
     const sig  = ruta.find(r => r.estado === 'pendiente');
     if (!sig) return 'No hay paradas pendientes en la ruta.';
@@ -13858,7 +13925,7 @@ function iramEjecutarAccion(cl) {
   }
 
   /* ── AÑADIR A RUTA ── */
-  if (cl.intento === 'ANADIR_RUTA') {
+  if (cl.intento === 'ANADIR_AVISO') {
     const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
     const rutaAct  = loadArr(K_RUTA);
     const nD       = iramNorm(cl.destino||'');
@@ -14071,7 +14138,7 @@ function iramEjecutarAccion(cl) {
 
   /* ── NAVEGAR A ── */
   /* ── SIGUIENTE PARADA ── */
-  if (cl.intento === 'SIGUIENTE_PARADA') {
+  if (cl.intento === 'SIGUIENTE_AVISO') {
     const ruta = loadArr(K_RUTA);
     const sig  = ruta.find(r => r.estado === 'pendiente');
     if (!sig) return 'No hay paradas pendientes en la ruta.';
