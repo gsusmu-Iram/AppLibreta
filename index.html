@@ -12094,6 +12094,7 @@ function pycMsgIA(txt, thinking=false, ia=null) {
   _pycHist.push({ role:'model', text:txt, thinking, ia: ia || _iramIA });
   pycRenderMsgs();
   if (!thinking && txt && txt.length > 5) {
+    iramActualizarDrive(txt); // Actualizar modo conducción inmediatamente
     setTimeout(() => pycHablar(txt), 300);
     iramGuardarHistorial();
   }
@@ -12123,12 +12124,17 @@ function pycRenderMsgs() {
     </div>`;
   }).join('');
   el.scrollTop = el.scrollHeight;
-  // Actualizar "Iram dice" en modo conducción
+  // Actualizar "Iram dice" en modo conducción — siempre, aunque sea streaming
   const last = _pycHist.filter(m => m.role==='model' && !m.thinking).slice(-1)[0];
-  if (last) {
+  if (last && last.text) {
     const d = document.getElementById('drive-response-txt');
     if (d) d.textContent = last.text;
   }
+}
+
+function iramActualizarDrive(txt) {
+  const d = document.getElementById('drive-response-txt');
+  if (d && txt) d.textContent = txt;
 }
 
 /* ── Rellenar modo conducción ── */
@@ -12595,6 +12601,8 @@ Si preguntan "¿se guardó?" → "Sí, está en el historial."
 Nunca inventes datos que no estén en el contexto.
 Si no tienes el dato: di "Eso no lo tengo" y para. NO ofrezcas alternativas ni desvíes a otro tema.
 
+IRAMCLOUD: Solo puedes acceder a manuales si el usuario ha vinculado la carpeta. Si no está vinculada, di "IramCloud no está vinculado" y sugiere "vincular IramCloud". NUNCA inventes que tienes manuales o que los estás abriendo.
+
 MODO: ${modo}${modo === 'CONDUCCIÓN' ? ' — respuestas muy cortas, fáciles de escuchar al volante.' : ''}`;
 }
 
@@ -12623,7 +12631,7 @@ async function pycGemini(userMsg) {
     systemTxt += '\n\n' + pycContexto();
   }
 
-  const modelo = 'gemini-1.5-flash';
+  const modelo = 'gemini-2.0-flash-lite';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
 
   const body = {
@@ -12720,6 +12728,7 @@ async function pycGroq(userMsg) {
           texto += delta;
           _pycHist[msgIdx].text = texto;
           pycRenderMsgs();
+          iramActualizarDrive(texto);
           const msgs = document.getElementById('pyc-msgs');
           if (msgs) msgs.scrollTop = msgs.scrollHeight;
         }
@@ -12792,6 +12801,7 @@ async function pycMistral(userMsg) {
           texto += delta;
           _pycHist[msgIdx].text = texto;
           pycRenderMsgs();
+          iramActualizarDrive(texto);
           const msgs = document.getElementById('pyc-msgs');
           if (msgs) msgs.scrollTop = msgs.scrollHeight;
         }
@@ -12964,9 +12974,10 @@ function iramClasificar(txt) {
     return { intento:'COMPLETAR_PARADA', trabajo: txt };
   }
 
-  // ── ANALIZAR PARTES ──
-  if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?)\b/i.test(raw)) {
-    return { intento:'ANALIZAR_PARTES' };
+  // ── ANALIZAR PARTES (con localidad opcional) ──
+  if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?|qu[eé]\s+(hay|tengo|pone)\s+en|partes?\s+de|avisos?\s+(?:de|en))\b/i.test(raw)) {
+    const mLoc = raw.match(/(?:en|de)\s+([a-z\u00e0-\u00fc][a-z\u00e0-\u00fc\s]{2,20})(?:\s|$)/i);
+    return { intento:'ANALIZAR_PARTES', localidad: mLoc?.[1]?.trim()||'' };
   }
 
   // ── CREAR RUTA ──
@@ -13068,9 +13079,10 @@ function iramClasificar(txt) {
     return { intento:'REGISTRAR_MTO', trim: trimM ? trimM[1].toUpperCase() : null };
   }
 
-  // ── ANALIZAR PARTES ──
-  if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?)\b/i.test(raw)) {
-    return { intento:'ANALIZAR_PARTES' };
+  // ── ANALIZAR PARTES (con localidad opcional) ──
+  if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?|qu[eé]\s+(hay|tengo|pone)\s+en|partes?\s+de|avisos?\s+(?:de|en))\b/i.test(raw)) {
+    const mLoc = raw.match(/(?:en|de)\s+([a-z\u00e0-\u00fc][a-z\u00e0-\u00fc\s]{2,20})(?:\s|$)/i);
+    return { intento:'ANALIZAR_PARTES', localidad: mLoc?.[1]?.trim()||'' };
   }
 
   // ── CREAR RUTA ──
@@ -13610,9 +13622,10 @@ function iramEjecutarAccion(cl) {
     const sig  = ruta.find(r => r.estado === 'pendiente');
     if (!sig) return 'No hay paradas pendientes en la ruta.';
 
-    // Extraer trabajo del texto si lo hay
-    const trabajo = cl.trabajo
-      .replace(/\b(complet[ao]r?|marcar?|apunt[ao]r?|finaliz[ao]r?|trabajo\s+hecho|ya\s+est[aá]\s+hecho|como\s+completado)\b/gi, '')
+    // Extraer trabajo del texto — quitar palabras de comando
+    const trabajo = (cl.trabajo || '')
+      .replace(/\biram\b/gi, '')
+      .replace(/\b(finaliza[dr]?o?|completad[ao]|trabajo\s+finalizado|trabajo\s+hecho|marcar?\s+como\s+completad[ao]|parada\s+hecha|listo|hecho)\b/gi, '')
       .replace(/\s+/g,' ').trim() || sig.trabajo || '';
 
     // Marcar como completada
@@ -13654,7 +13667,19 @@ function iramEjecutarAccion(cl) {
   /* ── ANALIZAR PARTES ── */
   if (cl.intento === 'ANALIZAR_PARTES') {
     const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
-    const pend = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado');
+    let pend = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado');
+
+    // Filtrar por localidad si se especificó
+    if (cl.localidad) {
+      const nL = iramNorm(cl.localidad);
+      const filtrados = pend.filter(a => iramNorm(a.localidad||'').includes(nL) || nL.includes(iramNorm(a.localidad||'').slice(0,4)));
+      if (filtrados.length) {
+        const lista = filtrados.map(a => `${a.clienteReal||a.clienteNorm||a.cliente} (${a.codigo||''}): ${(a.trabajo||a.descripcion||'').slice(0,60)}`).join('\n');
+        return `${filtrados.length} parte${filtrados.length>1?'s':''} en ${cl.localidad}:\n${lista}`;
+      }
+      return `No hay partes en ${cl.localidad}.`;
+    }
+
     if (!pend.length) return 'No hay partes cargados hoy.';
     const porCliente = {};
     pend.forEach(a => {
@@ -13788,7 +13813,13 @@ function iramEjecutarAccion(cl) {
 
   /* ── IRAMCLOUD ── */
   if (cl.intento === 'IRAMCLOUD_VINCULAR') { iramCloudVincular(); return ''; }
-  if (cl.intento === 'IRAMCLOUD_LISTAR')   { iramCloudListar().then(r=>pycMsgIA(r)); return ''; }
+  if (cl.intento === 'IRAMCLOUD_LISTAR') {
+    if (!_iramCloudHandle) {
+      return 'IramCloud no está vinculado. Di "vincular IramCloud" para conectar tu carpeta de manuales.';
+    }
+    iramCloudListar().then(r => pycMsgIA(r, false, 'local'));
+    return '';
+  }
 
   /* ── MTO SEMANA ── */
   if (cl.intento === 'MTO_SEMANA') {
