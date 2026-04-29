@@ -11895,21 +11895,44 @@ function iramConfirmarLlamar(contacto) {
   const panel = document.createElement('div');
   panel.id    = 'iram-confirm-panel';
   panel.style.cssText = 'position:absolute;bottom:80px;left:16px;right:16px;background:#1e1b4b;border-radius:16px;padding:16px;z-index:50;box-shadow:0 8px 32px rgba(0,0,0,.5)';
-  panel.innerHTML = `
-    <div style="color:#a78bfa;font-size:11px;font-weight:700;letter-spacing:.1em;margin-bottom:8px">LLAMAR A</div>
-    <div style="color:#fff;font-weight:700;font-size:16px">${contacto.NOMBRE}</div>
-    <div style="color:#9ca3af;font-size:13px;margin-top:2px">${contacto.TELEFONO}</div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button onclick="document.getElementById('iram-confirm-panel').remove()"
-        style="flex:1;padding:10px;border-radius:10px;border:1px solid #374151;background:transparent;color:#9ca3af;font-size:14px;cursor:pointer">
-        Cancelar
-      </button>
-      <button onclick="window.location.href='tel:${contacto.TELEFONO}';document.getElementById('iram-confirm-panel').remove()"
-        style="flex:2;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-size:14px;font-weight:700;cursor:pointer">
-        📞 Llamar
-      </button>
-    </div>`;
-  (document.getElementById('iram-chat') || document.getElementById('iram-drive') || document.getElementById('pyc-overlay'))?.appendChild(panel);
+
+  const btnLlamar = document.createElement('button');
+  btnLlamar.textContent = '📞 Llamar';
+  btnLlamar.style.cssText = 'flex:2;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-size:14px;font-weight:700;cursor:pointer';
+  btnLlamar.onclick = () => { window.location.href = 'tel:' + contacto.TELEFONO; panel.remove(); };
+
+  const btnCancel = document.createElement('button');
+  btnCancel.textContent = 'Cancelar';
+  btnCancel.style.cssText = 'flex:1;padding:10px;border-radius:10px;border:1px solid #374151;background:transparent;color:#9ca3af;font-size:14px;cursor:pointer';
+  btnCancel.onclick = () => panel.remove();
+
+  const lbl  = document.createElement('div');
+  lbl.style.cssText = 'color:#a78bfa;font-size:11px;font-weight:700;letter-spacing:.1em;margin-bottom:8px';
+  lbl.textContent = 'LLAMAR A';
+
+  const nom  = document.createElement('div');
+  nom.style.cssText = 'color:#fff;font-weight:700;font-size:16px';
+  nom.textContent = contacto.NOMBRE;
+
+  const tel  = document.createElement('div');
+  tel.style.cssText = 'color:#9ca3af;font-size:13px;margin-top:2px';
+  tel.textContent = contacto.TELEFONO;
+
+  const btns = document.createElement('div');
+  btns.style.cssText = 'display:flex;gap:8px;margin-top:12px';
+  btns.appendChild(btnCancel);
+  btns.appendChild(btnLlamar);
+
+  panel.appendChild(lbl);
+  panel.appendChild(nom);
+  panel.appendChild(tel);
+  panel.appendChild(btns);
+
+  const driveActivo2 = document.getElementById('iram-drive')?.classList.contains('active');
+  const contenedor2  = driveActivo2
+    ? document.getElementById('iram-drive')
+    : (document.getElementById('iram-chat') || document.getElementById('pyc-overlay'));
+  if (contenedor2) contenedor2.appendChild(panel);
 }
 
 /* Lista de contactos para el botón Llamar en conducción */
@@ -12407,7 +12430,7 @@ function iramSaludoProactivo() {
       if (!a.fecha) return false;
       const p = a.fecha.split('/');
       if (p.length < 3) return false;
-      return (hoyD - new Date(`${p[2]}-${p[1]}-${p[0]}`)) / 86400000 > 14;
+      return (hoyD - new Date(p[2]+"-"+p[1]+"-"+p[0])) / 86400000 > 14;
     });
 
     // Material pendiente
@@ -12547,7 +12570,7 @@ function pycContexto() {
         if (a.fecha) {
           const p = a.fecha.split('/');
           if (p.length >= 3) {
-            const dDias = Math.floor((hoyD - new Date(`${p[2]}-${p[1]}-${p[0]}`)) / 86400000);
+            const dDias = Math.floor((hoyD - new Date(p[2]+"-"+p[1]+"-"+p[0])) / 86400000);
             if (dDias > 7) dias = `${dDias}d`;
           }
         }
@@ -13082,11 +13105,11 @@ INTENTOS DISPONIBLES:
 COMPLETAR_AVISO(trabajo?,mto?) — finalizar aviso activo. trabajo=descripción, mto=Q1/Q2/Q3/Q4 si lo dice
 SIGUIENTE_AVISO — ir al siguiente aviso pendiente
 NAVEGAR(destino) — ir a un lugar o aviso concreto
-CONSULTA_AVISOS — cuántos avisos tengo, lista de avisos pendientes
-CONSULTA_LOCALIDADES — en qué localidades/pueblos hay avisos
+CONSULTA_AVISOS — cuántos avisos quedan EN LA RUTA activa (paradas pendientes del día)
+CONSULTA_LOCALIDADES — en qué localidades/pueblos hay avisos en la ruta
 ANADIR_AVISO(destino) — añadir aviso de X a la ruta del día
 CREAR_RUTA(n?) — crear ruta con N avisos (urgentes primero)
-ANALIZAR_PARTES(localidad?) — qué hay que hacer en los avisos, qué hay en X
+ANALIZAR_PARTES(localidad?) — qué hay en ANÁLISIS (todos los partes cargados). Usar para: qué avisos hay en total, qué hay en X localidad, cuántos partes hay, contenido de los partes
 RUTA_SIN_MTO(trim?) — qué avisos de la ruta no tienen el MTO hecho
 REGISTRAR_MTO(trim?,cliente?) — registrar mantenimiento trimestral hecho
 AVERIAS_SIN_MTO — de todos los partes cuáles no tienen MTO
@@ -13843,7 +13866,7 @@ function iramEjecutarAccion(cl) {
     let mtoMsg = '';
     if (cl.mto) {
       const trim   = cl.mto.toUpperCase();
-      const clave  = iramMtoKey(sig.clienteReal||sig.clienteNorm||sig.cliente||'', sig.codigo||'');
+      const clave  = iramMtoKey(sig.clienteReal||sig.clienteNorm||sig.cliente||'', sig.codigo||'', sig.localidad||'');
       const mtoMan = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
       if (!mtoMan[clave]) mtoMan[clave] = {};
       mtoMan[clave][trim] = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
@@ -13869,7 +13892,7 @@ function iramEjecutarAccion(cl) {
     const mesActual  = new Date().getMonth();
     const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
     const trim       = (cl.trim||trimActual).toUpperCase();
-    const clave      = iramMtoKey(sig.clienteReal||sig.clienteNorm||sig.cliente||'', sig.codigo||'');
+    const clave      = iramMtoKey(sig.clienteReal||sig.clienteNorm||sig.cliente||'', sig.codigo||'', sig.localidad||'');
     const mtoMan     = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
     if (!mtoMan[clave]) mtoMan[clave] = {};
     mtoMan[clave][trim] = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
@@ -13896,12 +13919,24 @@ function iramEjecutarAccion(cl) {
     const analisis  = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
     const rutaActual= loadArr(K_RUTA);
     const nD        = iramNorm(cl.destino||'');
-    const parte     = analisis.find(a => {
+    if (!nD) return 'Dime qué aviso quieres añadir.';
+
+    // Buscar primero por localidad (más específico), luego por cliente
+    let parte = analisis.find(a => {
       if (a.estado==='completado'||a.estado==='cerrado'||a.enRuta) return false;
-      const nC = iramNorm(a.clienteReal||a.clienteNorm||a.cliente||'');
       const nL = iramNorm(a.localidad||'');
-      return nC.includes(nD.slice(0,5))||nD.includes(nC.slice(0,5))||nL.includes(nD.slice(0,4))||nD.includes(nL.slice(0,4));
+      return nL.length >= 3 && (nL.includes(nD) || nD.includes(nL));
     });
+
+    // Si no hay por localidad, buscar por cliente
+    if (!parte) {
+      parte = analisis.find(a => {
+        if (a.estado==='completado'||a.estado==='cerrado'||a.enRuta) return false;
+        const nC = iramNorm(a.clienteReal||a.clienteNorm||a.cliente||'');
+        return nC.includes(nD.slice(0,5)) || nD.includes(nC.slice(0,5));
+      });
+    }
+
     if (!parte) return `No encuentro "${cl.destino}" en los partes de hoy.`;
     parte.enRuta = true;
     localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
@@ -13964,7 +13999,7 @@ function iramEjecutarAccion(cl) {
     pend.forEach(a => { const c=a.clienteReal||a.clienteNorm||a.cliente||'?'; if(!porCliente[c])porCliente[c]=0; porCliente[c]++; });
     const urgentes = pend.filter(a=>a.urgente);
     const pci      = pend.filter(a=>a.tipo==='PCI'||a.esPCI);
-    const antiguos = pend.filter(a => { if(!a.fecha)return false; const p=a.fecha.split('/'); if(p.length<3)return false; return (hoyD-new Date(`${p[2]}-${p[1]}-${p[0]}`))/86400000>14; });
+    const antiguos = pend.filter(a => { if(!a.fecha)return false; const p=a.fecha.split('/'); if(p.length<3)return false; return (hoyD-new Date(p[2]+"-"+p[1]+"-"+p[0]))/86400000>14; });
     let r = `${pend.length} partes. `;
     r += Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(', ')+'.';
     if (urgentes.length) r+=` 🚨 ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}.`;
@@ -14074,10 +14109,13 @@ function iramNorm(s) {
 }
 
 /* ── Clave MTO — idéntica a mtoKey() del módulo principal ── */
-function iramMtoKey(cliente, codigo) {
+function iramMtoKey(cliente, codigo, municipio) {
   const cli = (cliente||'').toUpperCase().replace(/[\s\-\.\/]/g,'_');
   const cod = String(codigo||'').replace(/[\s\.\-]/g,'').replace(/^0+/,'').toLowerCase();
-  // Si código vacío — usar municipio como desambiguador igual que el módulo
+  if (!cod) {
+    const mun = (municipio||'').toUpperCase().replace(/[\s\-\.\/]/g,'_').slice(0,10);
+    return cli + '_' + mun;
+  }
   return cli + '_' + cod;
 }
 
@@ -14088,7 +14126,7 @@ function iramGetMtoData(cliente, codigo, localidad, trimActual) {
   const hist   = loadArr(K_HIST);
 
   // Clave principal — igual que mtoKey() del módulo
-  const clave = iramMtoKey(cliente, codigo);
+  const clave = iramMtoKey(cliente, codigo, localidad);
 
   // Capa 1: pyc_mto_manual con clave exacta
   if (mtoMan[clave]) return mtoMan[clave];
