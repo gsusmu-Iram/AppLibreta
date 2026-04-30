@@ -2931,6 +2931,10 @@ body { font-size: 14px; }
                 <span class="qs-ico">📋</span>
                 <span class="qs-lbl" style="color:var(--navy)">Historial</span>
               </div>
+              <div class="qs-btn" onclick="mostrarContactos()">
+                <span class="qs-ico">📞</span>
+                <span class="qs-lbl" style="color:var(--accent)">Contactos</span>
+              </div>
               <div class="qs-btn" onclick="cargarFestivosCV()" id="btn-cargar-festivos" style="display:none">
                 <span class="qs-ico">⬇️</span>
                 <span class="qs-lbl" style="color:var(--ok)">Cargar CV</span>
@@ -3615,6 +3619,40 @@ body { font-size: 14px; }
     <div class="dbackup-row">
       <span class="dbackup-lbl">Último backup</span>
       <span class="dbackup-val" id="dbackup-val">Nunca</span>
+    </div>
+
+    <div class="dsep"></div>
+
+    <!-- ── API KEYS — siempre visibles ── -->
+    <div>
+      <div class="dsec-lbl">🔑 API Keys · Iram</div>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--ink-xl);min-width:52px;font-weight:600">Groq</span>
+          <input id="bk-key-groq" type="password" autocomplete="off"
+            style="flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid rgba(26,39,68,.15);font-size:12px;background:var(--card)"
+            placeholder="gsk_...">
+          <button onclick="bkGuardarKey('groq')"
+            style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--ink-xl);min-width:52px;font-weight:600">Mistral</span>
+          <input id="bk-key-mistral" type="password" autocomplete="off"
+            style="flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid rgba(26,39,68,.15);font-size:12px;background:var(--card)"
+            placeholder="...">
+          <button onclick="bkGuardarKey('mistral')"
+            style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--ink-xl);min-width:52px;font-weight:600">Gemini</span>
+          <input id="bk-key-gemini" type="password" autocomplete="off"
+            style="flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid rgba(26,39,68,.15);font-size:12px;background:var(--card)"
+            placeholder="AIza...">
+          <button onclick="bkGuardarKey('gemini')"
+            style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--ink-xl);margin-top:6px;opacity:.6">Se guardan solo en tu móvil</div>
     </div>
 
     <div class="dsep"></div>
@@ -6441,6 +6479,25 @@ function abrirDatos() {
   datosActualizarUI();
   document.getElementById('datos-overlay').classList.add('open');
   document.getElementById('datos-sheet').classList.add('open');
+  // Mostrar estado de keys (enmascarado)
+  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
+  const ids    = { groq:'bk-key-groq', mistral:'bk-key-mistral', gemini:'bk-key-gemini' };
+  Object.entries(stores).forEach(([ia, store]) => {
+    const el = document.getElementById(ids[ia]);
+    if (el) el.placeholder = localStorage.getItem(store) ? '●●●● (guardada — escribe para cambiar)' : el.placeholder;
+  });
+}
+
+function bkGuardarKey(ia) {
+  const ids    = { groq:'bk-key-groq', mistral:'bk-key-mistral', gemini:'bk-key-gemini' };
+  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
+  const input  = document.getElementById(ids[ia]);
+  const val    = input?.value?.trim();
+  if (!val) { toast('Escribe la key primero'); return; }
+  localStorage.setItem(stores[ia], val);
+  input.value = '';
+  input.placeholder = '●●●● (guardada — escribe para cambiar)';
+  toast(`✅ Key de ${ia} guardada`);
 }
 function cerrarDatos() {
   document.getElementById('datos-overlay').classList.remove('open');
@@ -9101,6 +9158,115 @@ function mostrarTodaInfo() {
           <button class="res-act copy" onclick="copiarTexto(${JSON.stringify(i.detalle||'')},this)">📋 Copiar</button>
         </div>
       </div>`).join('');
+}
+
+function mostrarContactos() {
+  const contactos = loadArr('pyc_contactos');
+  document.getElementById('buscar-empty').classList.add('hidden');
+  const res = document.getElementById('buscar-results');
+
+  const categorias = {};
+  contactos.forEach(c => {
+    const cat = c.CATEGORIA || 'General';
+    if (!categorias[cat]) categorias[cat] = [];
+    categorias[cat].push(c);
+  });
+
+  let html = `<div style="padding:12px 0">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--ink)">📞 Contactos (${contactos.length})</div>
+      <button onclick="abrirNuevoContacto()" style="padding:6px 14px;border-radius:20px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">+ Nuevo</button>
+    </div>`;
+
+  if (!contactos.length) {
+    html += `<div style="text-align:center;color:var(--ink-xl);padding:32px 0;font-size:13px">
+      Sin contactos. Importa el Excel con hoja Contactos o añade uno nuevo.
+    </div>`;
+  } else {
+    Object.entries(categorias).sort().forEach(([cat, lista]) => {
+      html += `<div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--accent);text-transform:uppercase;margin:12px 0 6px">${cat}</div>`;
+      lista.forEach((c, i) => {
+        const idx = contactos.indexOf(c);
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border-radius:10px;margin-bottom:6px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px;color:var(--ink)">${c.NOMBRE||'Sin nombre'}</div>
+            <div style="font-size:12px;color:var(--ink-xl);margin-top:1px">${c.TELEFONO||'Sin teléfono'}${c.NOTAS?' · '+c.NOTAS:''}</div>
+          </div>
+          <button onclick="window.location.href='tel:${c.TELEFONO}'" style="background:var(--ok);border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0">📞</button>
+          <button onclick="editarContacto(${idx})" style="background:var(--card);border:1.5px solid rgba(26,39,68,.15);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0">✏️</button>
+        </div>`;
+      });
+    });
+  }
+  html += `</div>`;
+  res.innerHTML = html;
+}
+
+function abrirNuevoContacto(idx) {
+  const esEdicion = idx !== undefined;
+  const contactos = loadArr('pyc_contactos');
+  const c = esEdicion ? contactos[idx] : {};
+
+  const panel = document.createElement('div');
+  panel.id = 'contacto-panel';
+  panel.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;overflow:hidden';
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;padding:16px;border-bottom:1px solid rgba(26,39,68,.1);background:var(--card)">
+      <button onclick="document.getElementById('contacto-panel').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;margin-right:12px;color:var(--accent)">←</button>
+      <span style="font-weight:700;font-size:16px;color:var(--ink)">${esEdicion?'Editar':'Nuevo'} contacto</span>
+      ${esEdicion?`<button onclick="borrarContacto(${idx})" style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer">🗑️</button>`:''}
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--ink-xl);text-transform:uppercase;letter-spacing:.08em">Nombre</label>
+        <input id="ct-nombre" value="${c.NOMBRE||''}" placeholder="Juan García" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:var(--card);box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--ink-xl);text-transform:uppercase;letter-spacing:.08em">Teléfono</label>
+        <input id="ct-tel" type="tel" value="${c.TELEFONO||''}" placeholder="612345678" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:var(--card);box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--ink-xl);text-transform:uppercase;letter-spacing:.08em">Categoría</label>
+        <input id="ct-cat" value="${c.CATEGORIA||''}" placeholder="BBVA, Cajamar, Proveedor…" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:var(--card);box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--ink-xl);text-transform:uppercase;letter-spacing:.08em">Notas</label>
+        <input id="ct-notas" value="${c.NOTAS||''}" placeholder="Horario, extensión…" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:var(--card);box-sizing:border-box">
+      </div>
+    </div>
+    <div style="padding:16px;background:var(--card);border-top:1px solid rgba(26,39,68,.1)">
+      <button onclick="guardarContacto(${esEdicion?idx:'undefined'})" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer">✓ Guardar</button>
+    </div>`;
+  document.body.appendChild(panel);
+}
+
+function editarContacto(idx) { abrirNuevoContacto(idx); }
+
+function guardarContacto(idx) {
+  const nombre = document.getElementById('ct-nombre')?.value.trim();
+  const tel    = document.getElementById('ct-tel')?.value.trim();
+  const cat    = document.getElementById('ct-cat')?.value.trim() || 'General';
+  const notas  = document.getElementById('ct-notas')?.value.trim();
+  if (!nombre || !tel) { alert('Nombre y teléfono son obligatorios'); return; }
+  const contactos = loadArr('pyc_contactos');
+  const nuevo = { NOMBRE: nombre, TELEFONO: tel, CATEGORIA: cat, NOTAS: notas || '' };
+  if (idx !== undefined && idx !== 'undefined') {
+    contactos[parseInt(idx)] = nuevo;
+  } else {
+    contactos.push(nuevo);
+  }
+  save('pyc_contactos', contactos);
+  document.getElementById('contacto-panel')?.remove();
+  mostrarContactos();
+}
+
+function borrarContacto(idx) {
+  if (!confirm('¿Eliminar este contacto?')) return;
+  const contactos = loadArr('pyc_contactos');
+  contactos.splice(parseInt(idx), 1);
+  save('pyc_contactos', contactos);
+  document.getElementById('contacto-panel')?.remove();
+  mostrarContactos();
 }
 
 function mostrarTodoHistorial() {
@@ -11802,9 +11968,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="drive-action-icon">📞</div>
           <div class="drive-action-lbl">Llamar</div>
         </div>
-        <div class="drive-action" onclick="pycCerrarChat();irA('tareas');setTimeout(()=>tareasIrVista('tareas'),100)">
-          <div class="drive-action-icon">✅</div>
-          <div class="drive-action-lbl">Tareas</div>
+        <div class="drive-action" onclick="iramAbrirMusica()">
+          <div class="drive-action-icon">🎵</div>
+          <div class="drive-action-lbl">Música</div>
         </div>
         <div class="drive-action" onclick="pycCerrarChat();irA('tareas');setTimeout(()=>tareasIrVista('eventos'),100)">
           <div class="drive-action-icon">📅</div>
@@ -11866,6 +12032,26 @@ const K_IRAM_CLOUD    = 'pyc_iramcloud'; // Handle carpeta IramCloud
 /* ══════════════════════════════════════════════════════
    IRAM — Waze y Llamar
    ══════════════════════════════════════════════════════ */
+
+function iramAbrirMusica() {
+  // Intentar abrir Spotify primero, fallback YouTube Music
+  const spotify = 'spotify://';
+  const yt      = 'https://music.youtube.com';
+  const iframe  = document.createElement('iframe');
+  iframe.style.display = 'none';
+  document.body.appendChild(iframe);
+  iframe.src = spotify;
+  setTimeout(() => {
+    document.body.removeChild(iframe);
+    // Si Spotify no abrió, abrir YouTube Music
+  }, 1500);
+  // En Android, intent:// es más fiable
+  window.location.href = 'intent://open#Intent;scheme=spotify;package=com.spotify.music;end';
+  setTimeout(() => {
+    // Fallback — abrir YouTube Music en navegador
+    window.open(yt, '_blank');
+  }, 2000);
+}
 
 function iramWaze() {
   try {
@@ -12123,6 +12309,20 @@ let _iramIA         = 'groq';
 let _iramModo       = 'local'; // 'local' | 'web'
 
 /* ── Navegación entre pantallas de Iram ── */
+let _wakeLock = null;
+
+async function iramActivarWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      _wakeLock = await navigator.wakeLock.request('screen');
+    }
+  } catch(e) {}
+}
+
+function iramSoltarWakeLock() {
+  if (_wakeLock) { _wakeLock.release(); _wakeLock = null; }
+}
+
 function iramShowMode(mode) {
   document.querySelectorAll('.iram-screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.iram-nav-btn').forEach(b => b.classList.remove('active'));
@@ -12130,7 +12330,12 @@ function iramShowMode(mode) {
   if (scr) scr.classList.add('active');
   const btn = document.getElementById('iram-btn-' + mode);
   if (btn) btn.classList.add('active');
-  if (mode === 'drive') iramRellenarDrive();
+  if (mode === 'drive') {
+    iramRellenarDrive();
+    iramActivarWakeLock(); // Pantalla siempre activa en conducción
+  } else {
+    iramSoltarWakeLock();
+  }
 }
 
 /* ── Toggle modo local/web ── */
@@ -13084,7 +13289,7 @@ async function pycEnviar() {
     'CONSULTA_EVENTOS','CREAR_EVENTO','CREAR_NOTA',
     'CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','SIGUIENTE_AVISO',
     'HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE',
-    'IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR',
+    'IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR','IRAMCLOUD_BUSCAR',
     'ANALIZAR_PARTES','CREAR_RUTA','ANADIR_AVISO','RUTA_SIN_MTO',
     'COMPLETAR_AVISO','REGISTRAR_MTO','MARCAR_TAREA_HECHA'
   ];
@@ -13228,7 +13433,8 @@ HISTORIAL_CLIENTE(cliente,localidad?) — historial de visitas
 MATERIAL_PENDIENTE — material pendiente de coger
 URGENTE — urgente al inicio de la ruta
 IRAMCLOUD_VINCULAR — vincular IramCloud
-IRAMCLOUD_LISTAR — listar manuales IramCloud
+IRAMCLOUD_LISTAR — listar manuales disponibles en IramCloud
+IRAMCLOUD_BUSCAR(query,equipo?) — buscar en manuales IramCloud. Usar cuando pregunta sobre equipos, programación, códigos de error, instalación, configuración técnica, alturas, distancias, procedimientos. equipo=nombre del equipo si lo menciona
 CHAT — conversación, pregunta web, o no reconocido
 
 REGLAS CRÍTICAS:
@@ -13248,7 +13454,10 @@ EJEMPLOS:
 "registra el Q2 de Loriguilla" → {"intento":"REGISTRAR_MTO","trim":"Q2","localidad":"Loriguilla"}
 "qué hay en Moncada" → {"intento":"ANALIZAR_PARTES","localidad":"Moncada"}
 "hay algún aviso de Puerto Sagunto" → {"intento":"ANALIZAR_PARTES","localidad":"Puerto Sagunto"}
-"qué temperatura hace" → {"intento":"CHAT"}`;
+"qué temperatura hace" → {"intento":"CHAT"}
+"qué dice el manual de Ajax sobre la altura de los volumétricos" → {"intento":"IRAMCLOUD_BUSCAR","query":"altura volumétricos","equipo":"Ajax"}
+"cómo se programa la Vesta" → {"intento":"IRAMCLOUD_BUSCAR","query":"programación","equipo":"Vesta"}
+"códigos de error del Spider Pro" → {"intento":"IRAMCLOUD_BUSCAR","query":"códigos de error","equipo":"Spider Pro"}`;
 
 async function iramClasificarIA(txt) {
   const keyGroq = pycGetKey('groq');
@@ -13647,6 +13856,44 @@ function iramEjecutarAccion(cl) {
   /* ── IRAMCLOUD ── */
   if (cl.intento === 'IRAMCLOUD_VINCULAR') { iramCloudVincular(); return ''; }
   if (cl.intento === 'IRAMCLOUD_LISTAR')   { iramCloudListar().then(r => pycMsgIA(r, false, 'local')); return ''; }
+  if (cl.intento === 'IRAMCLOUD_BUSCAR') {
+    if (!_iramCloudHandle) return 'IramCloud no vinculado. Di "vincular IramCloud" primero.';
+    const query = [cl.query||'', cl.equipo||''].filter(Boolean).join(' ');
+    if (!query.trim()) return 'Dime qué quieres buscar en los manuales.';
+    pycMsgIA('🔍 Buscando en manuales...', true, 'local');
+    iramCloudBuscar(query).then(async resultado => {
+      _pycHist = _pycHist.filter(m => !m.thinking);
+      if (!resultado) {
+        pycMsgIA(`No encuentro "${cl.equipo||query}" en los manuales. ¿Tienes ese manual en .txt en IramCloud?`, false, 'local');
+        return;
+      }
+      const keyGroq = pycGetKey('groq');
+      if (!keyGroq) {
+        pycMsgIA(`${resultado.nombre}:\n${resultado.contenido.slice(0,500)}`, false, 'local');
+        return;
+      }
+      try {
+        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${keyGroq}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              { role: 'system', content: 'Eres un técnico de seguridad. Responde SOLO con información del manual. Respuesta corta y directa en español. Sin markdown ni asteriscos.' },
+              { role: 'user', content: `Manual "${resultado.nombre}":\n${resultado.contenido}\n\nPregunta: ${query}` }
+            ],
+            max_tokens: 300, temperature: 0.2
+          })
+        });
+        const data = await resp.json();
+        const texto = data?.choices?.[0]?.message?.content || resultado.contenido.slice(0,400);
+        pycMsgIA(texto, false, 'groq');
+      } catch(e) {
+        pycMsgIA(`${resultado.nombre}: ${resultado.contenido.slice(0,400)}`, false, 'local');
+      }
+    });
+    return '';
+  }
 
   /* ── CONSULTA EVENTOS ── */
   if (cl.intento === 'CONSULTA_EVENTOS') {
