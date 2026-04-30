@@ -6217,6 +6217,27 @@ function guardarFinalizar() {
   // Auto-marcar MTO: usar código del Excel para que coincida con pyc_excel_data
   const codigoExcel = cliRowExcel ? (cliRowExcel.CODIGO || cliRowExcel.codigo || p.codigo) : p.codigo;
   try { autoMarcarMTO({ ...p, codigo: codigoExcel, trabajoRealizado: trabajo }); } catch(e) {}
+
+  // ── Si es cliente nuevo, añadirlo al Excel local ──
+  if (!cliRowExcel && p.codigo && !/^[A-Z]\d+$/i.test(p.codigo)) {
+    const excelActual = loadArr(K_EXCEL);
+    const codNrm = nrmCod(p.codigo);
+    const yaExiste = excelActual.some(c => nrmCod(c.CODIGO||c.codigo||'') === codNrm);
+    if (!yaExiste) {
+      excelActual.push({
+        CLIENTE:       p.clienteReal || p.clienteNorm || p.cliente || '',
+        CODIGO:        p.codigo || '',
+        MUNICIPIO:     p.localidad || '',
+        DIRECCION:     p.direccion || '',
+        ZONA:          p._zona || inferirZona(p.localidad) || '',
+        HORARIO:       p.horarioTxt || '',
+        OBSERVACIONES: '[Nuevo — añadido por Iram]',
+        INT:'', Q1:'', Q2:'', Q3:'', Q4:'',
+      });
+      save(K_EXCEL, excelActual);
+    }
+  }
+
   renderLista();
 }
 
@@ -7982,6 +8003,22 @@ function guardarNuevaOficina() {
   };
   clientes.push(nueva);
   save(K_EXCEL, clientes);
+
+  // Actualizar partes de análisis que tengan el mismo código
+  try {
+    const analisis = JSON.parse(localStorage.getItem('pyc_analisis_partes') || '[]');
+    let actualizado = false;
+    analisis.forEach(a => {
+      const aCod = String(a.codigo||'').toLowerCase().trim();
+      const nCod = cod.toLowerCase().trim();
+      if (aCod && nCod && (aCod === nCod || aCod.endsWith(nCod) || nCod.endsWith(aCod))) {
+        if (dir && !a.direccion) a.direccion = dir;
+        if (mun && !a.localidad) a.localidad = mun;
+        actualizado = true;
+      }
+    });
+    if (actualizado) localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+  } catch(e) {}
 
   cerrarNuevaOficina();
   popularZonas();
@@ -13234,8 +13271,9 @@ const _DIAS_IDX = {
 };
 
 function iramFechaISO(t) {
-  t = t.toLowerCase();
+  t = (t||'').toLowerCase().trim();
   const hoy = new Date();
+
   if (/\bhoy\b/.test(t)) return hoy.toISOString().slice(0,10);
   if (/\bma[ñn]ana\b/.test(t)) {
     const d = new Date(hoy); d.setDate(d.getDate()+1);
@@ -13245,6 +13283,44 @@ function iramFechaISO(t) {
     const d = new Date(hoy); d.setDate(d.getDate()+2);
     return d.toISOString().slice(0,10);
   }
+
+  // Fechas con día y mes explícitos: "2 de mayo", "el 15 de junio", "15/05", "15-05"
+  const MESES = {
+    enero:1, febrero:2, marzo:3, abril:4, mayo:5, junio:6,
+    julio:7, agosto:8, septiembre:9, octubre:10, noviembre:11, diciembre:12,
+    ene:1, feb:2, mar:3, abr:4, may:5, jun:6,
+    jul:7, ago:8, sep:9, oct:10, nov:11, dic:12
+  };
+  const mDiaMes = t.match(/\b(\d{1,2})\s+de\s+([a-záéíóú]+)/i);
+  if (mDiaMes) {
+    const dia = parseInt(mDiaMes[1]);
+    const mesNom = mDiaMes[2].toLowerCase();
+    const mes = MESES[mesNom];
+    if (mes && dia >= 1 && dia <= 31) {
+      const anyo = hoy.getFullYear();
+      const fecha = new Date(anyo, mes-1, dia);
+      // Si la fecha ya pasó este año, usar el año siguiente
+      if (fecha < hoy && fecha.getMonth() !== hoy.getMonth()) {
+        fecha.setFullYear(anyo+1);
+      }
+      return fecha.toISOString().slice(0,10);
+    }
+  }
+
+  // Formato numérico: "15/05", "15-05"
+  const mNum = t.match(/\b(\d{1,2})[\/\-](\d{1,2})\b/);
+  if (mNum) {
+    const dia = parseInt(mNum[1]);
+    const mes = parseInt(mNum[2]);
+    if (mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) {
+      const anyo = hoy.getFullYear();
+      const fecha = new Date(anyo, mes-1, dia);
+      if (fecha < hoy) fecha.setFullYear(anyo+1);
+      return fecha.toISOString().slice(0,10);
+    }
+  }
+
+  // Días de la semana
   for (const [dia, idx] of Object.entries(_DIAS_IDX)) {
     const re = new RegExp(`(pr[oó]ximo\\s+)?\\b${dia}\\b`);
     if (re.test(t)) {
@@ -13255,6 +13331,7 @@ function iramFechaISO(t) {
       return d.toISOString().slice(0,10);
     }
   }
+
   return hoy.toISOString().slice(0,10);
 }
 
