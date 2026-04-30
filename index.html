@@ -6219,7 +6219,7 @@ function guardarFinalizar() {
   try { autoMarcarMTO({ ...p, codigo: codigoExcel, trabajoRealizado: trabajo }); } catch(e) {}
 
   // ── Si es cliente nuevo, añadirlo al Excel local ──
-  if (!cliRowExcel && p.codigo && !/^[A-Z]\d+$/i.test(p.codigo)) {
+  if (!cliRowExcel && p.codigo && !/^(INC|OT|AL_|WO|TASK)\d*/i.test(p.codigo)) {
     const excelActual = loadArr(K_EXCEL);
     const codNrm = nrmCod(p.codigo);
     const yaExiste = excelActual.some(c => nrmCod(c.CODIGO||c.codigo||'') === codNrm);
@@ -6547,8 +6547,8 @@ function datosClientesNuevos() {
   partes.forEach(p => {
     const cod = String(p.codigo || '').trim();
     if (!cod) return;
-    // Ignorar códigos alfanuméricos tipo E2024 — son identificadores de sistema, no códigos de cliente
-    if (/^[A-Z]\d+$/i.test(cod)) return;
+    // Ignorar solo identificadores internos de sistema (INC, OT, AL_, WO) — NO códigos de cliente tipo L9110, C2324
+    if (/^(INC|OT|AL_|WO|TASK)\d*/i.test(cod)) return;
     const nombre = String(p.clienteReal || p.clienteNorm || '');
     if (ESPORADICOS_RE.test(nombre)) return;
     // Comprobar si alguna variante o sufijo del código del parte ya está en Excel
@@ -12999,7 +12999,7 @@ async function pycEnviar() {
   pycAutoResize(ta);
   pycMsgUser(txt);
 
-  // ── ¿Hay un diálogo pendiente? ──
+  // ── ¿Hay un diálogo pendiente? — ANTES de clasificar con IA ──
   if (_iramDialogo) {
     const dialogo = _iramDialogo;
     _iramDialogo  = null;
@@ -13030,10 +13030,11 @@ async function pycEnviar() {
   }
 
   // ── ¿Es una confirmación de acción pendiente? ──
-  const esConfirmacion = /^(s[íi]|va|dale|venga|ok|claro|hazlo|llama|abre|sí|si)$/i.test(txt.trim());
+  const esConfirmacion = /^(s[íi]|va|dale|venga|ok|claro|hazlo|llama|abre|sí|si|perfecto|adelante)$/i.test(txt.trim());
   if (esConfirmacion && _iramUltimaAccion) {
     const acc = _iramUltimaAccion;
     _iramUltimaAccion = null;
+
     if (acc.tipo === 'waze' && acc.datos) {
       iramAbrirWazeParada(acc.datos);
       pycMsgIA('Abriendo Waze.', false, 'local');
@@ -13041,7 +13042,37 @@ async function pycEnviar() {
     }
     if (acc.tipo === 'llamar' && acc.datos) {
       iramConfirmarLlamar(acc.datos);
-      pycMsgIA(`Llamando a ${acc.datos.NOMBRE}.`, false, 'local');
+      pycMsgIA(`${acc.datos.NOMBRE} · ${acc.datos.TELEFONO} — pulsa para llamar.`, false, 'local');
+      return;
+    }
+    if (acc.tipo === 'registrar_mto' && acc.datos) {
+      const { paradas, trim } = acc.datos;
+      const mtoMan  = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
+      const fechaStr= new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
+      paradas.forEach(p => {
+        const clave = iramMtoKey(p.cliente||p.clienteReal||'', p.codigo||'', p.loc||p.localidad||'');
+        if (!mtoMan[clave]) mtoMan[clave] = {};
+        mtoMan[clave][trim] = fechaStr;
+      });
+      localStorage.setItem('pyc_mto_manual', JSON.stringify(mtoMan));
+      if (typeof renderMTO === 'function') renderMTO();
+      const lista = paradas.map(p=>`${p.cliente||p.clienteReal} · ${p.loc||p.localidad||''}`).join(', ');
+      iramDiarioAccion(`MTO ${trim} registrado: ${lista}`);
+      pycMsgIA(`✅ MTO ${trim} registrado — ${lista}.`, false, 'local');
+      return;
+    }
+    if (acc.tipo === 'anadir_aviso' && acc.datos) {
+      const { partes } = acc.datos;
+      const rutaAct = loadArr(K_RUTA);
+      const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+      partes.forEach(a => { a.enRuta = true; });
+      localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+      partes.forEach(a => {
+        rutaAct.push({ id:'R_'+Date.now()+'_'+Math.random().toString(36).slice(2), clienteReal:a.clienteReal||a.clienteNorm||a.cliente, clienteNorm:a.clienteNorm||a.cliente, cliente:a.cliente, codigo:a.codigo||'', localidad:a.localidad||'', direccion:a.direccion||'', trabajo:a.trabajo||a.descripcion||'', horarioTxt:a.horarioTxt||'', urgente:a.urgente||false, estado:'pendiente' });
+      });
+      save(K_RUTA, rutaAct);
+      if (typeof renderRuta === 'function') renderRuta();
+      pycMsgIA(`✅ ${partes.length} aviso${partes.length>1?'s':''} añadidos a la ruta.`, false, 'local');
       return;
     }
   }
@@ -13169,50 +13200,55 @@ async function pycEnviar() {
 const IRAM_INTENTOS_SCHEMA = `Eres un clasificador de intenciones para Gsus, técnico de seguridad en campo. Convierte su frase en JSON.
 Responde SOLO JSON válido, sin explicaciones.
 
-VOCABULARIO IMPORTANTE: Gsus dice "aviso" no "parada". Un aviso = parte de trabajo del día.
+VOCABULARIO: "aviso" = parte de trabajo. "análisis" = todos los partes cargados. "ruta" = paradas activas del día.
 
-INTENTOS DISPONIBLES:
-COMPLETAR_AVISO(trabajo?,mto?) — finalizar aviso activo. trabajo=descripción, mto=Q1/Q2/Q3/Q4 si lo dice
-SIGUIENTE_AVISO — ir al siguiente aviso pendiente
-NAVEGAR(destino) — ir a un lugar o aviso concreto
-CONSULTA_AVISOS — cuántos avisos quedan EN LA RUTA activa (paradas pendientes del día)
-CONSULTA_LOCALIDADES — en qué localidades/pueblos hay avisos en la ruta
-ANADIR_AVISO(destino) — añadir aviso de X a la ruta del día
-CREAR_RUTA(n?) — crear ruta con N avisos (urgentes primero)
-ANALIZAR_PARTES(localidad?) — qué hay en ANÁLISIS (todos los partes cargados). Usar para: qué avisos hay en total, qué hay en X localidad, cuántos partes hay, contenido de los partes
-RUTA_SIN_MTO(trim?) — qué avisos de la ruta no tienen el MTO hecho
-REGISTRAR_MTO(trim?,cliente?) — registrar mantenimiento trimestral hecho
-AVERIAS_SIN_MTO — de todos los partes cuáles no tienen MTO
-MTO_ESTADO(cliente,localidad?) — estado del MTO de un cliente concreto
-MTO_SEMANA — resumen de MTO hechos esta semana
-CREAR_TAREA(titulo,fecha?) — crear recordatorio. fecha SOLO si la dice explícitamente
-CONSULTA_TAREAS — ver mis tareas pendientes
-MARCAR_TAREA_HECHA(titulo) — marcar tarea como completada
-CREAR_NOTA(texto) — crear nota de texto libre
-CREAR_EVENTO(titulo,fecha?,hora?) — crear evento en el calendario
-CONSULTA_EVENTOS — ver eventos del mes
-LLAMAR(quien) — llamar a un contacto
-HORARIO(cliente,localidad?) — horario de apertura de una oficina
-HISTORIAL_CLIENTE(cliente,localidad?) — cuándo fui, qué hice en una oficina
-MATERIAL_PENDIENTE — qué material tengo pendiente de recoger
-CONTAR_AVISOS — cuántos avisos me quedan (alias de CONSULTA_AVISOS)
-URGENTE — mover el urgente al inicio de la ruta
-IRAMCLOUD_VINCULAR — vincular carpeta de manuales IramCloud
-IRAMCLOUD_LISTAR — listar manuales disponibles en IramCloud
-CHAT — conversación sin acción, pregunta web, o no reconocido
+INTENTOS:
+COMPLETAR_AVISO(trabajo?,mto?,buscarCerca?) — finalizar aviso activo. Si dice "hay algo cerca" o "qué hay cerca" añadir buscarCerca:true
+SIGUIENTE_AVISO — siguiente aviso de la ruta
+NAVEGAR(destino) — navegar a un lugar o aviso
+CONSULTA_AVISOS — avisos de la ruta activa (pendientes/completados)
+CONSULTA_LOCALIDADES — en qué localidades hay avisos (ruta O análisis según contexto)
+ANADIR_AVISO(destino,localidad?) — añadir aviso(s) de X a la ruta. Si dice una localidad, localidad=nombre
+CREAR_RUTA(n?) — crear ruta con N avisos
+ANALIZAR_PARTES(localidad?) — consultar TODOS los partes en análisis. Usar cuando pregunta por partes/avisos en general, no solo los de la ruta
+RUTA_SIN_MTO(trim?) — qué avisos de la ruta no tienen MTO
+REGISTRAR_MTO(trim,localidad?,cliente?) — SOLO con verbo explícito: "registra","marca","anota","pon","apunta". Sin verbo → usar MTO_ESTADO
+MTO_ESTADO(cliente?,localidad?,trim?) — consultar estado del MTO. Usar cuando dice "tienen el mto hecho", "está hecho el Q2", "cuál es el mto de X"
+MTO_SEMANA — cuántos MTO ha hecho esta semana
+AVERIAS_SIN_MTO — partes sin MTO hecho
+CREAR_TAREA(titulo,fecha?) — fecha SOLO si la dice. Sin título → dejar vacío para preguntar
+CONSULTA_TAREAS — ver tareas pendientes
+MARCAR_TAREA_HECHA(titulo) — marcar tarea como hecha
+CREAR_NOTA(texto) — nota de texto libre
+CREAR_EVENTO(titulo,fecha?,hora?) — evento en calendario
+CONSULTA_EVENTOS — eventos del mes
+LLAMAR(quien) — llamar a contacto
+HORARIO(cliente,localidad?) — horario de una oficina
+HISTORIAL_CLIENTE(cliente,localidad?) — historial de visitas
+MATERIAL_PENDIENTE — material pendiente de coger
+URGENTE — urgente al inicio de la ruta
+IRAMCLOUD_VINCULAR — vincular IramCloud
+IRAMCLOUD_LISTAR — listar manuales IramCloud
+CHAT — conversación, pregunta web, o no reconocido
+
+REGLAS CRÍTICAS:
+- REGISTRAR_MTO solo con verbos: "registra","marca","anota","pon","apunta el Q2". "tienen el Q2 hecho" → MTO_ESTADO
+- ANALIZAR_PARTES cuando pregunta por el total de avisos/partes, no solo los de la ruta
+- CONTAR_AVISOS es alias de CONSULTA_AVISOS (ruta activa)
+- Si no hay verbo de acción claro → clasificar como consulta, nunca como acción
 
 EJEMPLOS:
 "finaliza, Q2 hecho, se cambia batería" → {"intento":"COMPLETAR_AVISO","trabajo":"se cambia batería","mto":"Q2"}
-"se ha quedao arreglao" → {"intento":"COMPLETAR_AVISO","trabajo":"arreglado"}
+"ya terminé Repsol, hay algo cerca" → {"intento":"COMPLETAR_AVISO","trabajo":"Repsol terminado","buscarCerca":true}
 "siguiente aviso" → {"intento":"SIGUIENTE_AVISO"}
-"llévame al aviso de Buñol" → {"intento":"NAVEGAR","destino":"Buñol"}
-"añade el aviso de Chiva" → {"intento":"ANADIR_AVISO","destino":"Chiva"}
-"dónde son los avisos" → {"intento":"CONSULTA_LOCALIDADES"}
-"qué avisos no tienen el Q2" → {"intento":"RUTA_SIN_MTO","trim":"Q2"}
-"cuántos me quedan" → {"intento":"CONTAR_AVISOS"}
-"recuérdame coger baterías mañana" → {"intento":"CREAR_TAREA","titulo":"coger baterías","fecha":"mañana"}
-"crea una nota el Cajamar de Utiel tiene llave en recepción" → {"intento":"CREAR_NOTA","texto":"Cajamar Utiel tiene llave en recepción"}
-"qué temperatura hace en Utiel" → {"intento":"CHAT"}`;
+"cuántos avisos tengo en total" → {"intento":"ANALIZAR_PARTES"}
+"cuántos me quedan en la ruta" → {"intento":"CONSULTA_AVISOS"}
+"añade los de Siete Aguas" → {"intento":"ANADIR_AVISO","localidad":"Siete Aguas"}
+"Loriguilla y Chiva tienen el Q2 hecho" → {"intento":"MTO_ESTADO","localidad":"Loriguilla"}
+"registra el Q2 de Loriguilla" → {"intento":"REGISTRAR_MTO","trim":"Q2","localidad":"Loriguilla"}
+"qué hay en Moncada" → {"intento":"ANALIZAR_PARTES","localidad":"Moncada"}
+"hay algún aviso de Puerto Sagunto" → {"intento":"ANALIZAR_PARTES","localidad":"Puerto Sagunto"}
+"qué temperatura hace" → {"intento":"CHAT"}`;
 
 async function iramClasificarIA(txt) {
   const keyGroq = pycGetKey('groq');
@@ -13792,18 +13828,65 @@ function iramEjecutarAccion(cl) {
   }
 
   /* ── MTO ESTADO ── */
+  /* ── MTO ESTADO — consulta, nunca registra ── */
   if (cl.intento === 'MTO_ESTADO') {
-    const cli = iramBuscarCliente(cl.cliente, cl.localidad);
-    if (!cli) return `No encuentro a ${cl.cliente||cl.localidad}.`;
-    const n   = cli.CLIENTE || cli.cliente || cl.cliente;
-    const m   = cli.MUNICIPIO || cli.municipio || cl.localidad;
-    const cod = cli.CODIGO || cli.codigo || '';
-    const mes = hoy.getMonth();
-    const trim = mes<3?'Q1':mes<6?'Q2':mes<9?'Q3':'Q4';
-    const d   = iramGetMtoData(n, cod, m, trim);
-    const v   = d?.[trim]||'';
-    const ok  = v && v.trim()!=='' && v!=='0';
-    return `MTO ${trim} de ${n} en ${m}: ${ok?'✅ hecho ('+v+')':'⏳ pendiente'}.`;
+    const ruta      = loadArr(K_RUTA);
+    const mes       = new Date().getMonth();
+    const trimAct   = mes<3?'Q1':mes<6?'Q2':mes<9?'Q3':'Q4';
+    const trim      = (cl.trim||trimAct).toUpperCase();
+
+    // Si menciona localidad — buscar en ruta Y en análisis
+    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const todasParadas = [
+      ...ruta,
+      ...analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado')
+    ];
+
+    const nL = iramNorm(cl.localidad||'');
+    const nC = iramNorm(cl.cliente||'');
+    const candidatas = nL || nC
+      ? todasParadas.filter(p => {
+          const pL = iramNorm(p.localidad||'');
+          const pC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
+          return (nL && pL.includes(nL)) || (nC && pC.includes(nC));
+        })
+      : ruta.filter(r => r.estado === 'pendiente');
+
+    if (!candidatas.length) return `No hay avisos de ${cl.localidad||cl.cliente||'esa oficina'}.`;
+
+    // Eliminar duplicados por código
+    const vistas = new Set();
+    const unicas = candidatas.filter(p => {
+      const k = p.codigo||p.id;
+      if (vistas.has(k)) return false;
+      vistas.add(k); return true;
+    });
+
+    const resultados = unicas.map(p => {
+      const cliente = p.clienteReal||p.clienteNorm||p.cliente||'?';
+      const loc     = p.localidad||'';
+      const d       = iramGetMtoData(cliente, p.codigo||'', loc, trim);
+      const v       = d?.[trim]||'';
+      const hecho   = v && v.trim() !== '' && v !== '0';
+      return { cliente, loc, codigo: p.codigo||'', hecho, fecha: v };
+    });
+
+    const hechos   = resultados.filter(r => r.hecho);
+    const pendientes = resultados.filter(r => !r.hecho);
+
+    let resp = '';
+    if (hechos.length)    resp += hechos.map(r => `✅ ${r.cliente} · ${r.loc} — ${trim} hecho (${r.fecha})`).join('. ');
+    if (pendientes.length) resp += (resp?'\n':'')+pendientes.map(r => `⏳ ${r.cliente} · ${r.loc} — ${trim} pendiente`).join('. ');
+
+    // Si hay pendientes, ofrecer registrarlos
+    if (pendientes.length > 0) {
+      _iramUltimaAccion = {
+        tipo: 'registrar_mto',
+        datos: { paradas: pendientes, trim }
+      };
+      resp += '\n¿Lo registro?';
+    }
+    return resp;
   }
 
   /* ── SIGUIENTE PARADA ── */
@@ -13976,25 +14059,65 @@ function iramEjecutarAccion(cl) {
     let resp = `✅ ${sig.clienteReal||sig.cliente} · ${sig.localidad||''} completado.${mtoMsg}`;
     if (sig2) resp += ` Siguiente: ${sig2.clienteReal||sig2.clienteNorm||sig2.cliente} · ${sig2.localidad||''}.`;
     else resp += ' Ruta completada. ¡Buen trabajo!';
+
+    // buscarCerca — buscar avisos en la misma localidad o zona en análisis
+    if (cl.buscarCerca) {
+      const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+      const locSig   = iramNorm(sig.localidad||'');
+      const zonaSig  = sig._zona || '';
+      const cercanos = analisis.filter(a => {
+        if (a.estado==='completado'||a.estado==='cerrado'||a.enRuta) return false;
+        const aLoc  = iramNorm(a.localidad||'');
+        const aZona = a._zona||'';
+        return aLoc === locSig || (zonaSig && aZona === zonaSig);
+      });
+      if (cercanos.length) {
+        const lista = cercanos.map(a=>`${a.clienteReal||a.clienteNorm||a.cliente} · ${a.localidad||''}`).join(', ');
+        resp += `\n📍 Cerca: ${lista}. ¿Los añado a la ruta?`;
+        _iramUltimaAccion = { tipo:'anadir_aviso', datos:{ partes: cercanos }};
+      } else {
+        resp += '\nNo hay más avisos cerca.';
+      }
+    }
     return resp;
   }
 
   /* ── REGISTRAR MTO ── */
   if (cl.intento === 'REGISTRAR_MTO') {
-    const ruta = loadArr(K_RUTA);
-    const sig  = ruta.find(r => r.estado === 'pendiente');
-    if (!sig) return 'No hay avisos activos en la ruta.';
-    const mesActual  = new Date().getMonth();
-    const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
-    const trim       = (cl.trim||trimActual).toUpperCase();
-    const clave      = iramMtoKey(sig.clienteReal||sig.clienteNorm||sig.cliente||'', sig.codigo||'', sig.localidad||'');
-    const mtoMan     = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
-    if (!mtoMan[clave]) mtoMan[clave] = {};
-    mtoMan[clave][trim] = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
+    const ruta      = loadArr(K_RUTA);
+    const mesActual = new Date().getMonth();
+    const trimActual= mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
+    const trim      = (cl.trim||trimActual).toUpperCase();
+
+    // Si menciona localidad o cliente, registrar en esa parada concreta
+    let paradas = ruta.filter(r => r.estado === 'pendiente');
+    if (cl.localidad || cl.cliente) {
+      const nL = iramNorm(cl.localidad||'');
+      const nC = iramNorm(cl.cliente||'');
+      const filtradas = paradas.filter(p => {
+        const pL = iramNorm(p.localidad||'');
+        const pC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
+        return (nL && pL.includes(nL)) || (nC && pC.includes(nC));
+      });
+      if (filtradas.length) paradas = filtradas;
+    }
+
+    if (!paradas.length) return 'No hay avisos pendientes en la ruta.';
+
+    // Registrar MTO en todas las paradas que coinciden
+    const mtoMan = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
+    const fechaStr = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
+    const registradas = [];
+    paradas.forEach(p => {
+      const clave = iramMtoKey(p.clienteReal||p.clienteNorm||p.cliente||'', p.codigo||'', p.localidad||'');
+      if (!mtoMan[clave]) mtoMan[clave] = {};
+      mtoMan[clave][trim] = fechaStr;
+      registradas.push(`${p.clienteReal||p.clienteNorm||p.cliente} · ${p.localidad||''}`);
+    });
     localStorage.setItem('pyc_mto_manual', JSON.stringify(mtoMan));
     if (typeof renderMTO === 'function') renderMTO();
-    iramDiarioAccion(`MTO ${trim}: ${sig.clienteReal||sig.cliente} · ${sig.localidad||''}`);
-    return `✅ MTO ${trim} registrado — ${sig.clienteReal||sig.cliente} · ${sig.localidad||''}.`;
+    iramDiarioAccion(`MTO ${trim}: ${registradas.join(', ')}`);
+    return `✅ MTO ${trim} registrado — ${registradas.join(', ')}.`;
   }
 
   /* ── MARCAR TAREA HECHA ── */
@@ -14013,32 +14136,43 @@ function iramEjecutarAccion(cl) {
   if (cl.intento === 'ANADIR_AVISO') {
     const analisis  = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
     const rutaActual= loadArr(K_RUTA);
-    const nD        = iramNorm(cl.destino||'');
-    if (!nD) return 'Dime qué aviso quieres añadir.';
+    const nD        = iramNorm(cl.destino||cl.localidad||'');
+    if (!nD) return 'Dime qué aviso o localidad quieres añadir.';
 
-    // Buscar primero por localidad (más específico), luego por cliente
-    let parte = analisis.find(a => {
+    // Buscar por localidad primero — puede ser múltiple
+    let partes = analisis.filter(a => {
       if (a.estado==='completado'||a.estado==='cerrado'||a.enRuta) return false;
       const nL = iramNorm(a.localidad||'');
       return nL.length >= 3 && (nL.includes(nD) || nD.includes(nL));
     });
 
-    // Si no hay por localidad, buscar por cliente
-    if (!parte) {
-      parte = analisis.find(a => {
+    // Si no hay por localidad, buscar por cliente — solo uno
+    if (!partes.length) {
+      const parte = analisis.find(a => {
         if (a.estado==='completado'||a.estado==='cerrado'||a.enRuta) return false;
         const nC = iramNorm(a.clienteReal||a.clienteNorm||a.cliente||'');
         return nC.includes(nD.slice(0,5)) || nD.includes(nC.slice(0,5));
       });
+      if (parte) partes = [parte];
     }
 
-    if (!parte) return `No encuentro "${cl.destino}" en los partes de hoy.`;
-    parte.enRuta = true;
+    if (!partes.length) return `No encuentro avisos de "${cl.destino||cl.localidad}" en análisis.`;
+
+    // Si son varios, confirmar antes de añadir
+    if (partes.length > 1) {
+      _iramUltimaAccion = { tipo: 'anadir_aviso', datos: { partes } };
+      const lista = partes.map(a=>`${a.clienteReal||a.clienteNorm||a.cliente} · ${a.localidad||''}`).join(', ');
+      return `${partes.length} avisos en ${cl.destino||cl.localidad}: ${lista}. ¿Los añado todos?`;
+    }
+
+    // Solo uno — añadir directamente
+    const a = partes[0];
+    a.enRuta = true;
     localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
-    rutaActual.push({ id:'R_'+Date.now(), clienteReal:parte.clienteReal||parte.clienteNorm||parte.cliente, clienteNorm:parte.clienteNorm||parte.cliente, cliente:parte.cliente, codigo:parte.codigo||'', localidad:parte.localidad||'', direccion:parte.direccion||'', trabajo:parte.trabajo||parte.descripcion||'', horarioTxt:parte.horarioTxt||'', urgente:parte.urgente||false, estado:'pendiente' });
+    rutaActual.push({ id:'R_'+Date.now(), clienteReal:a.clienteReal||a.clienteNorm||a.cliente, clienteNorm:a.clienteNorm||a.cliente, cliente:a.cliente, codigo:a.codigo||'', localidad:a.localidad||'', direccion:a.direccion||'', trabajo:a.trabajo||a.descripcion||'', horarioTxt:a.horarioTxt||'', urgente:a.urgente||false, estado:'pendiente' });
     save(K_RUTA, rutaActual);
     if (typeof renderRuta === 'function') renderRuta();
-    return `✅ ${parte.clienteReal||parte.cliente} · ${parte.localidad||''} añadido a la ruta.`;
+    return `✅ ${a.clienteReal||a.clienteNorm||a.cliente} · ${a.localidad||''} añadido a la ruta.`;
   }
 
   /* ── CREAR RUTA ── */
@@ -14105,12 +14239,27 @@ function iramEjecutarAccion(cl) {
 
   /* ── CONSULTA AVISOS ── */
   if (cl.intento === 'CONSULTA_AVISOS' || cl.intento === 'CONTAR_AVISOS') {
-    const ruta   = loadArr(K_RUTA);
-    const pend   = ruta.filter(r => r.estado==='pendiente');
-    const hechas = ruta.filter(r => r.estado==='completada');
-    if (!ruta.length) return 'No hay ruta cargada hoy.';
-    const lista = pend.map((p,i) => `${i+1}. ${p.clienteReal||p.clienteNorm||p.cliente||'?'} · ${p.localidad||''}: ${(p.trabajo||'').slice(0,50)}`).join('\n');
-    return `${pend.length} pendientes${hechas.length?' · '+hechas.length+' completados':''}.\n${lista}`;
+    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const ruta     = loadArr(K_RUTA);
+    const anPend   = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado');
+    const rutaPend = ruta.filter(r => r.estado==='pendiente');
+    const rutaHech = ruta.filter(r => r.estado==='completada');
+
+    if (!anPend.length && !ruta.length) return 'No hay avisos cargados hoy.';
+
+    let resp = '';
+    if (anPend.length) {
+      const porCliente = {};
+      anPend.forEach(a => { const c=a.clienteReal||a.clienteNorm||a.cliente||'?'; if(!porCliente[c])porCliente[c]=0; porCliente[c]++; });
+      const clientes = Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(', ');
+      resp = `${anPend.length} avisos en total — ${clientes}.`;
+      const urgentes = anPend.filter(a=>a.urgente);
+      if (urgentes.length) resp += ` 🚨 ${urgentes.length} urgente${urgentes.length>1?'s':''}.`;
+    }
+    if (ruta.length) {
+      resp += `${resp?' ':''} En ruta: ${rutaPend.length} pendiente${rutaPend.length!==1?'s':''}${rutaHech.length?' · '+rutaHech.length+' completad'+(rutaHech.length===1?'a':'as'):''}. `;
+    }
+    return resp.trim();
   }
 
   /* ── SIGUIENTE AVISO ── */
