@@ -13013,7 +13013,7 @@ async function pycGemini(userMsg) {
     system_instruction: { parts: [{ text: systemTxt }] },
     contents: mensajes,
     generationConfig: { maxOutputTokens: 500, temperature: 0.7 },
-    ...(esWeb && { tools: [{ google_search: {} }] })
+    ...(esWeb && { tools: [{ googleSearch: {} }] })
   };
 
   if (esWeb) {
