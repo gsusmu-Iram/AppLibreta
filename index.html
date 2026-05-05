@@ -4777,7 +4777,15 @@ function editarParteNuevo(id) {
   const p = partes.find(x => x.id === id);
   if (!p) return;
 
-  // Backdrop
+  // Buscar horario del Excel si existe
+  const excel  = loadArr(K_EXCEL);
+  const exRow  = excel.find(c => {
+    const ec = nrmCod(c.CODIGO||c.codigo||'');
+    const pc = nrmCod(p.codigo||'');
+    return pc && (ec === pc || codigoVariantes(p.codigo||'').includes(ec));
+  });
+  const horarioActual = p.horarioTxt || exRow?.HORARIO || exRow?.horario || '';
+
   const bd = document.createElement('div');
   bd.id = 'edit-parte-bd';
   bd.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998';
@@ -4785,44 +4793,42 @@ function editarParteNuevo(id) {
 
   const panel = document.createElement('div');
   panel.id = 'edit-parte-panel';
-  panel.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;overflow:hidden';
+  panel.style.cssText = 'position:fixed;inset:0;background:#f5f4f0;z-index:9999;display:flex;flex-direction:column;overflow:hidden';
 
-  const cerrar = () => {
-    document.getElementById('edit-parte-bd')?.remove();
-    document.getElementById('edit-parte-panel')?.remove();
-  };
+  const lbl = (txt) => `<div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:.1em;margin:14px 0 4px">${txt}</div>`;
+  const inp = (id, val, ph='') => `<input id="${id}" value="${val||''}" placeholder="${ph}" autocomplete="off" style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box;font-family:inherit;color:#1a2744">`;
+
   panel.innerHTML = `
-    <div style="display:flex;align-items:center;padding:16px;border-bottom:1px solid rgba(26,39,68,.1);background:#f8f9fb">
-      <button onclick="document.getElementById('edit-parte-bd')?.remove();document.getElementById('edit-parte-panel')?.remove()" style="background:none;border:none;font-size:22px;cursor:pointer;margin-right:12px;color:#7c3aed">←</button>
-      <span style="font-weight:700;font-size:16px;color:#1a2744">Editar cliente nuevo</span>
+    <div style="display:flex;align-items:center;padding:0 16px;height:56px;background:#1a2744;flex-shrink:0">
+      <button onclick="document.getElementById('edit-parte-bd')?.remove();document.getElementById('edit-parte-panel')?.remove()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;margin-right:12px;padding:0">←</button>
+      <span style="font-weight:700;font-size:16px;color:#fff">Editar cliente nuevo</span>
     </div>
-    <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#fff">
-      <div>
-        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Cliente</label>
-        <input id="ep-cliente" value="${p.clienteReal||p.clienteNorm||p.cliente||''}" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box">
+    <div style="flex:1;overflow-y:auto;padding:0 16px 24px">
+      ${lbl('Cliente')}
+      ${inp('ep-cliente', p.clienteReal||p.clienteNorm||p.cliente||'', 'Cajamar, BBVA…')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+        <div>
+          ${lbl('Código')}
+          ${inp('ep-codigo', p.codigo||'', '70042')}
+        </div>
+        <div>
+          ${lbl('Localidad')}
+          ${inp('ep-localidad', p.localidad||'', 'Valencia…')}
+        </div>
       </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Código</label>
-        <input id="ep-codigo" value="${p.codigo||''}" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Localidad</label>
-        <input id="ep-localidad" value="${p.localidad||''}" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Dirección</label>
-        <input id="ep-direccion" value="${p.direccion||''}" placeholder="Calle, número..." style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Trabajo / Aviso</label>
-        <textarea id="ep-trabajo" rows="3" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:13px;background:#fff;box-sizing:border-box;resize:none">${p.trabajo||p.descripcion||''}</textarea>
-      </div>
+      ${lbl('Dirección')}
+      ${inp('ep-direccion', p.direccion||'', 'Calle, número…')}
+      ${lbl('Horario')}
+      ${inp('ep-horario', horarioActual, 'L-V 08:30-14:00')}
+      ${lbl('Trabajo / Aviso')}
+      <textarea id="ep-trabajo" rows="3" style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:13px;background:#fff;box-sizing:border-box;resize:none;font-family:inherit;color:#1a2744">${p.trabajo||p.descripcion||''}</textarea>
     </div>
-    <div style="padding:16px;background:#f8f9fb;border-top:1px solid rgba(26,39,68,.1)">
-      <button onclick="guardarParteNuevo('${id}')" style="width:100%;padding:14px;border-radius:12px;border:none;background:#7c3aed;color:#fff;font-size:15px;font-weight:700;cursor:pointer">✓ Guardar</button>
+    <div style="padding:12px 16px;background:#fff;border-top:1px solid rgba(26,39,68,.08)">
+      <button onclick="guardarParteNuevo('${id}')" style="width:100%;padding:14px;border-radius:12px;border:none;background:#f97316;color:#fff;font-size:15px;font-weight:700;cursor:pointer">✓ Guardar</button>
     </div>`;
   document.body.appendChild(panel);
 }
+
 
 function guardarParteNuevo(id) {
   const stored = localStorage.getItem('pyc_analisis_partes');
@@ -4834,6 +4840,7 @@ function guardarParteNuevo(id) {
   partes[idx].codigo      = document.getElementById('ep-codigo')?.value.trim() || partes[idx].codigo;
   partes[idx].localidad   = document.getElementById('ep-localidad')?.value.trim() || partes[idx].localidad;
   partes[idx].direccion   = document.getElementById('ep-direccion')?.value.trim() || partes[idx].direccion;
+  partes[idx].horarioTxt  = document.getElementById('ep-horario')?.value.trim() || partes[idx].horarioTxt || '';
   const trab = document.getElementById('ep-trabajo')?.value.trim();
   if (trab) { partes[idx].trabajo = trab; partes[idx].descripcion = trab; }
   localStorage.setItem('pyc_analisis_partes', JSON.stringify(partes));
@@ -12247,6 +12254,26 @@ function iramAbrirMusica() {
   }, 2000);
 }
 
+function iramAbrirBuscar(query, filtro) {
+  pycCerrarChat();
+  irA('buscar');
+  setTimeout(() => {
+    buscarIrVista('buscar');
+    const inp = document.getElementById('search-hero-input');
+    if (inp && query) {
+      inp.value = query;
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (filtro) {
+      // Aplicar filtro de pestaña si se especifica
+      setTimeout(() => {
+        const btns = document.querySelectorAll('.srp-pill');
+        btns.forEach(b => { if (b.textContent.toLowerCase().includes(filtro.toLowerCase())) b.click(); });
+      }, 300);
+    }
+  }, 200);
+}
+
 function iramWaze() {
   try {
     const ruta = loadArr(K_RUTA);
@@ -12851,6 +12878,7 @@ function iramResumenDia() {
    ══════════════════════════════════════════════════════ */
 let _iramDialogo = null; // { esperando: 'CREAR_TAREA', datos: {} }
 let _iramUltimaAccion = null;
+let _iramOficinaActiva = null; // { cliente, codigo, localidad, direccion } — contexto persistente
 
 /* ══════════════════════════════════════════════════════
    IRAM — Saludo proactivo inteligente
@@ -13519,7 +13547,7 @@ async function pycEnviar() {
     'HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE',
     'IRAMCLOUD_VINCULAR','IRAMCLOUD_LISTAR','IRAMCLOUD_BUSCAR',
     'ANALIZAR_PARTES','CREAR_RUTA','ANADIR_AVISO','RUTA_SIN_MTO',
-    'COMPLETAR_AVISO','REGISTRAR_MTO','MARCAR_TAREA_HECHA'
+    'COMPLETAR_AVISO','REGISTRAR_MTO','MARCAR_TAREA_HECHA','BUSCAR_OFICINA'
   ];
 
   // Clasificar con IA (rápido) o fallback local
@@ -13667,7 +13695,8 @@ CREAR_EVENTO(titulo,fecha?,hora?) — evento en calendario
 CONSULTA_EVENTOS — eventos del mes
 LLAMAR(quien) — llamar a contacto
 HORARIO(cliente,localidad?) — horario de una oficina
-HISTORIAL_CLIENTE(cliente,localidad?) — historial de visitas
+BUSCAR_OFICINA(codigo?,cliente?,localidad?) — identificar una oficina por código, nombre o localidad. Usar cuando pregunta "qué oficina es el 0570", "quién es el 22640", "dónde está el Cajamar de Buñol"
+HISTORIAL_CLIENTE(cliente?,localidad?) — historial de visitas
 MATERIAL_PENDIENTE — material pendiente de coger
 URGENTE — urgente al inicio de la ruta
 IRAMCLOUD_VINCULAR — vincular IramCloud
@@ -13692,6 +13721,15 @@ EJEMPLOS:
 "registra el Q2 de Loriguilla" → {"intento":"REGISTRAR_MTO","trim":"Q2","localidad":"Loriguilla"}
 "qué hay en Moncada" → {"intento":"ANALIZAR_PARTES","localidad":"Moncada"}
 "hay algún aviso de Puerto Sagunto" → {"intento":"ANALIZAR_PARTES","localidad":"Puerto Sagunto"}
+"dime los avisos de hoy" → {"intento":"ANALIZAR_PARTES"}
+"qué avisos tengo en analizar" → {"intento":"ANALIZAR_PARTES"}
+"dónde son los avisos de analizar" → {"intento":"CONSULTA_LOCALIDADES"}
+"tiene el mantenimiento hecho" → {"intento":"MTO_ESTADO"}
+"cuáles no tienen el mantenimiento hecho" → {"intento":"RUTA_SIN_MTO"}
+"qué trabajo hay que hacer en Loriguilla" → {"intento":"ANALIZAR_PARTES","localidad":"Loriguilla"}
+"qué trabajo hice en Cajamar Buñol" → {"intento":"HISTORIAL_CLIENTE","cliente":"Cajamar","localidad":"Buñol"}
+"qué oficina es el 0570" → {"intento":"BUSCAR_OFICINA","codigo":"0570"}
+"quién es el 22640" → {"intento":"BUSCAR_OFICINA","codigo":"22640"}
 "qué temperatura hace" → {"intento":"CHAT"}
 "qué dice el manual de Ajax sobre la altura de los volumétricos" → {"intento":"IRAMCLOUD_BUSCAR","query":"altura volumétricos","equipo":"Ajax"}
 "cómo se programa la Vesta" → {"intento":"IRAMCLOUD_BUSCAR","query":"programación","equipo":"Vesta"}
@@ -14265,12 +14303,53 @@ function iramEjecutarAccion(cl) {
     return `Material pendiente: ${mat.slice(0,5).map(t=>t.titulo).join(', ')}.`;
   }
 
+  /* ── BUSCAR OFICINA — identifica por código y activa contexto ── */
+  if (cl.intento === 'BUSCAR_OFICINA') {
+    const excel = loadArr(K_EXCEL);
+    const cod   = iramNorm(cl.codigo||'').replace(/^0+/,'');
+    const nC    = iramNorm(cl.cliente||'');
+    const nL    = iramNorm(cl.localidad||'');
+
+    const row = excel.find(c => {
+      const ec  = nrmCod(c.CODIGO||c.codigo||'');
+      const ecc = ec.replace(/^0+/,'');
+      const eCli = iramNorm(c.CLIENTE||c.cliente||'');
+      const eLoc = iramNorm(c.MUNICIPIO||c.municipio||'');
+      if (cod && (ecc === cod || ec === cod)) return true;
+      if (nC && nL) return eCli.includes(nC) && eLoc.includes(nL);
+      if (nC) return eCli.includes(nC);
+      if (nL) return eLoc.includes(nL);
+      return false;
+    });
+
+    if (!row) return `No encuentro "${cl.codigo||cl.cliente||cl.localidad}" en el Excel.`;
+
+    // Activar oficina en contexto
+    _iramOficinaActiva = {
+      cliente:   row.CLIENTE  || row.cliente  || '',
+      codigo:    row.CODIGO   || row.codigo   || '',
+      localidad: row.MUNICIPIO|| row.municipio|| '',
+      direccion: row.DIRECCION|| row.direccion|| '',
+      horario:   row.HORARIO  || row.horario  || '',
+    };
+
+    const mes  = new Date().getMonth();
+    const trim = mes<3?'Q1':mes<6?'Q2':mes<9?'Q3':'Q4';
+    const mto  = iramGetMtoData(_iramOficinaActiva.cliente, _iramOficinaActiva.codigo, _iramOficinaActiva.localidad, trim);
+    const mtoV = mto?.[trim]||'';
+    const mtoStr = mtoV && mtoV!=='0' ? `MTO ${trim} ✅ (${mtoV})` : `MTO ${trim} ⏳ pendiente`;
+
+    return `${_iramOficinaActiva.cliente} · ${_iramOficinaActiva.localidad}${_iramOficinaActiva.direccion?' · '+_iramOficinaActiva.direccion:''}${_iramOficinaActiva.horario?' · '+_iramOficinaActiva.horario:''}. ${mtoStr}.`;
+  }
+
   /* ── HISTORIAL CLIENTE ── */
   if (cl.intento === 'HISTORIAL_CLIENTE') {
     const hist = loadArr(K_HIST);
-    const nC   = iramNorm(cl.cliente||'');
-    const nL   = iramNorm(cl.localidad||'');
-    const nCod = (cl.codigo||'').replace(/^0+/,'').toLowerCase();
+    // Usar oficina activa si no hay cliente/localidad explícitos
+    const ofi  = (!cl.cliente && !cl.localidad && !cl.codigo) ? _iramOficinaActiva : null;
+    const nC   = iramNorm(cl.cliente||ofi?.cliente||'');
+    const nL   = iramNorm(cl.localidad||ofi?.localidad||'');
+    const nCod = (cl.codigo||ofi?.codigo||'').replace(/^0+/,'').toLowerCase();
     if (!nC && !nCod) return 'Dime el cliente para buscar en el historial.';
     const visitas = hist.filter(v => {
       if (nCod) {
@@ -14281,9 +14360,11 @@ function iramEjecutarAccion(cl) {
       const vl = iramNorm(v.LOCALIDAD||v.localidad||v.MUNICIPIO||'');
       return vc.includes(nC) && (!nL || vl.includes(nL));
     }).sort((a,b) => (b.FECHA||'').localeCompare(a.FECHA||''));
-    if (!visitas.length) return `Sin visitas a ${cl.cliente}${cl.localidad?' en '+cl.localidad:''}.`;
+    const nombre = cl.cliente||ofi?.cliente||'ese cliente';
+    const loc    = cl.localidad||ofi?.localidad||'';
+    if (!visitas.length) return `Sin visitas a ${nombre}${loc?' en '+loc:''}.`;
     const u = visitas[0];
-    return `${u.CLIENTE||u.cliente} · ${u.LOCALIDAD||u.localidad||''}: ${u.FECHA||'?'} — ${u.TRABAJO||u.trabajo||'?'}. Total: ${visitas.length} visitas.`;
+    return `${u.CLIENTE||u.cliente} · ${u.LOCALIDAD||u.localidad||''}: ${u.FECHA||'?'} — ${u.TRABAJO||u.trabajo||'?'}. Total: ${visitas.length} visita${visitas.length!==1?'s':''}.`;
   }
 
   /* ── LLAMAR ── */
@@ -14313,11 +14394,19 @@ function iramEjecutarAccion(cl) {
 
   /* ── HORARIO ── */
   if (cl.intento === 'HORARIO') {
-    const cli = iramBuscarCliente(cl.cliente, cl.localidad);
-    if (!cli) return `No encuentro a ${cl.cliente||cl.localidad} en la base de datos.`;
+    // Usar oficina activa si no hay cliente/localidad
+    const cliente  = cl.cliente  || _iramOficinaActiva?.cliente  || '';
+    const localidad= cl.localidad|| _iramOficinaActiva?.localidad || '';
+    if (!cliente && !localidad) return 'Dime de qué oficina quieres el horario.';
+    const cli = iramBuscarCliente(cliente, localidad);
+    if (!cli) {
+      // Si hay oficina activa con horario directo
+      if (_iramOficinaActiva?.horario) return `${_iramOficinaActiva.cliente} · ${_iramOficinaActiva.localidad}: ${_iramOficinaActiva.horario}`;
+      return `No encuentro a ${cliente||localidad} en la base de datos.`;
+    }
     const h = cli.HORARIO || cli.horario || '';
-    const n = cli.CLIENTE || cli.cliente || cl.cliente;
-    const m = cli.MUNICIPIO || cli.municipio || cl.localidad;
+    const n = cli.CLIENTE || cli.cliente || cliente;
+    const m = cli.MUNICIPIO || cli.municipio || localidad;
     if (!h) return `${n} en ${m} no tiene horario registrado.`;
     return `${n} · ${m}: ${h}`;
   }
@@ -14330,7 +14419,12 @@ function iramEjecutarAccion(cl) {
     const trimAct   = mes<3?'Q1':mes<6?'Q2':mes<9?'Q3':'Q4';
     const trim      = (cl.trim||trimAct).toUpperCase();
 
-    // Si menciona localidad — buscar en ruta Y en análisis
+    // Usar oficina activa si no hay localidad/cliente explícitos
+    if (!cl.localidad && !cl.cliente && _iramOficinaActiva) {
+      cl.localidad = _iramOficinaActiva.localidad;
+      cl.cliente   = _iramOficinaActiva.cliente;
+    }
+
     const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
     const todasParadas = [
       ...ruta,
