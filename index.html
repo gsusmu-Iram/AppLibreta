@@ -8929,6 +8929,10 @@ function ejecutarBusqueda(q) {
       tipo:'cli', codigo:c.CODIGO||'', central:c.CENTRAL||'', zona:c.ZONA||'',
       datos: c.OBSERVACIONES||'',
       hint: hintCli(c),
+      titleRaw: c.CLIENTE||'',
+      localidad: c.MUNICIPIO||'',
+      direccion: c.DIRECCION||'',
+      horario:   c.HORARIO||'',
       title:   `${c.CLIENTE||'—'} · ${c.CODIGO||'—'}`,
       sub:     `${c.MUNICIPIO||'—'}${c.DIRECCION?' · '+c.DIRECCION:''}`,
       meta:    [c.CENTRAL?'⚙️ '+c.CENTRAL:'',c.ZONA?'Zona '+c.ZONA:''].filter(Boolean).join('  '),
@@ -9059,7 +9063,8 @@ function renderResultadosFiltrados() {
       if (r.codigo)  btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
       if (r.central) btns += `<span class="res-act" style="cursor:default;pointer-events:none">⚙️ ${escH(r.central)}</span>`;
       // Botón añadir aviso manual a la ruta
-      btns += `<button class="res-act nav" onclick="event.stopPropagation();abrirNuevoAvisoDesdeCliente(${JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||r.titulo||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''})})" title="Crear aviso y añadir a ruta">➕ Aviso</button>`;
+      const avisoData = JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''});
+      btns += `<button class="res-act nav" onclick="event.stopPropagation();abrirNuevoAvisoDesdeCliente(JSON.parse(this.dataset.d))" data-d="${escH(avisoData)}" title="Crear aviso">➕ Aviso</button>`;
     }
     if (r.tipo==='his') {
       if (r.ot) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.ot)}',this)">📋 ${escH(r.ot)}</button>`;
@@ -9333,7 +9338,7 @@ function abrirNuevoAvisoDesdeCliente(datos) {
       </div>
     </div>
     <div style="padding:12px 16px;background:#fff;border-top:1px solid rgba(26,39,68,.08)">
-      <button onclick="guardarNuevoAviso(${JSON.stringify(datos).replace(/"/g,'&quot;')})" style="width:100%;padding:14px;border-radius:12px;border:none;background:#f97316;color:#fff;font-size:15px;font-weight:700;cursor:pointer">➕ Crear aviso</button>
+      <button onclick="guardarNuevoAviso(JSON.parse(this.dataset.d))" data-d="${escH(JSON.stringify(datos))}" style="width:100%;padding:14px;border-radius:12px;border:none;background:#f97316;color:#fff;font-size:15px;font-weight:700;cursor:pointer">➕ Crear aviso</button>
     </div>`;
   document.body.appendChild(panel);
 }
