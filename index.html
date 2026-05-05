@@ -9062,9 +9062,9 @@ function renderResultadosFiltrados() {
     if (r.tipo==='cli') {
       if (r.codigo)  btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
       if (r.central) btns += `<span class="res-act" style="cursor:default;pointer-events:none">⚙️ ${escH(r.central)}</span>`;
-      // Botón añadir aviso manual a la ruta
+      // Botón añadir aviso a análisis
       const avisoData = JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''});
-      btns += `<button class="res-act nav" onclick="event.stopPropagation();abrirNuevoAvisoDesdeCliente(JSON.parse(this.dataset.d))" data-d="${escH(avisoData)}" title="Crear aviso">➕ Aviso</button>`;
+      btns += `<button class="res-act nav" onclick="event.stopPropagation();anadirAAnalisis(JSON.parse(this.dataset.d))" data-d="${escH(avisoData)}" title="Añadir a análisis">➕ Análisis</button>`;
     }
     if (r.tipo==='his') {
       if (r.ot) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.ot)}',this)">📋 ${escH(r.ot)}</button>`;
@@ -9298,6 +9298,33 @@ function mostrarTodaInfo() {
           <button class="res-act copy" onclick="copiarTexto(${JSON.stringify(i.detalle||'')},this)">📋 Copiar</button>
         </div>
       </div>`).join('');
+}
+
+function anadirAAnalisis(datos) {
+  const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+  // Comprobar si ya existe
+  const yaExiste = analisis.some(a => a.codigo && a.codigo === datos.codigo && a.estado !== 'completado');
+  if (yaExiste) { toast(`${datos.cliente} ya está en análisis`); return; }
+  analisis.unshift({
+    id:          'M_' + Date.now(),
+    clienteReal: datos.cliente || '',
+    clienteNorm: datos.cliente || '',
+    cliente:     datos.cliente || '',
+    codigo:      datos.codigo  || '',
+    localidad:   datos.localidad || '',
+    direccion:   datos.direccion || '',
+    horarioTxt:  datos.horario  || '',
+    trabajo:     '',
+    descripcion: '',
+    tipo:        'SEG',
+    estado:      'pendiente',
+    fecha:       new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}),
+    isNew:       false,
+    manual:      true,
+  });
+  localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+  if (typeof renderizar === 'function') renderizar();
+  toast(`✅ ${datos.cliente||datos.codigo} añadido a análisis`);
 }
 
 function abrirNuevoAvisoDesdeCliente(datos) {
