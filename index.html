@@ -1763,17 +1763,17 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .grp-line{flex:1;height:1px;background:rgba(26,39,68,.08)}
 
 /* Tarjeta de resultado */
-.res-card{background:white;border-radius:var(--r-md);border:1px solid rgba(26,39,68,.08);padding:9px 11px;display:flex;flex-direction:column;gap:3px;box-shadow:0 1px 3px rgba(26,39,68,.05);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:box-shadow .15s}
+.res-card{background:white;border-radius:var(--r-md);border:1px solid rgba(26,39,68,.08);padding:10px 12px;display:flex;flex-direction:column;gap:4px;box-shadow:0 1px 3px rgba(26,39,68,.05);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:box-shadow .15s}
 .res-card:active{box-shadow:0 2px 8px rgba(26,39,68,.12)}
 .res-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.res-title{font-size:14px;font-weight:800;color:var(--navy);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.res-title{font-size:15px;font-weight:800;color:var(--navy);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .res-badge{font-family:var(--font-mono);font-size:9px;padding:2px 6px;border-radius:3px;flex-shrink:0}
 .rb-inf{background:var(--purple-bg);color:var(--purple)}
 .rb-his{background:var(--ok-bg);color:var(--ok)}
 .rb-cli{background:rgba(26,39,68,.08);color:var(--ink-mid)}
 .rb-hor{background:var(--warn-bg);color:var(--warn)}
 .rb-fes{background:var(--error-bg);color:var(--error)}
-.res-sub{font-size:12px;color:var(--ink-mid);line-height:1.4}
+.res-sub{font-size:13px;color:var(--ink-mid);line-height:1.4}
 .res-meta{font-family:var(--font-mono);font-size:9px;color:var(--ink-xl);margin-top:1px}
 mark{background:rgba(249,115,22,.2);border-radius:2px;padding:0 2px;color:var(--orange-deep);font-weight:900;font-style:normal}
 
@@ -2842,10 +2842,23 @@ body { font-size: 14px; }
               <div class="tipo-chips" id="tipo-chips"></div>
             </div>
 
-            <!-- Detalle -->
+            <!-- Detalle con editor Quill -->
             <div>
               <span class="fl">Información / Detalle</span>
-              <textarea class="fi ta" id="inf-detalle" placeholder="El código es… La central tiene…"></textarea>
+              <div id="inf-quill-container" style="border:1.5px solid rgba(26,39,68,.12);border-radius:var(--r-sm);overflow:hidden;background:var(--card)">
+                <div id="inf-quill-toolbar">
+                  <button class="ql-bold"></button>
+                  <button class="ql-italic"></button>
+                  <select class="ql-size">
+                    <option value="small">Pequeño</option>
+                    <option selected></option>
+                    <option value="large">Grande</option>
+                  </select>
+                  <button class="ql-list" value="bullet"></button>
+                </div>
+                <div id="inf-quill-editor" style="min-height:120px;font-size:13px;font-family:var(--font-ui)"></div>
+              </div>
+              <textarea id="inf-detalle" style="display:none"></textarea>
             </div>
 
             <!-- Etiquetas -->
@@ -4759,6 +4772,86 @@ function getSysTag(s) {
   return '<span class="sys-tag sys-seg">🔒 SEG</span>';
 }
 
+function editarParteNuevo(id) {
+  const partes = cargarPartes();
+  const p = partes.find(x => x.id === id);
+  if (!p) return;
+
+  // Backdrop
+  const bd = document.createElement('div');
+  bd.id = 'edit-parte-bd';
+  bd.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998';
+  document.body.appendChild(bd);
+
+  const panel = document.createElement('div');
+  panel.id = 'edit-parte-panel';
+  panel.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;overflow:hidden';
+
+  const cerrar = () => {
+    document.getElementById('edit-parte-bd')?.remove();
+    document.getElementById('edit-parte-panel')?.remove();
+  };
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;padding:16px;border-bottom:1px solid rgba(26,39,68,.1);background:#f8f9fb">
+      <button onclick="document.getElementById('edit-parte-bd')?.remove();document.getElementById('edit-parte-panel')?.remove()" style="background:none;border:none;font-size:22px;cursor:pointer;margin-right:12px;color:#7c3aed">←</button>
+      <span style="font-weight:700;font-size:16px;color:#1a2744">Editar cliente nuevo</span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#fff">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Cliente</label>
+        <input id="ep-cliente" value="${p.clienteReal||p.clienteNorm||p.cliente||''}" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Código</label>
+        <input id="ep-codigo" value="${p.codigo||''}" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Localidad</label>
+        <input id="ep-localidad" value="${p.localidad||''}" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Dirección</label>
+        <input id="ep-direccion" value="${p.direccion||''}" placeholder="Calle, número..." style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em">Trabajo / Aviso</label>
+        <textarea id="ep-trabajo" rows="3" style="width:100%;margin-top:4px;padding:10px 12px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:13px;background:#fff;box-sizing:border-box;resize:none">${p.trabajo||p.descripcion||''}</textarea>
+      </div>
+    </div>
+    <div style="padding:16px;background:#f8f9fb;border-top:1px solid rgba(26,39,68,.1)">
+      <button onclick="guardarParteNuevo('${id}')" style="width:100%;padding:14px;border-radius:12px;border:none;background:#7c3aed;color:#fff;font-size:15px;font-weight:700;cursor:pointer">✓ Guardar</button>
+    </div>`;
+  document.body.appendChild(panel);
+}
+
+function guardarParteNuevo(id) {
+  const stored = localStorage.getItem('pyc_analisis_partes');
+  const partes = stored ? JSON.parse(stored) : [];
+  const idx = partes.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  partes[idx].clienteReal = document.getElementById('ep-cliente')?.value.trim() || partes[idx].clienteReal;
+  partes[idx].clienteNorm = partes[idx].clienteReal;
+  partes[idx].codigo      = document.getElementById('ep-codigo')?.value.trim() || partes[idx].codigo;
+  partes[idx].localidad   = document.getElementById('ep-localidad')?.value.trim() || partes[idx].localidad;
+  partes[idx].direccion   = document.getElementById('ep-direccion')?.value.trim() || partes[idx].direccion;
+  const trab = document.getElementById('ep-trabajo')?.value.trim();
+  if (trab) { partes[idx].trabajo = trab; partes[idx].descripcion = trab; }
+  localStorage.setItem('pyc_analisis_partes', JSON.stringify(partes));
+  // Actualizar también en el Excel local si existe por código
+  const clis = loadArr(K_EXCEL);
+  const codNrm = nrmCod(partes[idx].codigo||'');
+  const exIdx = clis.findIndex(c => codNrm && nrmCod(c.CODIGO||c.codigo||'') === codNrm);
+  if (exIdx !== -1) {
+    if (partes[idx].localidad) clis[exIdx].MUNICIPIO = partes[idx].localidad;
+    if (partes[idx].direccion) clis[exIdx].DIRECCION = partes[idx].direccion;
+    save(K_EXCEL, clis);
+  }
+  document.getElementById('edit-parte-bd')?.remove();
+  document.getElementById('edit-parte-panel')?.remove();
+  renderizar();
+  toast('✅ Datos actualizados');
+}
+
 function renderizar() {
   const partes=cargarPartes();
   const lista=document.getElementById('lista-partes');
@@ -4815,22 +4908,38 @@ function renderizar() {
         const cardBg=isRuta?`background:${c2.pastel};`:'';
         const cardClass=isRuta?'aviso-card card-en-ruta':'aviso-card';
 
-        const bNew    =p.isNew&&!isRuta?'<span class="badge-new">NUEVO</span>':'';
+        const bNew = p.isNew && !isRuta
+          ? `<span class="badge-new">NUEVO</span>`
+          : '';
         const bRuta   =isRuta          ?'<span class="badge-ruta">EN RUTA</span>':'';
         const bUrgente=p.urgente&&!isRuta?`<span class="badge-urgente">🚨 URGENTE${p.horasUrgencia?' '+p.horasUrgencia+'H':''}</span>`:'';
         const bAntiguo=dias>7&&!isRuta  ?`<span class="badge-antiguo">${dias}d</span>`:'';
         const bFijado =p.horaFijada&&!isRuta?`<span class="badge-fijado">FIJADO ${p.horaFijada}${p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''}</span>`:'';
 
-        // Chip MTO — normalizar clave para cruce con MTO
+        // Chips MTO — todas las capas igual que módulo MTO
         const _mesAct  = new Date().getMonth();
         const _trimAct = _mesAct<3?'Q1':_mesAct<6?'Q2':_mesAct<9?'Q3':'Q4';
-        const _mtoData = (typeof iramGetMtoData === 'function')
-          ? iramGetMtoData(p.clienteReal||p.clienteNorm||p.cliente||'', p.codigo||'', p.localidad||'', _trimAct)
-          : null;
-        const _mtoVal = _mtoData ? (_mtoData[_trimAct]||'') : '';
-        const bMTO = _mtoVal && _mtoVal.trim() !== '' && _mtoVal !== '0'
-          ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#dcfce7;color:#15803d;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;margin-left:4px">✅ ${_trimAct}</span>`
-          : '';
+        const _mtoMan  = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
+        const _excelD  = loadArr(K_EXCEL);
+        // Buscar fila Excel por código para obtener nombre oficial → mismo key que módulo MTO
+        const _exRow   = _excelD.find(c => {
+          const ec = nrmCod(c.CODIGO||c.codigo||'');
+          const pc = nrmCod(p.codigo||'');
+          return pc && (ec === pc || codigoVariantes(p.codigo||'').includes(ec));
+        });
+        const _mtoKey  = _exRow ? mtoKey(_exRow) : null;
+        const _mtoManD = _mtoKey ? (_mtoMan[_mtoKey]||{}) : {};
+        const _getVal  = t => _mtoManD[t] || (_exRow ? (String(_exRow[t]||'')) : '') || '';
+        const _tiposMTO= (typeof getMtoTipos==='function' && (_exRow||p.clienteNorm))
+          ? getMtoTipos(_exRow?(_exRow.CLIENTE||''):p.clienteNorm||p.cliente||'')
+          : ['INT','Q1','Q2','Q3','Q4'];
+        const bMTO = _tiposMTO.map(t => {
+          const v   = _getVal(t);
+          const ok  = v && v.trim() !== '' && v !== '0';
+          const cur = t === _trimAct;
+          if (!ok) return cur ? `<span style="display:inline-flex;align-items:center;gap:2px;background:rgba(0,0,0,.06);color:#94a3b8;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">${mtoLabel(t)}</span>` : '';
+          return `<span style="display:inline-flex;align-items:center;gap:2px;background:${cur?'#dcfce7':'#ede9fe'};color:${cur?'#15803d':'#6d28d9'};border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">✅ ${mtoLabel(t)}</span>`;
+        }).filter(Boolean).join(' ');
 
         html+=`
         <div class="aviso-wrap" style="animation-delay:${delay}ms" data-id="${p.id}">
@@ -4915,10 +5024,10 @@ function renderizar() {
                   <span class="act-icon">${isRuta?'↩️':'🗺️'}</span>
                   <span class="act-label">${isRuta?'Quitar<br>ruta':'Ir a<br>ruta'}</span>
                 </div>
-                <div class="act-card danger" onclick="borrarParte('${p.id}',event)">
-                  <span class="act-icon">🗑️</span>
-                  <span class="act-label">Eliminar</span>
-                </div>
+                ${p.isNew ? `<div class="act-card" onclick="editarParteNuevo('${p.id}')">
+                  <span class="act-icon">✏️</span>
+                  <span class="act-label">Editar<br>datos</span>
+                </div>` : ''}
               </div>
 
             </div>
@@ -5940,13 +6049,15 @@ function abrirFinalizarPara(id) {
         campoTrabajo.placeholder = p.trabajo || 'Describe el trabajo realizado…';
       }
 
-      // Campo observaciones — cargar desde Excel
+      // Campo observaciones — cargar desde Excel (nunca mostrar textos automáticos)
       const campoObs = document.getElementById('campo-obs');
       if (campoObs) {
-        const clis = JSON.parse(localStorage.getItem('pyc_excel_data')||'[]');
+        const clis = loadArr(K_EXCEL);
         const cliRow = buscarClienteEnExcel(clis, p.codigo, p.clienteNorm||p.cliente, p.localidad, p.direccion);
-        campoObs.value = (cliRow && cliRow.OBSERVACIONES && cliRow.OBSERVACIONES !== '[Nuevo — pendiente de exportar]')
-          ? cliRow.OBSERVACIONES : '';
+        const obsTexto = cliRow?.OBSERVACIONES || '';
+        // No mostrar textos automáticos generados por la app — solo datos reales del usuario
+        const textoAuto = /\[A[ñn]adido|pendiente de exportar|automáticamente|por PycLibreta/i.test(obsTexto);
+        campoObs.value = (obsTexto && !textoAuto) ? obsTexto : '';
       }
 
       // Acordeón equipos — abrir si ya hay alguno relleno
@@ -6210,21 +6321,25 @@ function guardarFinalizar() {
   const nuevoHorario = campoHor ? campoHor.value.trim() : '';
   const clis = loadArr(K_EXCEL);
   let cliRowExcel = null;
+  let actualizados = 0;
   clis.forEach(c => {
-    const codMatch = p.codigo && (nrmCod(c.CODIGO||c.codigo||'') === nrmCod(p.codigo) ||
-      codigoVariantes(p.codigo).includes(nrmCod(c.CODIGO||c.codigo||'')));
-    const locMatch = !p.localidad || (c.MUNICIPIO||c.municipio||'').toUpperCase() === p.localidad.toUpperCase();
-    // Con código → solo por código. Sin código → por nombre + localidad
-    const sinCodigo = !p.codigo;
-    const cliMatch  = sinCodigo &&
-      (c.CLIENTE||c.cliente||'').toUpperCase() === (p.clienteNorm||p.cliente||'').toUpperCase();
-    if ((p.codigo ? codMatch : cliMatch) && locMatch) {
+    const cCod = nrmCod(c.CODIGO||c.codigo||'');
+    const pCod = nrmCod(p.codigo||'');
+    // SOLO por código exacto cuando hay código — nunca por nombre
+    const codMatch = pCod && (cCod === pCod || codigoVariantes(p.codigo).includes(cCod));
+    // Sin código → nombre exacto + localidad exacta (caso muy raro)
+    const locExacta = (c.MUNICIPIO||c.municipio||'').toUpperCase().trim() === (p.localidad||'').toUpperCase().trim();
+    const cliMatch  = !pCod && locExacta &&
+      (c.CLIENTE||c.cliente||'').toUpperCase().trim() === (p.clienteNorm||p.cliente||'').toUpperCase().trim();
+    const coincide  = pCod ? codMatch : cliMatch;
+    if (coincide && !cliRowExcel) {
       if (nuevoHorario) c.HORARIO = nuevoHorario;
       if (obs) c.OBSERVACIONES = obs;
-      if (!cliRowExcel) cliRowExcel = c;
+      cliRowExcel = c;
+      actualizados++;
     }
   });
-  if (nuevoHorario || obs) save(K_EXCEL, clis);
+  if ((nuevoHorario || obs) && actualizados > 0) save(K_EXCEL, clis);
 
   // ── EQUIPOS ──
   const equipos = loadObj(K_EQUIPOS);
@@ -8267,6 +8382,10 @@ function buscarIrVista(v) {
 
   if (v === 'cierre') renderCierre();
 
+  if (v === 'info') {
+    setTimeout(() => _initInfoQuill(), 100);
+  }
+
   if (v === 'buscar') {
     setTimeout(() => {
       const inp = document.getElementById('search-hero-input');
@@ -8408,7 +8527,14 @@ function guardarInfo() {
   const codigo   = document.getElementById('inf-codigo').value.trim();
   const pob      = document.getElementById('inf-poblacion').value.trim();
   const sistema  = document.getElementById('inf-sistema').value.trim();
-  const detalle  = document.getElementById('inf-detalle').value.trim();
+  // Leer de Quill si está inicializado, si no del textarea
+  let detalle = '';
+  if (window._infQuill) {
+    detalle = window._infQuill.root.innerHTML.trim();
+    if (detalle === '<p><br></p>' || detalle === '<br>') detalle = '';
+  } else {
+    detalle = document.getElementById('inf-detalle').value.trim();
+  }
 
   if (!detalle) { buscarToast('⚠️ Escribe la información a guardar'); return; }
 
@@ -8541,7 +8667,7 @@ const K_TIPOS_DATO     = 'pyc_tipos_dato';
 const K_TIPOS_DATO_DEL = 'pyc_tipos_dato_del';
 const TIPOS_BUILTIN = [
   '🗝️ Llaves','🌐 IP / Red','🔒 Contraseña','🕐 Horario',
-  '📞 Contacto','📋 Datos','📝 Info'
+  '📞 Contacto','📋 Datos','📝 Info','📹 CCTV','📖 Manuales'
 ];
 
 function getTiposDato() {
@@ -9207,13 +9333,18 @@ function abrirNuevoContacto(idx) {
   const contactos = loadArr('pyc_contactos');
   const c = esEdicion ? contactos[idx] : {};
 
+  const bd = document.createElement('div');
+  bd.id = 'contacto-bd';
+  bd.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998';
+  document.body.appendChild(bd);
+
   const panel = document.createElement('div');
   panel.id = 'contacto-panel';
-  panel.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;overflow:hidden';
+  panel.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;overflow:hidden';
   panel.innerHTML = `
-    <div style="display:flex;align-items:center;padding:16px;border-bottom:1px solid rgba(26,39,68,.1);background:var(--card)">
-      <button onclick="document.getElementById('contacto-panel').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;margin-right:12px;color:var(--accent)">←</button>
-      <span style="font-weight:700;font-size:16px;color:var(--ink)">${esEdicion?'Editar':'Nuevo'} contacto</span>
+    <div style="display:flex;align-items:center;padding:16px;border-bottom:1px solid rgba(26,39,68,.1);background:#f8f9fb">
+      <button onclick="document.getElementById('contacto-bd')?.remove();document.getElementById('contacto-panel').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;margin-right:12px;color:#7c3aed">←</button>
+      <span style="font-weight:700;font-size:16px;color:#1a2744">${esEdicion?'Editar':'Nuevo'} contacto</span>
       ${esEdicion?`<button onclick="borrarContacto(${idx})" style="margin-left:auto;background:none;border:none;font-size:20px;cursor:pointer">🗑️</button>`:''}
     </div>
     <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
@@ -9256,6 +9387,7 @@ function guardarContacto(idx) {
     contactos.push(nuevo);
   }
   save('pyc_contactos', contactos);
+  document.getElementById('contacto-bd')?.remove();
   document.getElementById('contacto-panel')?.remove();
   mostrarContactos();
 }
@@ -9265,6 +9397,7 @@ function borrarContacto(idx) {
   const contactos = loadArr('pyc_contactos');
   contactos.splice(parseInt(idx), 1);
   save('pyc_contactos', contactos);
+  document.getElementById('contacto-bd')?.remove();
   document.getElementById('contacto-panel')?.remove();
   mostrarContactos();
 }
@@ -9896,20 +10029,33 @@ function _renderItEdit(item) {
     <label class="it-edit-label">Tipo de dato</label>
     <select class="it-edit-field" id="ite-tipodato"
       style="cursor:pointer;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');background-repeat:no-repeat;background-position:right 2px center">
-      ${['','🗝️ Llaves','🌐 IP / Red','🔒 Contraseña','🕐 Horario','📞 Contacto','📋 Datos','📝 Info']
+      ${['','🗝️ Llaves','🌐 IP / Red','🔒 Contraseña','🕐 Horario','📞 Contacto','📋 Datos','📝 Info','📹 CCTV','📖 Manuales']
         .map(v => `<option value="${v}" ${(item.tipoDato||''===v)?'selected':''}>${v||'— Selecciona tipo —'}</option>`).join('')}
     </select>
 
     <label class="it-edit-label">Información · usa "Clave: valor" para mejor presentación</label>
     <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
       ${['IP:','Gateway:','Código:','Pass:','Usuario:','Horario:','Tel:','MAC:','Nota:'].map(p=>
-        `<button onclick="_itInsertar('ite-detalle','${p} ')"
+        `<button onclick="_itInsertarQuill('${p} ')"
           style="background:rgba(249,115,22,.1);color:var(--orange-deep);border:1px solid rgba(249,115,22,.3);
                  border-radius:var(--r-pill);padding:3px 10px;font-size:11px;font-weight:700;
                  cursor:pointer;font-family:var(--font-mono);-webkit-tap-highlight-color:transparent">${p}</button>`
       ).join('')}
     </div>
-    <textarea class="it-edit-field it-edit-detalle" id="ite-detalle">${escH(item.detalle||'')}</textarea>
+    <div id="ite-quill-toolbar" style="border:1.5px solid rgba(249,115,22,.3);border-bottom:none;border-radius:8px 8px 0 0;background:#fff">
+      <button class="ql-bold"></button>
+      <button class="ql-italic"></button>
+      <select class="ql-size">
+        <option value="small">Pequeño</option>
+        <option selected></option>
+        <option value="large">Grande</option>
+        <option value="huge">Muy grande</option>
+      </select>
+      <button class="ql-list" value="bullet"></button>
+      <button class="ql-clean"></button>
+    </div>
+    <div id="ite-quill-editor" style="border:1.5px solid rgba(249,115,22,.3);border-radius:0 0 8px 8px;min-height:180px;font-size:14px;background:#fff"></div>
+    <textarea id="ite-detalle" style="display:none"></textarea>
 
     <label class="it-edit-label">Etiquetas</label>
     <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px" id="it-etq-chips">
@@ -9923,15 +10069,36 @@ function _renderItEdit(item) {
   `;
 
   setTimeout(() => {
-    const ta = document.getElementById('ite-detalle');
-    if (ta) {
-      const grow = () => { ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; };
-      grow();
-      ta.addEventListener('input', grow);
+    if (typeof Quill !== 'undefined') {
+      // Destruir instancia anterior si existe
+      if (window._iteQuill) { window._iteQuill = null; }
+      window._iteQuill = new Quill('#ite-quill-editor', {
+        theme: 'snow',
+        placeholder: 'Escribe la información…',
+        modules: { toolbar: '#ite-quill-toolbar' }
+      });
+      // Cargar contenido existente
+      const detalle = item.detalle || '';
+      if (detalle) {
+        // Si es HTML usar pasteHTML, si es texto plano usar setText
+        if (detalle.includes('<') && detalle.includes('>')) {
+          window._iteQuill.clipboard.dangerouslyPasteHTML(detalle);
+        } else {
+          window._iteQuill.setText(detalle);
+        }
+      }
     } else {
-      document.getElementById('ite-entidad')?.focus();
+      // Fallback: textarea normal
+      const ta = document.getElementById('ite-detalle');
+      if (ta) {
+        ta.style.display = 'block';
+        ta.value = item.detalle || '';
+        const grow = () => { ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; };
+        grow();
+        ta.addEventListener('input', grow);
+      }
     }
-  }, 100);
+  }, 150);
 }
 
 function _itInsertar(id, txt) {
@@ -9939,12 +10106,21 @@ function _itInsertar(id, txt) {
   if (!el) return;
   const s = el.selectionStart, e = el.selectionEnd;
   const val = el.value;
-  // Añadir en nueva línea si hay contenido
   const prefix = val && !val.endsWith('\n') ? '\n' : '';
   el.value = val.slice(0,s) + prefix + txt + val.slice(e);
   el.selectionStart = el.selectionEnd = s + prefix.length + txt.length;
   el.focus();
   el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
+}
+
+function _itInsertarQuill(txt) {
+  if (window._iteQuill) {
+    const range = window._iteQuill.getSelection(true);
+    const idx = range ? range.index : window._iteQuill.getLength();
+    window._iteQuill.insertText(idx, txt);
+    window._iteQuill.setSelection(idx + txt.length);
+    window._iteQuill.focus();
+  }
 }
 
 function _itToggleEtq(chip, etq) {
@@ -9962,7 +10138,7 @@ function toggleEditInfoTec() {
   const item = loadArr(K_INFO_TEC).find(i => i.id === _itPageId);
   if (!item) return;
   _itEditMode = !_itEditMode;
-  document.getElementById('it-btn-edit').textContent = _itEditMode ? '👁️' : '✏️';
+  document.getElementById('it-btn-edit').textContent = _itEditMode ? '🖋️' : '✏️';
   if (_itEditMode) _renderItEdit(item);
   else             _renderItVer(item);
 }
@@ -9982,7 +10158,13 @@ function guardarEdicionInfoTec() {
     poblacion: (document.getElementById('ite-poblacion')?.value|| '').trim(),
     sistema:   (document.getElementById('ite-sistema')?.value  || '').trim(),
     tipoDato:  (document.getElementById('ite-tipodato')?.value || '').trim(),
-    detalle:   (document.getElementById('ite-detalle')?.value  || '').trim(),
+    detalle:   (() => {
+      if (window._iteQuill) {
+        const html = window._iteQuill.root.innerHTML;
+        return (html === '<p><br></p>' || html === '<br>') ? '' : html;
+      }
+      return (document.getElementById('ite-detalle')?.value || '').trim();
+    })(),
     etiquetas: etqs,
   };
   save(K_INFO_TEC, lista);
@@ -10554,7 +10736,7 @@ let _quill = null;
 
 function _initQuill() {
   if (_quill) return;
-  if (typeof Quill === 'undefined') return; // CDN no cargado
+  if (typeof Quill === 'undefined') return;
   const Font = Quill.import('formats/font');
   Font.whitelist = ['cursiva'];
   Quill.register(Font, true);
@@ -10568,6 +10750,18 @@ function _initQuill() {
         [{ font: ['', 'cursiva'] }],
         ['clean']
       ]
+    }
+  });
+}
+
+function _initInfoQuill() {
+  if (window._infQuill) return;
+  if (typeof Quill === 'undefined') return;
+  window._infQuill = new Quill('#inf-quill-editor', {
+    theme: 'snow',
+    placeholder: 'El código es… La central tiene…',
+    modules: {
+      toolbar: '#inf-quill-toolbar'
     }
   });
 }
@@ -12984,7 +13178,7 @@ MODO: ${modo}${modo === 'CONDUCCIÓN' ? ' — respuestas muy cortas, fáciles de
 /* ══════════════════════════════════════════════════════
    IRAM — Llamada a Gemini (modo WEB)
    ══════════════════════════════════════════════════════ */
-async function pycGemini(userMsg) {
+async function pycGemini(userMsg, _intento = 0) {
   const key = pycGetKey('gemini');
   if (!key) {
     pycMsgIA('⚠️ Configura tu API key de Gemini arriba.');
@@ -12993,18 +13187,40 @@ async function pycGemini(userMsg) {
 
   const esWeb = _iramModo === 'web' || PALABRAS_WEB.test(userMsg);
 
-  // Historial limpio — sin contexto en los mensajes
-  const mensajes = _pycHist
-    .filter(m => !m.thinking && !m.streaming)
-    .slice(-20)
-    .map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+  // Construir mensajes con alternancia estricta user/model que exige Gemini
+  const rawHist = _pycHist
+    .filter(m => !m.thinking && !m.streaming && m.text && m.text.trim())
+    .slice(-20);
 
-  // System prompt
-  let systemTxt = iramSystemPrompt();
-  if (!esWeb) {
-    // Sin búsqueda web — añadir contexto de app
-    systemTxt += '\n\n' + pycContexto();
+  const mensajes = [];
+  let lastRole = null;
+  for (const m of rawHist) {
+    const role = m.role === 'user' ? 'user' : 'model';
+    // Eliminar HTML si viene de editor enriquecido
+    const txt = (m.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!txt) continue;
+    if (role === lastRole) {
+      // Fusionar con el último mensaje del mismo rol
+      if (mensajes.length) {
+        const last = mensajes[mensajes.length - 1];
+        last.parts[0].text += ' ' + txt;
+      }
+    } else {
+      mensajes.push({ role, parts: [{ text: txt }] });
+      lastRole = role;
+    }
   }
+
+  // Gemini requiere que el último mensaje sea 'user'
+  if (!mensajes.length || mensajes[mensajes.length - 1].role !== 'user') {
+    mensajes.push({ role: 'user', parts: [{ text: userMsg }] });
+  }
+
+  // Gemini requiere que empiece con 'user'
+  if (mensajes[0]?.role === 'model') mensajes.shift();
+
+  let systemTxt = iramSystemPrompt();
+  if (!esWeb) systemTxt += '\n\n' + pycContexto();
 
   const modelo = 'gemini-2.5-flash-lite';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
@@ -13029,7 +13245,19 @@ async function pycGemini(userMsg) {
 
   if (!resp.ok) {
     const err = await resp.json().catch(()=>({}));
-    throw new Error(err?.error?.message || 'Error Gemini ' + resp.status);
+    const msg = err?.error?.message || '';
+    // Gemini saturado — reintento automático hasta 2 veces
+    if ((msg.includes('high demand') || msg.includes('overloaded') || resp.status === 503 || resp.status === 429) && _intento < 2) {
+      const espera = (_intento + 1) * 3000;
+      pycMsgIA(`⏳ Gemini saturado, reintentando en ${espera/1000}s…`, true, 'local');
+      await new Promise(r => setTimeout(r, espera));
+      _pycHist = _pycHist.filter(m => !m.thinking);
+      return pycGemini(userMsg, _intento + 1);
+    }
+    if (msg.includes('high demand') || msg.includes('overloaded') || resp.status === 503) {
+      throw new Error('Gemini está saturado ahora mismo. Prueba en un momento o usa el modo 💬 IRAM.');
+    }
+    throw new Error(msg || 'Error Gemini ' + resp.status);
   }
 
   const data = await resp.json();
@@ -13360,7 +13588,7 @@ async function pycEnviar() {
       const st = document.getElementById('pyc-status');
       if (st) st.textContent = '🌐 Buscando…';
     } else {
-      orden = ['groq', 'mistral', 'gemini'];
+      orden = ['groq', 'mistral'];
     }
 
     for (const ia of orden) {
@@ -13377,6 +13605,16 @@ async function pycEnviar() {
         }
       } catch(e) {
         iramLog(_cl.intento || 'CHAT', ia, false);
+        // En modo WEB: si Gemini falla, no usar Groq — Groq inventaría
+        if (esWeb) {
+          const msg = e.message || '';
+          if (msg.includes('saturado') || msg.includes('high demand')) {
+            respuesta = '⏳ Gemini está saturado. Prueba en un momento.';
+          } else {
+            respuesta = '🌐 No puedo buscar en internet ahora mismo.';
+          }
+          break;
+        }
         if (ia === orden[orden.length - 1]) throw e;
       }
     }
@@ -13415,7 +13653,7 @@ CONSULTA_AVISOS — avisos de la ruta activa (pendientes/completados)
 CONSULTA_LOCALIDADES — en qué localidades hay avisos (ruta O análisis según contexto)
 ANADIR_AVISO(destino,localidad?) — añadir aviso(s) de X a la ruta. Si dice una localidad, localidad=nombre
 CREAR_RUTA(n?) — crear ruta con N avisos
-ANALIZAR_PARTES(localidad?) — consultar TODOS los partes en análisis. Usar cuando pregunta por partes/avisos en general, no solo los de la ruta
+ANALIZAR_PARTES(localidad?,cliente?) — consultar TODOS los partes en análisis. Usar cuando pregunta por partes/avisos en general, qué hay en X localidad, qué hay que hacer en X cliente, dónde son los avisos de X
 RUTA_SIN_MTO(trim?) — qué avisos de la ruta no tienen MTO
 REGISTRAR_MTO(trim,localidad?,cliente?) — SOLO con verbo explícito: "registra","marca","anota","pon","apunta". Sin verbo → usar MTO_ESTADO
 MTO_ESTADO(cliente?,localidad?,trim?) — consultar estado del MTO. Usar cuando dice "tienen el mto hecho", "está hecho el Q2", "cuál es el mto de X"
@@ -13460,6 +13698,17 @@ EJEMPLOS:
 "códigos de error del Spider Pro" → {"intento":"IRAMCLOUD_BUSCAR","query":"códigos de error","equipo":"Spider Pro"}`;
 
 async function iramClasificarIA(txt) {
+  // Contexto: últimas 2 frases del historial para que entienda referencias
+  const contexto = _pycHist
+    .filter(m => !m.thinking && m.text && m.text.trim())
+    .slice(-4)
+    .map(m => (m.role === 'user' ? 'Gsus: ' : 'Iram: ') + m.text.replace(/<[^>]+>/g,' ').slice(0,80))
+    .join('\n');
+
+  const msgConContexto = contexto
+    ? `Contexto reciente:\n${contexto}\n\nFrase actual: ${txt}`
+    : txt;
+
   const keyGroq = pycGetKey('groq');
   if (keyGroq) {
     try {
@@ -13470,7 +13719,7 @@ async function iramClasificarIA(txt) {
           model: 'llama-3.3-70b-versatile',
           messages: [
             { role: 'system', content: IRAM_INTENTOS_SCHEMA },
-            { role: 'user', content: txt }
+            { role: 'user', content: msgConContexto }
           ],
           max_tokens: 80, temperature: 0,
           response_format: { type: 'json_object' }
@@ -13479,8 +13728,7 @@ async function iramClasificarIA(txt) {
       if (resp.ok) {
         const data = await resp.json();
         const json = JSON.parse(data?.choices?.[0]?.message?.content || '{}');
-        if (json.intento && json.intento !== 'CHAT') return json;
-        if (json.intento === 'CHAT') return json; // CHAT válido también
+        if (json.intento) return json;
       }
     } catch(e) {}
   }
@@ -13494,7 +13742,7 @@ async function iramClasificarIA(txt) {
           model: 'mistral-small-latest',
           messages: [
             { role: 'system', content: IRAM_INTENTOS_SCHEMA },
-            { role: 'user', content: txt }
+            { role: 'user', content: msgConContexto }
           ],
           max_tokens: 80, temperature: 0,
           response_format: { type: 'json_object' }
@@ -14461,15 +14709,25 @@ function iramEjecutarAccion(cl) {
     const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
     const hoyD     = new Date();
     let pend = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado');
-    if (cl.localidad) {
-      const nL = iramNorm(cl.localidad);
-      const filtrados = pend.filter(a => iramNorm(a.localidad||'').includes(nL)||nL.includes(iramNorm(a.localidad||'').slice(0,4)));
+
+    if (cl.localidad || cl.cliente) {
+      const nL = iramNorm(cl.localidad||'');
+      const nC = iramNorm(cl.cliente||'');
+      const filtrados = pend.filter(a => {
+        const aL = iramNorm(a.localidad||'');
+        const aC = iramNorm(a.clienteReal||a.clienteNorm||a.cliente||'');
+        const matchL = nL && (aL.includes(nL) || nL.includes(aL.slice(0,4)));
+        const matchC = nC && (aC.includes(nC) || nC.includes(aC.slice(0,4)));
+        return matchL || matchC;
+      });
+      const por = cl.localidad || cl.cliente;
       if (filtrados.length) {
-        const lista = filtrados.map(a=>`${a.clienteReal||a.clienteNorm||a.cliente} (${a.codigo||''}): ${(a.trabajo||a.descripcion||'').slice(0,60)}`).join('\n');
-        return `${filtrados.length} parte${filtrados.length>1?'s':''} en ${cl.localidad}:\n${lista}`;
+        const lista = filtrados.map(a=>`${a.clienteReal||a.clienteNorm||a.cliente} · ${a.localidad||'?'}: ${(a.trabajo||a.descripcion||'').slice(0,60)}`).join('\n');
+        return `${filtrados.length} parte${filtrados.length>1?'s':''} de ${por}:\n${lista}`;
       }
-      return `No hay partes en ${cl.localidad}.`;
+      return `No hay partes de "${por}".`;
     }
+
     if (!pend.length) return 'No hay partes cargados hoy.';
     const porCliente = {};
     pend.forEach(a => { const c=a.clienteReal||a.clienteNorm||a.cliente||'?'; if(!porCliente[c])porCliente[c]=0; porCliente[c]++; });
@@ -14532,19 +14790,9 @@ function iramEjecutarAccion(cl) {
     return `No encuentro "${cl.destino}" en la ruta ni en ubicaciones.`;
   }
 
-  /* ── URGENTE ── */
-  if (cl.intento === 'URGENTE') {
-    const ruta = loadArr(K_RUTA);
-    const idx  = ruta.findIndex(p => p.urgente===true||/urgente/i.test(p.trabajo||''));
-    if (idx<=0) return idx===0?'El urgente ya está primero.':'No hay urgente en la ruta.';
-    const u = ruta.splice(idx,1)[0]; ruta.unshift(u); save(K_RUTA,ruta);
-    if (typeof renderRuta==='function') renderRuta();
-    return `Urgente primero: ${u.clienteReal||u.cliente} · ${u.localidad||''}.`;
-  }
 
   return null;
 }
-
 
 /* ══════════════════════════════════════════════════════
    IRAM APRENDIZAJE — registro pasivo de uso
