@@ -4915,8 +4915,8 @@ function renderizar() {
         const cardBg=isRuta?`background:${c2.pastel};`:'';
         const cardClass=isRuta?'aviso-card card-en-ruta':'aviso-card';
 
-        const bNew = p.isNew && !isRuta
-          ? `<span class="badge-new">NUEVO</span>`
+        const bNew = (p.isNew || p.manual) && !isRuta
+          ? `<span class="badge-new">${p.manual && !p.isNew ? 'MANUAL' : 'NUEVO'}</span>`
           : '';
         const bRuta   =isRuta          ?'<span class="badge-ruta">EN RUTA</span>':'';
         const bUrgente=p.urgente&&!isRuta?`<span class="badge-urgente">🚨 URGENTE${p.horasUrgencia?' '+p.horasUrgencia+'H':''}</span>`:'';
@@ -5031,7 +5031,7 @@ function renderizar() {
                   <span class="act-icon">${isRuta?'↩️':'🗺️'}</span>
                   <span class="act-label">${isRuta?'Quitar<br>ruta':'Ir a<br>ruta'}</span>
                 </div>
-                ${p.isNew ? `<div class="act-card" onclick="editarParteNuevo('${p.id}')">
+                ${(p.isNew || p.manual) ? `<div class="act-card" onclick="editarParteNuevo('${p.id}')">
                   <span class="act-icon">✏️</span>
                   <span class="act-label">Editar<br>datos</span>
                 </div>` : ''}
@@ -9062,9 +9062,14 @@ function renderResultadosFiltrados() {
     if (r.tipo==='cli') {
       if (r.codigo)  btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
       if (r.central) btns += `<span class="res-act" style="cursor:default;pointer-events:none">⚙️ ${escH(r.central)}</span>`;
+      // Botón editar cliente
+      btns += `<button class="res-act nav" onclick="event.stopPropagation();editarClienteExcel(JSON.parse(this.dataset.d))" data-d="${escH(JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''}))}" title="Editar datos del cliente">✏️ Editar</button>`;
       // Botón añadir aviso a análisis
       const avisoData = JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''});
       btns += `<button class="res-act nav" onclick="event.stopPropagation();anadirAAnalisis(JSON.parse(this.dataset.d))" data-d="${escH(avisoData)}" title="Añadir a análisis">➕ Análisis</button>`;
+      // Botón editar cliente en Excel
+      const editData = JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''});
+      btns += `<button class="res-act" onclick="event.stopPropagation();abrirEditarCliente(JSON.parse(this.dataset.d))" data-d="${escH(editData)}" title="Editar datos del cliente">✏️ Editar</button>`;
     }
     if (r.tipo==='his') {
       if (r.ot) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.ot)}',this)">📋 ${escH(r.ot)}</button>`;
@@ -9298,6 +9303,206 @@ function mostrarTodaInfo() {
           <button class="res-act copy" onclick="copiarTexto(${JSON.stringify(i.detalle||'')},this)">📋 Copiar</button>
         </div>
       </div>`).join('');
+}
+
+function abrirEditarCliente(datos) {
+  const bd = document.createElement('div');
+  bd.id = 'editar-cli-bd';
+  bd.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998';
+  document.body.appendChild(bd);
+
+  const panel = document.createElement('div');
+  panel.id = 'editar-cli-panel';
+  panel.style.cssText = 'position:fixed;inset:0;background:#f5f4f0;z-index:9999;display:flex;flex-direction:column;overflow:hidden';
+
+  const lbl = txt => `<div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:.1em;margin:14px 0 4px">${txt}</div>`;
+  const inp = (id, val, ph) => `<input id="${id}" value="${escH(val||'')}" placeholder="${ph||''}" autocomplete="off" style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box;font-family:inherit;color:#1a2744">`;
+
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;padding:0 16px;height:56px;background:#1a2744;flex-shrink:0">
+      <button onclick="document.getElementById('editar-cli-bd')?.remove();document.getElementById('editar-cli-panel')?.remove()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;margin-right:12px;padding:0">←</button>
+      <span style="font-weight:700;font-size:16px;color:#fff">Editar cliente</span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:0 16px 24px">
+      ${lbl('Cliente')}
+      ${inp('ec-cliente', datos.cliente, 'Cajamar, BBVA…')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+        <div>${lbl('Código')}${inp('ec-codigo', datos.codigo, '70042')}</div>
+        <div>${lbl('Localidad')}${inp('ec-localidad', datos.localidad, 'Valencia…')}</div>
+      </div>
+      ${lbl('Dirección')}
+      ${inp('ec-direccion', datos.direccion, 'Calle, número…')}
+      ${lbl('Horario')}
+      ${inp('ec-horario', datos.horario, 'L-V 08:30-14:00')}
+    </div>
+    <div style="padding:12px 16px;background:#fff;border-top:1px solid rgba(26,39,68,.08)">
+      <button onclick="guardarEditarCliente(JSON.parse(this.dataset.d))" data-d="${escH(JSON.stringify(datos))}" style="width:100%;padding:14px;border-radius:12px;border:none;background:#f97316;color:#fff;font-size:15px;font-weight:700;cursor:pointer">💾 Guardar en Excel</button>
+    </div>`;
+  document.body.appendChild(panel);
+}
+
+function guardarEditarCliente(datosOrig) {
+  const cliente   = document.getElementById('ec-cliente')?.value.trim();
+  const codigo    = document.getElementById('ec-codigo')?.value.trim();
+  const localidad = document.getElementById('ec-localidad')?.value.trim();
+  const direccion = document.getElementById('ec-direccion')?.value.trim();
+  const horario   = document.getElementById('ec-horario')?.value.trim();
+  if (!cliente) { alert('El nombre del cliente es obligatorio'); return; }
+
+  const clis = loadArr(K_EXCEL);
+  const codOrig = nrmCod(datosOrig.codigo||'');
+  let idx = clis.findIndex(c => {
+    const ec = nrmCod(c.CODIGO||c.codigo||'');
+    return codOrig && (ec === codOrig || codigoVariantes(datosOrig.codigo||'').includes(ec));
+  });
+
+  if (idx === -1 && datosOrig.cliente) {
+    // Buscar por nombre + localidad si no hay código
+    const nC = iramNorm(datosOrig.cliente);
+    const nL = iramNorm(datosOrig.localidad||'');
+    idx = clis.findIndex(c => {
+      const ec = iramNorm(c.CLIENTE||c.cliente||'');
+      const el = iramNorm(c.MUNICIPIO||c.municipio||'');
+      return ec.includes(nC.slice(0,6)) && (!nL || el.includes(nL.slice(0,4)));
+    });
+  }
+
+  if (idx === -1) {
+    // No existe — añadir nuevo
+    clis.push({
+      CLIENTE: cliente, CODIGO: codigo, MUNICIPIO: localidad,
+      DIRECCION: direccion, HORARIO: horario,
+      ZONA:'', OBSERVACIONES:'', INT:'', Q1:'', Q2:'', Q3:'', Q4:''
+    });
+    toast(`✅ ${cliente} añadido al Excel`);
+  } else {
+    // Actualizar existente
+    if (cliente)   clis[idx].CLIENTE   = cliente;
+    if (codigo)    clis[idx].CODIGO    = codigo;
+    if (localidad) clis[idx].MUNICIPIO = localidad;
+    if (direccion) clis[idx].DIRECCION = direccion;
+    if (horario)   clis[idx].HORARIO   = horario;
+    toast(`✅ ${cliente} actualizado en Excel`);
+  }
+  save(K_EXCEL, clis);
+
+  // Actualizar también partes en análisis con el mismo código
+  try {
+    const analisis = JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]');
+    const codNrm = nrmCod(codigo||'');
+    let cambios = false;
+    analisis.forEach(a => {
+      if (codNrm && nrmCod(a.codigo||'') === codNrm) {
+        if (direccion) a.direccion = direccion;
+        if (localidad) a.localidad = localidad;
+        cambios = true;
+      }
+    });
+    if (cambios) localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+  } catch(e) {}
+
+  document.getElementById('editar-cli-bd')?.remove();
+  document.getElementById('editar-cli-panel')?.remove();
+}
+
+function editarClienteExcel(datos) {
+  const bd = document.createElement('div');
+  bd.id = 'edit-cli-bd';
+  bd.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998';
+  document.body.appendChild(bd);
+
+  const panel = document.createElement('div');
+  panel.id = 'edit-cli-panel';
+  panel.style.cssText = 'position:fixed;inset:0;background:#f5f4f0;z-index:9999;display:flex;flex-direction:column;overflow:hidden';
+
+  const lbl = txt => `<div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:.1em;margin:14px 0 4px">${txt}</div>`;
+  const inp = (id, val, ph='') => `<input id="${id}" value="${escH(val||'')}" placeholder="${ph}" autocomplete="off" style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box;font-family:inherit;color:#1a2744">`;
+
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;padding:0 16px;height:56px;background:#1a2744;flex-shrink:0">
+      <button onclick="document.getElementById('edit-cli-bd')?.remove();document.getElementById('edit-cli-panel')?.remove()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;margin-right:12px;padding:0">←</button>
+      <span style="font-weight:700;font-size:16px;color:#fff">Editar cliente</span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:0 16px 24px">
+      ${lbl('Cliente')}
+      ${inp('ecli-cliente', datos.cliente, 'Nombre del cliente')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+        <div>
+          ${lbl('Código')}
+          ${inp('ecli-codigo', datos.codigo, '70042')}
+        </div>
+        <div>
+          ${lbl('Localidad')}
+          ${inp('ecli-localidad', datos.localidad, 'Valencia…')}
+        </div>
+      </div>
+      ${lbl('Dirección')}
+      ${inp('ecli-direccion', datos.direccion, 'Calle, número…')}
+      ${lbl('Horario')}
+      ${inp('ecli-horario', datos.horario, 'L-V 08:30-14:00')}
+    </div>
+    <div style="padding:12px 16px;background:#fff;border-top:1px solid rgba(26,39,68,.08)">
+      <button onclick="guardarClienteExcel('${escH(datos.codigo)}')" style="width:100%;padding:14px;border-radius:12px;border:none;background:#f97316;color:#fff;font-size:15px;font-weight:700;cursor:pointer">💾 Guardar en Excel</button>
+    </div>`;
+  document.body.appendChild(panel);
+}
+
+function guardarClienteExcel(codigoOriginal) {
+  const cliente   = document.getElementById('ecli-cliente')?.value.trim();
+  const codigo    = document.getElementById('ecli-codigo')?.value.trim();
+  const localidad = document.getElementById('ecli-localidad')?.value.trim();
+  const direccion = document.getElementById('ecli-direccion')?.value.trim();
+  const horario   = document.getElementById('ecli-horario')?.value.trim();
+
+  if (!cliente && !codigo) { toast('Necesitas al menos cliente o código'); return; }
+
+  const excel  = loadArr(K_EXCEL);
+  const codBus = nrmCod(codigoOriginal || codigo);
+  const idx    = excel.findIndex(c => nrmCod(c.CODIGO||c.codigo||'') === codBus);
+
+  if (idx !== -1) {
+    // Actualizar cliente existente
+    if (cliente)   excel[idx].CLIENTE   = cliente;
+    if (codigo)    excel[idx].CODIGO    = codigo;
+    if (localidad) excel[idx].MUNICIPIO = localidad;
+    if (direccion) excel[idx].DIRECCION = direccion;
+    if (horario)   excel[idx].HORARIO   = horario;
+    save(K_EXCEL, excel);
+  } else {
+    // Cliente nuevo — añadirlo al Excel
+    excel.push({
+      CLIENTE:       cliente || '',
+      CODIGO:        codigo  || '',
+      MUNICIPIO:     localidad || '',
+      DIRECCION:     direccion || '',
+      HORARIO:       horario   || '',
+      ZONA:          inferirZona ? inferirZona(localidad) || '' : '',
+      PROVINCIA:     '',
+      OBSERVACIONES: '',
+      INT:'', Q1:'', Q2:'', Q3:'', Q4:'', EXT_POLVO:0, EXT_CO2:0,
+    });
+    save(K_EXCEL, excel);
+  }
+
+  // Actualizar también los partes de análisis que tengan el mismo código
+  try {
+    const analisis = JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]');
+    let cambios = false;
+    analisis.forEach(a => {
+      const ac = nrmCod(a.codigo||'');
+      if (ac && ac === codBus) {
+        if (localidad) a.localidad = localidad;
+        if (direccion) a.direccion = direccion;
+        if (horario)   a.horarioTxt = horario;
+        cambios = true;
+      }
+    });
+    if (cambios) localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+  } catch(e) {}
+
+  document.getElementById('edit-cli-bd')?.remove();
+  document.getElementById('edit-cli-panel')?.remove();
+  toast(idx !== -1 ? `✅ ${cliente} actualizado en Excel` : `✅ ${cliente} añadido al Excel`);
 }
 
 function anadirAAnalisis(datos) {
