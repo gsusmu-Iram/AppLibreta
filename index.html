@@ -2486,19 +2486,6 @@ body { font-size: 14px; }
 <body>
 
 <!-- ══ PANTALLA PIN ══ -->
-<div id="pin-overlay" style="position:fixed;inset:0;z-index:9999;background:#0d1117;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:32px">
-  <div style="color:#7c3aed;font-size:13px;font-weight:800;letter-spacing:.2em">PYCLIBRETA</div>
-  <div style="color:#fff;font-size:20px;font-weight:700">Introduce tu código</div>
-  <input id="pin-input" type="password" inputmode="text" autocomplete="off" autocapitalize="none"
-    placeholder="Código de acceso"
-    style="width:100%;max-width:280px;padding:14px 16px;border-radius:12px;border:2px solid #1e1b4b;background:#060a14;color:#fff;font-size:18px;text-align:center;outline:none;letter-spacing:.15em"
-    onkeydown="if(event.key==='Enter')pinVerificar()">
-  <button onclick="pinVerificar()"
-    style="width:100%;max-width:280px;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:16px;font-weight:700;cursor:pointer">
-    Entrar
-  </button>
-  <div id="pin-error" style="color:#ef4444;font-size:13px;min-height:20px"></div>
-</div>
 <div class="app">
   <div class="spiral"><div class="ring"></div>
     <div class="ring"></div>
@@ -3674,10 +3661,6 @@ body { font-size: 14px; }
     <div class="ddanger">
       <span class="ddanger-txt">🗑️ Borrar todos los datos</span>
       <button class="ddanger-btn" onclick="datosPedirBorrar()">Borrar</button>
-    </div>
-    <div class="ddanger" style="margin-top:8px">
-      <span class="ddanger-txt">🔑 Cambiar código PIN</span>
-      <button class="ddanger-btn" onclick="pinCambiar()">Cambiar</button>
     </div>
 
   </div><!-- /datos-body -->
@@ -7537,61 +7520,6 @@ function getMtoBloque(cli) {
    ================================================================ */
 document.addEventListener('DOMContentLoaded', () => {
   try {
-  // ── PIN de acceso ──
-  const K_PIN      = 'pyc_pin';
-  const K_PIN_SES  = 'pyc_pin_sesion';
-  const pinOverlay = document.getElementById('pin-overlay');
-
-  function pinVerificar() {
-    const guardado = localStorage.getItem(K_PIN);
-    const input    = document.getElementById('pin-input')?.value.trim();
-    const error    = document.getElementById('pin-error');
-
-    if (!guardado) {
-      // Primera vez — establecer PIN
-      if (!input || input.length < 4) { if(error) error.textContent = 'Mínimo 4 caracteres'; return; }
-      localStorage.setItem(K_PIN, btoa(input));
-      localStorage.setItem(K_PIN_SES, Date.now());
-      if (pinOverlay) pinOverlay.style.display = 'none';
-      return;
-    }
-
-    // Verificar
-    if (btoa(input) === guardado) {
-      localStorage.setItem(K_PIN_SES, Date.now());
-      if (pinOverlay) pinOverlay.style.display = 'none';
-    } else {
-      if (error) { error.textContent = 'Código incorrecto'; }
-      if (document.getElementById('pin-input')) document.getElementById('pin-input').value = '';
-    }
-  }
-
-  // Exponer globalmente
-  window.pinVerificar = pinVerificar;
-
-  window.pinCambiar = function() {
-    localStorage.removeItem('pyc_pin');
-    localStorage.removeItem('pyc_pin_sesion');
-    location.reload();
-  };
-
-  // Comprobar si hay sesión activa (últimas 24h)
-  const guardado = localStorage.getItem(K_PIN);
-  if (guardado) {
-    const sesion = parseInt(localStorage.getItem(K_PIN_SES) || '0');
-    const horas  = (Date.now() - sesion) / 3600000;
-    if (horas < 24) {
-      if (pinOverlay) pinOverlay.style.display = 'none';
-    } else {
-      // Sesión expirada — pedir PIN
-      if (pinOverlay) setTimeout(() => document.getElementById('pin-input')?.focus(), 100);
-    }
-  } else {
-    // Sin PIN — primera vez, pedir que lo establezca
-    const titulo = pinOverlay?.querySelector('div:nth-child(2)');
-    if (titulo) titulo.textContent = 'Establece tu código de acceso';
-    if (pinOverlay) setTimeout(() => document.getElementById('pin-input')?.focus(), 100);
-  }
 
   // Fecha header
   const D = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -9067,9 +8995,6 @@ function renderResultadosFiltrados() {
       // Botón añadir aviso a análisis
       const avisoData = JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''});
       btns += `<button class="res-act nav" onclick="event.stopPropagation();anadirAAnalisis(JSON.parse(this.dataset.d))" data-d="${escH(avisoData)}" title="Añadir a análisis">➕ Análisis</button>`;
-      // Botón editar cliente en Excel
-      const editData = JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''});
-      btns += `<button class="res-act" onclick="event.stopPropagation();abrirEditarCliente(JSON.parse(this.dataset.d))" data-d="${escH(editData)}" title="Editar datos del cliente">✏️ Editar</button>`;
     }
     if (r.tipo==='his') {
       if (r.ot) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.ot)}',this)">📋 ${escH(r.ot)}</button>`;
@@ -9080,7 +9005,7 @@ function renderResultadosFiltrados() {
     }
     if (r.tipo==='hor') {
       if (r.horario) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.horario)},this)">📋 Copiar horario</button>`;
-      btns += `<button class="res-act nav" onclick="event.stopPropagation();editarHorario('${escH(r.codigo)}','${escQ(r.horario||'')}',this)">✏️ Editar</button>`;
+
     }
     if (r.tipo==='equ') {
       if (r.codigo) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
@@ -12776,92 +12701,7 @@ function iramMostrarContactos() {
   document.getElementById('pyc-overlay')?.appendChild(panel);
 }
 
-/* ══════════════════════════════════════════════════════
-   IRAMCLOUD — carpeta local de manuales .txt offline
-   ══════════════════════════════════════════════════════ */
 
-let _iramCloudHandle = null; // FileSystemDirectoryHandle activo
-
-/* Inicializar — restaurar handle guardado en IndexedDB */
-async function iramCloudInit() {
-  try {
-    const db = await iramCloudDB();
-    const tx = db.transaction('handles', 'readonly');
-    const h  = await iramCloudPromise(tx.objectStore('handles').get('carpeta'));
-    if (h) {
-      const perm = await h.queryPermission({ mode: 'read' });
-      if (perm === 'granted') { _iramCloudHandle = h; return; }
-      const req = await h.requestPermission({ mode: 'read' });
-      if (req === 'granted') _iramCloudHandle = h;
-    }
-  } catch(e) {}
-}
-
-/* Abrir IndexedDB para guardar el handle */
-function iramCloudDB() {
-  return new Promise((res, rej) => {
-    const r = indexedDB.open('IramCloud', 1);
-    r.onupgradeneeded = e => e.target.result.createObjectStore('handles');
-    r.onsuccess = e => res(e.target.result);
-    r.onerror   = e => rej(e);
-  });
-}
-function iramCloudPromise(req) {
-  return new Promise((res, rej) => { req.onsuccess = e => res(e.target.result); req.onerror = e => rej(e); });
-}
-
-/* Vincular nueva carpeta */
-async function iramCloudVincular() {
-  try {
-    if (!window.showDirectoryPicker) {
-      pycMsgIA('Tu navegador no soporta acceso a carpetas. Usa Chrome.');
-      return;
-    }
-    const handle = await window.showDirectoryPicker({ mode: 'read' });
-    _iramCloudHandle = handle;
-    const db = await iramCloudDB();
-    const tx = db.transaction('handles', 'readwrite');
-    tx.objectStore('handles').put(handle, 'carpeta');
-    pycMsgIA(`IramCloud vinculado: "${handle.name}". Ahora puedo leer tus manuales .txt.`);
-  } catch(e) {
-    if (e.name !== 'AbortError') pycMsgIA('Error al vincular carpeta: ' + e.message);
-  }
-}
-
-/* Buscar y leer un .txt en IramCloud por palabras clave */
-async function iramCloudBuscar(query) {
-  if (!_iramCloudHandle) return null;
-  try {
-    const qNorm = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    const palabras = qNorm.split(/\s+/).filter(p=>p.length>3);
-    let mejorArchivo = null, mejorScore = 0;
-
-    for await (const entry of _iramCloudHandle.values()) {
-      if (entry.kind !== 'file' || !entry.name.endsWith('.txt')) continue;
-      const nombre = entry.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      const score = palabras.filter(p=>nombre.includes(p)).length;
-      if (score > mejorScore) { mejorScore = score; mejorArchivo = entry; }
-    }
-
-    if (!mejorArchivo || mejorScore === 0) return null;
-    const file = await mejorArchivo.getFile();
-    const text = await file.text();
-    return { nombre: mejorArchivo.name, contenido: text.slice(0, 3000) }; // Límite 3000 chars
-  } catch(e) { return null; }
-}
-
-/* Listar archivos disponibles en IramCloud */
-async function iramCloudListar() {
-  if (!_iramCloudHandle) return 'IramCloud no vinculado. Di "vincular IramCloud" para configurarlo.';
-  try {
-    const archivos = [];
-    for await (const entry of _iramCloudHandle.values()) {
-      if (entry.kind === 'file' && entry.name.endsWith('.txt')) archivos.push(entry.name.replace('.txt',''));
-    }
-    if (!archivos.length) return 'IramCloud vinculado pero sin manuales .txt todavía.';
-    return `IramCloud tiene ${archivos.length} manual${archivos.length>1?'es':''}: ${archivos.join(', ')}.`;
-  } catch(e) { return 'Error leyendo IramCloud.'; }
-}
 
 const PYC_KEY_GEMINI  = 'pyc_gemini_key';
 const PYC_HIST_MAX    = 20;
@@ -13148,7 +12988,6 @@ function pycAbrirChat() {
     pycRenderMsgs();
     setTimeout(() => pycHablar(saludo), 300);
   }
-  iramCloudInit().catch(()=>{});
   setTimeout(() => document.getElementById('pyc-ta')?.focus(), 350);
 }
 
@@ -13934,12 +13773,7 @@ async function pycEnviar() {
     if (resultado === '') return; // Acción async gestionada internamente
     if (resultado) {
       iramLog(_cl.intento, 'local', true);
-      _pycHist.push({ role:'model', text:'⏳ …', thinking:true });
-      pycRenderMsgs();
-      iramPulir(resultado).then(respFinal => {
-        _pycHist = _pycHist.filter(m => !m.thinking);
-        pycMsgIA(respFinal, false, 'local');
-      });
+      pycMsgIA(resultado, false, 'local');
       return;
     }
   }
@@ -14600,9 +14434,9 @@ function iramEjecutarAccion(cl) {
       const v = d[trim]||'';
       return !v || v.trim()==='' || v==='0';
     });
-    if (!sinMto.length) return `Todos los avisos tienen el ${trim} hecho ✅`;
-    const lista = sinMto.map(p=>`${p.clienteReal||p.clienteNorm||p.cliente} · ${p.localidad||''}`).join(', ');
-    return `${sinMto.length} sin ${trim}: ${lista}.`;
+    if (!sinMto.length) return `✅ Todos los avisos tienen el ${trim} hecho. Buen trabajo 👌`;
+    const lista = sinMto.map(p=>`⏳ ${p.clienteReal||p.clienteNorm||p.cliente} · ${p.localidad||''}`).join('\n');
+    return `🔧 Sin ${trim} en la ruta (${sinMto.length}):\n${lista}`;
   }
 
   /* ── CONSULTA RUTA ── */
@@ -14711,7 +14545,7 @@ function iramEjecutarAccion(cl) {
     const mtoV = mto?.[trim]||'';
     const mtoStr = mtoV && mtoV!=='0' ? `MTO ${trim} ✅ (${mtoV})` : `MTO ${trim} ⏳ pendiente`;
 
-    return `${_iramOficinaActiva.cliente} · ${_iramOficinaActiva.localidad}${_iramOficinaActiva.direccion?' · '+_iramOficinaActiva.direccion:''}${_iramOficinaActiva.horario?' · '+_iramOficinaActiva.horario:''}. ${mtoStr}.`;
+    return `🏢 ${_iramOficinaActiva.cliente} · ${_iramOficinaActiva.localidad}${_iramOficinaActiva.direccion?'\n📍 '+_iramOficinaActiva.direccion:''}${_iramOficinaActiva.horario?'\n🕐 '+_iramOficinaActiva.horario:''}\n${mtoStr}`;
   }
 
   /* ── HISTORIAL CLIENTE ── */
@@ -14734,9 +14568,9 @@ function iramEjecutarAccion(cl) {
     }).sort((a,b) => (b.FECHA||'').localeCompare(a.FECHA||''));
     const nombre = cl.cliente||ofi?.cliente||'ese cliente';
     const loc    = cl.localidad||ofi?.localidad||'';
-    if (!visitas.length) return `Sin visitas a ${nombre}${loc?' en '+loc:''}.`;
+    if (!visitas.length) return `🔍 Sin visitas registradas en ${nombre}${loc?' ('+loc+')':''}.`;
     const u = visitas[0];
-    return `${u.CLIENTE||u.cliente} · ${u.LOCALIDAD||u.localidad||''}: ${u.FECHA||'?'} — ${u.TRABAJO||u.trabajo||'?'}. Total: ${visitas.length} visita${visitas.length!==1?'s':''}.`;
+    return `🔍 Última visita a ${u.CLIENTE||u.cliente} · ${u.LOCALIDAD||u.localidad||''}:\n📅 ${u.FECHA||'?'} — ${u.TRABAJO||u.trabajo||'?'}\nTotal: ${visitas.length} visita${visitas.length!==1?'s':''}`;
   }
 
   /* ── LLAMAR ── */
@@ -14779,8 +14613,19 @@ function iramEjecutarAccion(cl) {
     const h = cli.HORARIO || cli.horario || '';
     const n = cli.CLIENTE || cli.cliente || cliente;
     const m = cli.MUNICIPIO || cli.municipio || localidad;
-    if (!h) return `${n} en ${m} no tiene horario registrado.`;
-    return `${n} · ${m}: ${h}`;
+    if (!h) return `${n} en ${m} — sin horario registrado.`;
+    // Calcular si está abierto ahora
+    const ahoraH = new Date().getHours();
+    const ahoraM = new Date().getMinutes();
+    const horaActual = ahoraH * 60 + ahoraM;
+    const mHorario = h.match(/(\d{1,2})[:.h](\d{2})\s*[-–]\s*(\d{1,2})[:.h](\d{2})/);
+    let estadoStr = '';
+    if (mHorario) {
+      const abre  = parseInt(mHorario[1])*60 + parseInt(mHorario[2]);
+      const cierra= parseInt(mHorario[3])*60 + parseInt(mHorario[4]);
+      estadoStr   = horaActual >= abre && horaActual < cierra ? ' 🟢 Abierta' : ' 🔴 Cerrada';
+    }
+    return `🕐 ${n} · ${m}\n${h}${estadoStr}`;
   }
 
   /* ── MTO ESTADO ── */
@@ -14836,8 +14681,8 @@ function iramEjecutarAccion(cl) {
     const pendientes = resultados.filter(r => !r.hecho);
 
     let resp = '';
-    if (hechos.length)    resp += hechos.map(r => `✅ ${r.cliente} · ${r.loc} — ${trim} hecho (${r.fecha})`).join('. ');
-    if (pendientes.length) resp += (resp?'\n':'')+pendientes.map(r => `⏳ ${r.cliente} · ${r.loc} — ${trim} pendiente`).join('. ');
+    if (hechos.length)    resp += hechos.map(r => `🔧 Sí, ${r.cliente} · ${r.loc} tiene el ${trim} hecho (${r.fecha})`).join('\n');
+    if (pendientes.length) resp += (resp?'\n':'')+pendientes.map(r => `🔧 No, ${r.cliente} · ${r.loc} no tiene el ${trim}`).join('\n');
 
     // Si hay pendientes, ofrecer registrarlos
     if (pendientes.length > 0) {
@@ -15194,17 +15039,17 @@ function iramEjecutarAccion(cl) {
       return `No hay partes de "${por}".`;
     }
 
-    if (!pend.length) return 'No hay partes cargados hoy.';
+    if (!pend.length) return 'No hay partes cargados hoy. ✅';
     const porCliente = {};
     pend.forEach(a => { const c=a.clienteReal||a.clienteNorm||a.cliente||'?'; if(!porCliente[c])porCliente[c]=0; porCliente[c]++; });
     const urgentes = pend.filter(a=>a.urgente);
     const pci      = pend.filter(a=>a.tipo==='PCI'||a.esPCI);
     const antiguos = pend.filter(a => { if(!a.fecha)return false; const p=a.fecha.split('/'); if(p.length<3)return false; return (hoyD-new Date(p[2]+"-"+p[1]+"-"+p[0]))/86400000>14; });
-    let r = `${pend.length} partes. `;
-    r += Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(', ')+'.';
-    if (urgentes.length) r+=` 🚨 ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}.`;
-    if (pci.length) r+=` 🔥 ${pci.length} PCI.`;
-    if (antiguos.length) r+=` ⚠️ ${antiguos.length} de más de 14 días.`;
+    let r = `📊 Hoy tienes ${pend.length} aviso${pend.length!==1?'s':''} en análisis.\n`;
+    r += Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(' · ');
+    if (urgentes.length) r+=`\n🚨 Urgente${urgentes.length>1?'s':''}: ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}`;
+    if (pci.length) r+=`\n🔥 PCI: ${pci.length} parte${pci.length!==1?'s':''}`;
+    if (antiguos.length) r+=`\n⚠️ ${antiguos.length} con más de 14 días`;
     return r;
   }
 
@@ -15216,19 +15061,17 @@ function iramEjecutarAccion(cl) {
     const rutaPend = ruta.filter(r => r.estado==='pendiente');
     const rutaHech = ruta.filter(r => r.estado==='completada');
 
-    if (!anPend.length && !ruta.length) return 'No hay avisos cargados hoy.';
+    if (!anPend.length && !ruta.length) return '📊 No hay avisos cargados hoy.';
 
     let resp = '';
-    if (anPend.length) {
-      const porCliente = {};
-      anPend.forEach(a => { const c=a.clienteReal||a.clienteNorm||a.cliente||'?'; if(!porCliente[c])porCliente[c]=0; porCliente[c]++; });
-      const clientes = Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(', ');
-      resp = `${anPend.length} avisos en total — ${clientes}.`;
-      const urgentes = anPend.filter(a=>a.urgente);
-      if (urgentes.length) resp += ` 🚨 ${urgentes.length} urgente${urgentes.length>1?'s':''}.`;
+    if (rutaPend.length === 0 && ruta.length > 0) {
+      resp = `📍 Ruta completada ✅ Buen trabajo.`;
+    } else if (rutaPend.length > 0) {
+      const sig = rutaPend[0];
+      resp = `📍 Te quedan ${rutaPend.length} aviso${rutaPend.length!==1?'s':''} en ruta${rutaHech.length?' · '+rutaHech.length+' hecho'+(rutaHech.length!==1?'s':''):''}.\nSiguiente: ${sig.clienteReal||sig.clienteNorm||sig.cliente} · ${sig.localidad||''}`;
     }
-    if (ruta.length) {
-      resp += `${resp?' ':''} En ruta: ${rutaPend.length} pendiente${rutaPend.length!==1?'s':''}${rutaHech.length?' · '+rutaHech.length+' completad'+(rutaHech.length===1?'a':'as'):''}. `;
+    if (anPend.length) {
+      resp += `${resp?'\n':''}📊 En análisis: ${anPend.length} aviso${anPend.length!==1?'s':''} en total.`;
     }
     return resp.trim();
   }
@@ -15383,31 +15226,6 @@ function iramBuscarCliente(nombre, localidad) {
 
 
 /* ── Pulir respuesta local con Groq (hace la frase más natural) ── */
-async function iramPulir(respuestaLocal) {
-  const key = pycGetKey('groq');
-  if (!key) return respuestaLocal; // Sin key → devuelve la respuesta técnica directamente
-
-  try {
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: 'Eres Iram, asistente de un técnico de seguridad. Convierte el texto que te doy en una frase corta y natural en español, como si se lo dijeras a un compañero que va conduciendo. Sin emojis al inicio, máximo 2 frases, texto plano sin markdown.' },
-          { role: 'user', content: respuestaLocal }
-        ],
-        max_tokens: 80,
-        temperature: 0.6
-      })
-    });
-    if (!resp.ok) return respuestaLocal;
-    const data = await resp.json();
-    return data?.choices?.[0]?.message?.content || respuestaLocal;
-  } catch(e) {
-    return respuestaLocal; // Fallback silencioso
-  }
-}
 
 /* ── Texto → voz (Web Speech Synthesis) ── */
 function pycHablar(txt) {
