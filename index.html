@@ -9058,6 +9058,8 @@ function renderResultadosFiltrados() {
     if (r.tipo==='cli') {
       if (r.codigo)  btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
       if (r.central) btns += `<span class="res-act" style="cursor:default;pointer-events:none">⚙️ ${escH(r.central)}</span>`;
+      // Botón añadir aviso manual a la ruta
+      btns += `<button class="res-act nav" onclick="event.stopPropagation();abrirNuevoAvisoDesdeCliente(${JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||r.titulo||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''})})" title="Crear aviso y añadir a ruta">➕ Aviso</button>`;
     }
     if (r.tipo==='his') {
       if (r.ot) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.ot)}',this)">📋 ${escH(r.ot)}</button>`;
@@ -9291,6 +9293,110 @@ function mostrarTodaInfo() {
           <button class="res-act copy" onclick="copiarTexto(${JSON.stringify(i.detalle||'')},this)">📋 Copiar</button>
         </div>
       </div>`).join('');
+}
+
+function abrirNuevoAvisoDesdeCliente(datos) {
+  const bd = document.createElement('div');
+  bd.id = 'nuevo-aviso-bd';
+  bd.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998';
+  document.body.appendChild(bd);
+
+  const panel = document.createElement('div');
+  panel.id = 'nuevo-aviso-panel';
+  panel.style.cssText = 'position:fixed;inset:0;background:#f5f4f0;z-index:9999;display:flex;flex-direction:column;overflow:hidden';
+
+  const cerrar = () => {
+    document.getElementById('nuevo-aviso-bd')?.remove();
+    document.getElementById('nuevo-aviso-panel')?.remove();
+  };
+
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;padding:0 16px;height:56px;background:#1a2744;flex-shrink:0">
+      <button onclick="document.getElementById('nuevo-aviso-bd')?.remove();document.getElementById('nuevo-aviso-panel')?.remove()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;margin-right:12px;padding:0">←</button>
+      <div>
+        <div style="font-weight:700;font-size:15px;color:#fff">Nuevo aviso</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6)">${datos.cliente||''}${datos.codigo?' · '+datos.codigo:''}${datos.localidad?' · '+datos.localidad:''}</div>
+      </div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:4px">
+      <div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Descripción del trabajo</div>
+      <textarea id="nav-trabajo" rows="4" placeholder="Describe el aviso o trabajo a realizar…" style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box;resize:none;font-family:inherit;color:#1a2744"></textarea>
+      <div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:.1em;margin:12px 0 6px">Tipo</div>
+      <div style="display:flex;gap:8px">
+        <button id="nav-tipo-seg" onclick="navSelTipo('SEG')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:#ede9fe;color:#7c3aed;font-weight:700;cursor:pointer;font-size:13px">🔒 SEG</button>
+        <button id="nav-tipo-pci" onclick="navSelTipo('PCI')" style="flex:1;padding:10px;border-radius:10px;border:2px solid rgba(26,39,68,.15);background:#fff;color:#64748b;font-weight:700;cursor:pointer;font-size:13px">🔥 PCI</button>
+      </div>
+      <div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:.1em;margin:12px 0 4px">¿Añadir a la ruta directamente?</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff;border-radius:10px;border:1.5px solid rgba(26,39,68,.15)">
+        <input type="checkbox" id="nav-a-ruta" checked style="width:18px;height:18px;accent-color:#f97316">
+        <label for="nav-a-ruta" style="font-size:14px;color:#1a2744;cursor:pointer">Sí, añadir a la ruta de hoy</label>
+      </div>
+    </div>
+    <div style="padding:12px 16px;background:#fff;border-top:1px solid rgba(26,39,68,.08)">
+      <button onclick="guardarNuevoAviso(${JSON.stringify(datos).replace(/"/g,'&quot;')})" style="width:100%;padding:14px;border-radius:12px;border:none;background:#f97316;color:#fff;font-size:15px;font-weight:700;cursor:pointer">➕ Crear aviso</button>
+    </div>`;
+  document.body.appendChild(panel);
+}
+
+let _navTipoSel = 'SEG';
+function navSelTipo(t) {
+  _navTipoSel = t;
+  const colores = { SEG: { bg:'#ede9fe', brd:'#7c3aed', col:'#7c3aed' }, PCI: { bg:'#fef3c7', brd:'#d97706', col:'#d97706' } };
+  ['SEG','PCI'].forEach(tipo => {
+    const btn = document.getElementById('nav-tipo-'+tipo.toLowerCase());
+    if (!btn) return;
+    const sel = tipo === t;
+    const c = colores[tipo];
+    btn.style.background = sel ? c.bg : '#fff';
+    btn.style.border = sel ? `2px solid ${c.brd}` : '2px solid rgba(26,39,68,.15)';
+    btn.style.color = sel ? c.col : '#64748b';
+  });
+}
+
+function guardarNuevoAviso(datos) {
+  const trabajo = document.getElementById('nav-trabajo')?.value.trim();
+  if (!trabajo) { alert('Describe el trabajo'); return; }
+  const tipo   = _navTipoSel || 'SEG';
+  const aRuta  = document.getElementById('nav-a-ruta')?.checked;
+
+  const parte = {
+    id:          'M_' + Date.now(),
+    clienteReal: datos.cliente || '',
+    clienteNorm: datos.cliente || '',
+    cliente:     datos.cliente || '',
+    codigo:      datos.codigo  || '',
+    localidad:   datos.localidad || '',
+    direccion:   datos.direccion || '',
+    horarioTxt:  datos.horario  || '',
+    trabajo,
+    descripcion: trabajo,
+    tipo,
+    esPCI:       tipo === 'PCI',
+    estado:      'pendiente',
+    fecha:       new Date().toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}),
+    isNew:       false,
+    enRuta:      aRuta || false,
+    manual:      true,
+  };
+
+  // Añadir a análisis
+  const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+  analisis.unshift(parte);
+  localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+
+  // Añadir a ruta si se pidió
+  if (aRuta) {
+    const ruta = loadArr(K_RUTA);
+    ruta.push({ id:'R_'+Date.now(), clienteReal:parte.clienteReal, clienteNorm:parte.clienteNorm, cliente:parte.cliente, codigo:parte.codigo, localidad:parte.localidad, direccion:parte.direccion, trabajo:parte.trabajo, horarioTxt:parte.horarioTxt, urgente:false, estado:'pendiente' });
+    save(K_RUTA, ruta);
+    if (typeof renderRuta === 'function') renderRuta();
+  }
+
+  if (typeof renderizar === 'function') renderizar();
+  document.getElementById('nuevo-aviso-bd')?.remove();
+  document.getElementById('nuevo-aviso-panel')?.remove();
+  irA('analisis');
+  toast(`✅ Aviso creado${aRuta?' y añadido a la ruta':''}`);
 }
 
 function mostrarContactos() {
@@ -13257,7 +13363,7 @@ async function pycGemini(userMsg, _intento = 0) {
     system_instruction: { parts: [{ text: systemTxt }] },
     contents: mensajes,
     generationConfig: { maxOutputTokens: 500, temperature: 0.7 },
-    ...(esWeb && { tools: [{ googleSearch: {} }] })
+    ...(esWeb && { tools: [{ google_search: {} }] })
   };
 
   if (esWeb) {
@@ -13722,14 +13828,43 @@ EJEMPLOS:
 "qué hay en Moncada" → {"intento":"ANALIZAR_PARTES","localidad":"Moncada"}
 "hay algún aviso de Puerto Sagunto" → {"intento":"ANALIZAR_PARTES","localidad":"Puerto Sagunto"}
 "dime los avisos de hoy" → {"intento":"ANALIZAR_PARTES"}
+"qué partes tengo" → {"intento":"ANALIZAR_PARTES"}
 "qué avisos tengo en analizar" → {"intento":"ANALIZAR_PARTES"}
-"dónde son los avisos de analizar" → {"intento":"CONSULTA_LOCALIDADES"}
-"tiene el mantenimiento hecho" → {"intento":"MTO_ESTADO"}
-"cuáles no tienen el mantenimiento hecho" → {"intento":"RUTA_SIN_MTO"}
+"qué hay en análisis" → {"intento":"ANALIZAR_PARTES"}
+"tengo algún aviso en Cheste" → {"intento":"ANALIZAR_PARTES","localidad":"Cheste"}
+"hay algo en Buñol" → {"intento":"ANALIZAR_PARTES","localidad":"Buñol"}
 "qué trabajo hay que hacer en Loriguilla" → {"intento":"ANALIZAR_PARTES","localidad":"Loriguilla"}
+"qué hay que hacer en Cajamar" → {"intento":"ANALIZAR_PARTES","cliente":"Cajamar"}
+"qué avisos están en la ruta" → {"intento":"CONSULTA_AVISOS"}
+"cuántos me quedan" → {"intento":"CONSULTA_AVISOS"}
+"cuántas paradas tengo" → {"intento":"CONSULTA_AVISOS"}
+"qué paradas tengo pendientes" → {"intento":"CONSULTA_AVISOS"}
+"dónde son los avisos" → {"intento":"CONSULTA_LOCALIDADES"}
+"en qué pueblos tengo trabajo" → {"intento":"CONSULTA_LOCALIDADES"}
 "qué trabajo hice en Cajamar Buñol" → {"intento":"HISTORIAL_CLIENTE","cliente":"Cajamar","localidad":"Buñol"}
+"cuándo fui a Loriguilla" → {"intento":"HISTORIAL_CLIENTE","localidad":"Loriguilla"}
+"historial de BBVA Valencia" → {"intento":"HISTORIAL_CLIENTE","cliente":"BBVA","localidad":"Valencia"}
+"tiene el mantenimiento hecho" → {"intento":"MTO_ESTADO"}
+"está hecho el Q2" → {"intento":"MTO_ESTADO","trim":"Q2"}
+"esa oficina tiene el Q2 hecho" → {"intento":"MTO_ESTADO"}
+"cuáles no tienen el mantenimiento hecho" → {"intento":"RUTA_SIN_MTO"}
+"qué avisos les falta el Q2" → {"intento":"RUTA_SIN_MTO","trim":"Q2"}
+"de todos los partes cuáles no tienen MTO" → {"intento":"AVERIAS_SIN_MTO"}
+"registra el Q2 de Loriguilla" → {"intento":"REGISTRAR_MTO","trim":"Q2","localidad":"Loriguilla"}
+"marca el Q2 hecho" → {"intento":"REGISTRAR_MTO","trim":"Q2"}
+"siguiente aviso" → {"intento":"SIGUIENTE_AVISO"}
+"siguiente" → {"intento":"SIGUIENTE_AVISO"}
+"siguiente parada" → {"intento":"SIGUIENTE_AVISO"}
+"llévame a Buñol" → {"intento":"NAVEGAR","destino":"Buñol"}
+"llévame ahí" → {"intento":"NAVEGAR","destino":""}
+"añade el aviso de Cheste" → {"intento":"ANADIR_AVISO","localidad":"Cheste"}
+"añade ese aviso" → {"intento":"ANADIR_AVISO","destino":""}
+"finaliza" → {"intento":"COMPLETAR_AVISO"}
+"hecho" → {"intento":"COMPLETAR_AVISO"}
 "qué oficina es el 0570" → {"intento":"BUSCAR_OFICINA","codigo":"0570"}
 "quién es el 22640" → {"intento":"BUSCAR_OFICINA","codigo":"22640"}
+"a qué hora abre" → {"intento":"HORARIO"}
+"horario de Cajamar Buñol" → {"intento":"HORARIO","cliente":"Cajamar","localidad":"Buñol"}
 "qué temperatura hace" → {"intento":"CHAT"}
 "qué dice el manual de Ajax sobre la altura de los volumétricos" → {"intento":"IRAMCLOUD_BUSCAR","query":"altura volumétricos","equipo":"Ajax"}
 "cómo se programa la Vesta" → {"intento":"IRAMCLOUD_BUSCAR","query":"programación","equipo":"Vesta"}
