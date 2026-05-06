@@ -3667,6 +3667,7 @@ body { font-size: 14px; }
         </div>
       </div>
       <div style="font-size:10px;color:var(--ink-xl);margin-top:6px;opacity:.6">Se guardan solo en tu móvil</div>
+      <button onclick="exportarLogIram()" style="margin-top:10px;width:100%;padding:10px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);background:#fff;font-size:13px;font-weight:600;color:#1a2744;cursor:pointer">📊 Exportar log de Iram</button>
     </div>
 
     <div class="dsep"></div>
@@ -4596,6 +4597,19 @@ function analizar() {
     partes.unshift(np);
     if(np.ot) otsExist.add(np.ot);
   }
+  // Ordenar: urgentes primero, luego por antigüedad (más días pendiente = antes)
+  partes.sort((a, b) => {
+    if (a.estado==='completado'||a.estado==='cerrado') return 1;
+    if (b.estado==='completado'||b.estado==='cerrado') return -1;
+    if (a.urgente && !b.urgente) return -1;
+    if (!a.urgente && b.urgente) return 1;
+    if (a.esPCI && !b.esPCI) return -1;
+    if (!a.esPCI && b.esPCI) return 1;
+    // Por fecha — más antiguo primero
+    const fa = a.fecha ? a.fecha.split('/').reverse().join('-') : '9999';
+    const fb = b.fecha ? b.fecha.split('/').reverse().join('-') : '9999';
+    return fa.localeCompare(fb);
+  });
   const todos=cargarOtsVistos(); partes.forEach(p=>todos.add(p.ot||p.id)); guardarOtsVistos(todos);
   guardarPartes(partes);
   document.getElementById('input-partes').value='';
@@ -6715,6 +6729,23 @@ function abrirDatos() {
     const el = document.getElementById(ids[ia]);
     if (el) el.placeholder = localStorage.getItem(store) ? '●●●● (guardada — escribe para cambiar)' : el.placeholder;
   });
+}
+
+function exportarLogIram() {
+  try {
+    const log = JSON.parse(localStorage.getItem('pyc_iram_log') || '[]');
+    if (!log.length) { toast('No hay entradas en el log'); return; }
+    // Formato CSV para fine-tuning
+    const csv = ['frase,intent,ia,correcto,fecha']
+      .concat(log.map(e => `"${(e.frase||'').replace(/"/g,'""')}","${e.intento||''}","${e.ia||''}","${e.ok?'sí':'no'}","${new Date(e.ts).toLocaleDateString('es-ES')}"` ))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `iram-log-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    toast(`✅ Log exportado (${log.length} entradas)`);
+  } catch(e) { toast('Error exportando el log'); }
 }
 
 function bkGuardarKey(ia) {
@@ -12972,27 +13003,56 @@ function pycMsgUser(txt) {
 function pycRenderMsgs() {
   const el = document.getElementById('pyc-msgs');
   if (!el) return;
-  el.innerHTML = _pycHist.map(m => {
+  el.innerHTML = _pycHist.map((m, idx) => {
     const cls = m.role === 'user' ? 'user' : 'ai';
     let av = m.role === 'user' ? '👤' : '✦';
     let avStyle = '';
     if (m.role !== 'user') {
-      const iaColors = { groq:'#fb923c', mistral:'#fbbf24', gemini:'#818cf8', local:'#7c3aed' };
+      const iaColors = { groq:'#fb923c', gemini:'#818cf8', local:'#7c3aed' };
       const col = iaColors[m.ia] || '#7c3aed';
       avStyle = ` style="background:${col}"`;
     }
+    // Botones feedback solo en respuestas de Iram no pensando
+    const feedback = (m.role === 'model' && !m.thinking && m.text && m.text.length > 5)
+      ? `<div style="display:flex;gap:4px;margin-top:4px;opacity:.5">
+          <button onclick="iramFeedback(${idx},true)" style="background:none;border:none;font-size:14px;cursor:pointer;padding:2px 4px;border-radius:6px" title="Útil">👍</button>
+          <button onclick="iramFeedback(${idx},false)" style="background:none;border:none;font-size:14px;cursor:pointer;padding:2px 4px;border-radius:6px" title="No útil">👎</button>
+        </div>`
+      : '';
     return `<div class="pyc-msg ${cls}">
       <div class="pyc-avatar"${avStyle}>${av}</div>
-      <div class="pyc-bubble${m.thinking?' thinking':''}">${m.text}</div>
+      <div>
+        <div class="pyc-bubble${m.thinking?' thinking':''}">${m.text}</div>
+        ${feedback}
+      </div>
     </div>`;
   }).join('');
   el.scrollTop = el.scrollHeight;
-  // Actualizar "Iram dice" en modo conducción — siempre, aunque sea streaming
   const last = _pycHist.filter(m => m.role==='model' && !m.thinking).slice(-1)[0];
   if (last && last.text) {
     const d = document.getElementById('drive-response-txt');
     if (d) d.textContent = last.text;
   }
+}
+
+function iramFeedback(idx, ok) {
+  const m = _pycHist[idx];
+  if (!m) return;
+  // Registrar en el log
+  try {
+    const log = JSON.parse(localStorage.getItem('pyc_iram_log') || '[]');
+    // Actualizar la entrada correspondiente si existe
+    const entry = log.slice().reverse().find(e => e.ts && Math.abs(e.ts - (m.ts||Date.now())) < 60000);
+    if (entry) entry.ok = ok;
+    else log.push({ ts: m.ts || Date.now(), intento: m.intento || 'CHAT', ia: m.ia || 'local', ok, frase: m.frase || '' });
+    if (log.length > 200) log.splice(0, log.length - 200);
+    localStorage.setItem('pyc_iram_log', JSON.stringify(log));
+  } catch(e) {}
+  // Feedback visual
+  const msgs = document.querySelectorAll('.pyc-msg.ai');
+  const btns = msgs[idx]?.querySelectorAll('button');
+  if (btns) btns.forEach(b => { b.style.opacity = '0.3'; b.disabled = true; });
+  toast(ok ? '👍 Gracias' : '👎 Anotado');
 }
 
 function iramActualizarDrive(txt) {
@@ -13049,7 +13109,7 @@ function iramCargarHistorial() {
 
 function iramGuardarHistorial() {
   try {
-    const histLimpio = _pycHist.filter(m=>!m.thinking).slice(-40);
+    const histLimpio = _pycHist.filter(m=>!m.thinking).slice(-50);
     localStorage.setItem(K_IRAM_CHAT, JSON.stringify({
       fecha: new Date().toISOString().slice(0,10),
       hist: histLimpio
@@ -13150,114 +13210,66 @@ let _iramOficinaActiva = null; // { cliente, codigo, localidad, direccion } — 
    ══════════════════════════════════════════════════════ */
 function iramSaludoProactivo() {
   try {
-    const hora   = new Date().getHours();
-    const ruta   = loadArr(K_RUTA);
-    const tareas = loadArr(K_TAREAS);
+    const hoy      = new Date().toISOString().slice(0,10);
+    const hoyD     = new Date();
+    const hora     = hoyD.getHours();
+    const salG     = hora < 12 ? 'Buenos días' : hora < 20 ? 'Buenas tardes' : 'Buenas noches';
+    const mesActual= hoyD.getMonth();
+    const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
+
     const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const ruta     = loadArr(K_RUTA);
+    const tareas   = loadArr(K_TAREAS);
+    const eventos  = loadArr(K_EVENTOS);
 
-    const pend   = ruta.filter(r => r.estado === 'pendiente');
-    const done   = ruta.filter(r => r.estado === 'completada');
-    const anPend = analisis.filter(a => a.estado !== 'completado' && a.estado !== 'cerrado');
-    const tHoy   = tareas.filter(t => t.estado === 'pendiente' && t.fecha === new Date().toISOString().slice(0,10));
+    const anPend    = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado');
+    const urgentes  = anPend.filter(a => a.urgente);
+    const pci       = anPend.filter(a => a.tipo==='PCI'||a.esPCI);
+    const rutaPend  = ruta.filter(r => r.estado==='pendiente');
+    const tPend     = tareas.filter(t => !t.completada);
+    const tVencidas = tPend.filter(t => t.fecha && t.fecha < hoy);
+    const tHoy      = tPend.filter(t => t.fecha === hoy);
+    const eventosHoy= eventos.filter(e => (e.fecha||e.fechaInicio||'').slice(0,10) === hoy);
 
-    // Urgentes
-    const urgentes = anPend.filter(a => a.urgente);
-
-    // Partes muy antiguos (+14 días)
-    const hoyD = new Date();
     const muyAntiguos = anPend.filter(a => {
       if (!a.fecha) return false;
       const p = a.fecha.split('/');
       if (p.length < 3) return false;
-      return (hoyD - new Date(p[2]+"-"+p[1]+"-"+p[0])) / 86400000 > 14;
+      return (hoyD - new Date(p[2]+'-'+p[1]+'-'+p[0])) / 86400000 > 14;
     });
 
-    // Material pendiente
-    const matKw = /batería|cámara|cable|herramienta|repuesto/i;
-    const material = tareas.filter(t => t.estado === 'pendiente' && matKw.test(t.titulo));
-
-    // Siguiente parada con cierre próximo
-    const sig = pend[0];
-    let alertaCierre = '';
-    if (sig?.horarioTxt) {
-      const mCierre = sig.horarioTxt.match(/(\d{1,2}):(\d{2})\s*$/);
-      if (mCierre) {
-        const diff = parseInt(mCierre[1]) - hora;
-        if (diff > 0 && diff <= 1) {
-          alertaCierre = ` Ojo — ${sig.clienteReal||sig.cliente} cierra en menos de 1 hora.`;
-        }
-      }
+    // Sin nada
+    if (!anPend.length && !rutaPend.length && !tPend.length && !eventosHoy.length) {
+      return `${salG} ☀️ No tienes avisos cargados hoy. ¿En qué te ayudo?`;
     }
 
-    let saludo = '';
+    let lineas = [`${salG} ☀️`];
 
-    // Sin datos
-    if (!anPend.length && !pend.length) {
-      if (hora < 9)  return 'Buenos días Gsus. Sin partes cargados todavía.';
-      if (hora < 14) return '¿Qué necesitas?';
-      return 'Buenas tardes. ¿En qué te ayudo?';
+    // Avisos
+    if (anPend.length) {
+      let av = `📊 ${anPend.length} aviso${anPend.length!==1?'s':''} en análisis`;
+      if (urgentes.length) av += ` · 🚨 ${urgentes.length} urgente${urgentes.length!==1?'s':''}`;
+      if (pci.length)      av += ` · 🔥 ${pci.length} PCI`;
+      lineas.push(av);
     }
 
-    // Urgente pendiente — máxima prioridad
-    if (urgentes.length) {
-      const u = urgentes[0];
-      saludo = `Tienes ${urgentes.length > 1 ? urgentes.length + ' urgentes' : 'un urgente'}: ${u.clienteReal||u.cliente} · ${u.localidad||''}. ¿Empezamos por ahí?`;
-      if (material.length) saludo += ` Recuerda: ${material[0].titulo}.`;
-      return saludo;
-    }
+    // Ruta
+    if (rutaPend.length) lineas.push(`📍 ${rutaPend.length} parada${rutaPend.length!==1?'s':''} en ruta`);
 
-    // Según hora del día
-    if (hora < 9) {
-      const resumen = pend.length
-        ? `${pend.length} paradas hoy.${alertaCierre}`
-        : `${anPend.length} partes sin asignar a ruta.`;
-      saludo = `Buenos días. ${resumen}`;
-      if (material.length) saludo += ` Recuerda coger: ${material.map(t=>t.titulo).slice(0,2).join(', ')}.`;
+    // Avisos muy antiguos
+    if (muyAntiguos.length) lineas.push(`⚠️ ${muyAntiguos.length} parte${muyAntiguos.length!==1?'s':''} de más de 14 días`);
 
-    } else if (hora < 14) {
-      if (done.length > 0 && pend.length > 0) {
-        saludo = `Llevas ${done.length} de ${ruta.length}.`;
-        if (sig) saludo += ` Siguiente: ${sig.clienteReal||sig.clienteNorm||sig.cliente} · ${sig.localidad||''}.`;
-        saludo += alertaCierre;
-      } else if (pend.length === 0 && done.length > 0) {
-        saludo = `Ruta completada. ${done.length} paradas hechas.`;
-      } else {
-        saludo = `${anPend.length} partes pendientes.${alertaCierre}`;
-      }
-
-    } else {
-      if (pend.length === 0 && done.length > 0) {
-        saludo = `Todo hecho. Buen día Gsus.`;
-      } else if (pend.length > 0) {
-        saludo = `Quedan ${pend.length} parada${pend.length>1?'s':''}.${alertaCierre}`;
-      } else {
-        saludo = `Buenas tardes. ¿En qué te ayudo?`;
-      }
-    }
-
-    // Partes muy antiguos — aviso siempre
-    if (muyAntiguos.length) {
-      saludo += `\n⚠️ ${muyAntiguos.length} parte${muyAntiguos.length>1?'s':''} de más de 14 días.`;
-    }
-
-    // Tareas de hoy
-    if (tHoy.length) {
-      saludo += `\n📌 ${tHoy.length} tarea${tHoy.length>1?'s':''} para hoy.`;
-    }
-
-    // Eventos del día
-    const hoyISO = new Date().toISOString().slice(0,10);
-    const eventos = loadArr(K_EVENTOS);
-    const eventosHoy = eventos.filter(e => (e.fecha||e.fechaInicio||'').slice(0,10) === hoyISO);
+    // Eventos hoy
     if (eventosHoy.length) {
-      saludo += `\n📅 ${eventosHoy.map(e=>e.titulo+(e.hora?' a las '+e.hora:'')).join(' · ')}`;
+      eventosHoy.forEach(e => lineas.push(`📅 ${e.titulo}${e.hora?' a las '+e.hora:''}`));
     }
 
-    // PCI
-    const pci = anPend.filter(a=>a.tipo==='PCI'||a.esPCI);
-    if (pci.length) saludo += `\n🔥 ${pci.length} PCI pendiente${pci.length>1?'s':''}`;
+    // Tareas
+    if (tVencidas.length) lineas.push(`⚠️ ${tVencidas.length} tarea${tVencidas.length!==1?'s':''} vencida${tVencidas.length!==1?'s':''}`);
+    else if (tHoy.length) lineas.push(`📌 ${tHoy.length} tarea${tHoy.length!==1?'s':''} para hoy`);
+    else if (tPend.length) lineas.push(`📌 ${tPend.length} tarea${tPend.length!==1?'s':''} pendiente${tPend.length!==1?'s':''}`);
 
-    return saludo;
+    return lineas.join('\n');
   } catch(e) { return '¿En qué te ayudo?'; }
 }
 
@@ -13579,7 +13591,7 @@ async function pycEnviar() {
     'HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE',
     'ANALIZAR_PARTES','CREAR_RUTA','ANADIR_AVISO','RUTA_SIN_MTO',
     'COMPLETAR_AVISO','REGISTRAR_MTO','MARCAR_TAREA_HECHA','BUSCAR_OFICINA',
-    'TIEMPO','GASOLINERA','LUGAR','NOTICIAS','RESUMEN_DIA','CUANTO_QUEDA'
+    'WIKIPEDIA','TIEMPO','GASOLINERA','LUGAR','NOTICIAS','RESUMEN_DIA','CUANTO_QUEDA'
   ];
 
   // Clasificar con IA (rápido) o fallback local
@@ -13632,6 +13644,50 @@ async function pycEnviar() {
 
   // ── CHAT: nunca Groq respondiendo, siempre mensaje de ayuda ──
   pycMsgIA(`🤔 No he entendido.\nPrueba: "qué avisos tengo", "siguiente parada", "tiempo en Valencia", "noticias de deportes", "gasolinera", "dónde comer en X", "mantenimientos pendientes hoy"`, false, 'local');
+}
+
+/* ══════════════════════════════════════════════════════
+   GEMINI — búsqueda web con google_search grounding
+   ══════════════════════════════════════════════════════ */
+async function pycGemini(userMsg, intento) {
+  const key = pycGetKey('gemini');
+  if (!key) throw new Error('Sin key Gemini');
+
+  const modelo = 'gemini-2.5-flash-lite';
+  const url    = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
+
+  // System prompt mínimo — sin contexto de avisos para búsquedas web
+  const system = `Eres IRAM, asistente de Jesús, técnico de seguridad en Valencia, España. 
+Hoy es ${new Date().toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}.
+Responde en español, de forma breve y directa. Usa emojis cuando aporten claridad.
+Si buscas tiempo o lugares, incluye la ciudad concreta que pide el usuario.`;
+
+  const body = {
+    system_instruction: { parts: [{ text: system }] },
+    contents: [{ role: 'user', parts: [{ text: userMsg }] }],
+    tools: [{ google_search: {} }],
+    generationConfig: { temperature: 1.0, maxOutputTokens: 500 }
+  };
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(()=>({}));
+    const msg = err?.error?.message || '';
+    if (resp.status === 429 || msg.includes('quota') || msg.includes('high demand')) {
+      throw new Error('saturado');
+    }
+    throw new Error(`Gemini ${resp.status}: ${msg.slice(0,80)}`);
+  }
+
+  const data = await resp.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('').trim();
+  if (!text) throw new Error('Gemini sin respuesta');
+  return text;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -13761,7 +13817,8 @@ EJEMPLOS:
 "qué temperatura hace" → {"intento":"CHAT"}
 `;
 
-async function iramClasificarIA(txt) {
+/* ══════════════════════════════════════════════════════
+   IRAM CLASSIFIER — IA traduce lenguaje natural a JSON
   // Contexto: últimas 2 frases del historial para que entienda referencias
   const contexto = _pycHist
     .filter(m => !m.thinking && m.text && m.text.trim())
@@ -13899,6 +13956,12 @@ function iramClasificar(txt) {
     return { intento:'BUSCAR_OFICINA', codigo: mCod?.[1]||'', cliente: mCli?.[1]||'', localidad: mLoc?.[1]?.trim()||'' };
   }
 
+  // ── WIKIPEDIA ──
+  if (/\b(qu[eé]\s+es\s+|qu[eé]\s+significa\s+|wikipedia|info\s+(de|sobre)|cu[eé]ntame\s+(algo\s+)?(de|sobre|qu[eé]\s+es))\b/i.test(raw)) {
+    const tema = raw.replace(/\b(qu[eé]\s+es|qu[eé]\s+significa|wikipedia|info\s+de|info\s+sobre|cu[eé]ntame\s+sobre|cu[eé]ntame\s+algo\s+de|cu[eé]ntame\s+qu[eé]\s+es)\b/gi,'').trim();
+    return { intento:'WIKIPEDIA', tema };
+  }
+
   // ── TIEMPO ──
   if (/\b(qu[eé]\s+tiempo|c[oó]mo\s+est[aá]\s+el\s+tiempo|temperatura|va\s+a\s+llover|llueve|har[aá]\s+calor|har[aá]\s+fr[íi]o|clima|meteoro|tiempo\s+hoy|tiempo\s+que\s+hace|hace\s+fr[íi]o|hace\s+calor)\b/i.test(raw)) {
     return { intento:'TIEMPO', _txt: raw };
@@ -13950,10 +14013,13 @@ function iramClasificar(txt) {
   }
 
   // ── ANALIZAR PARTES ──
-  if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?|an[áa]lisis|qu[eé]\s+(hay|tengo)\s+(en\s+(el\s+)?)?an[áa]lisis|partes?\s+de|avisos?\s+(de\s+hoy|en\s+(el\s+)?an[áa]lisis|que\s+tengo|de|en))\b/i.test(raw)) {
+  if (/\b(analiza|resume|agrupa|dime\s+(todos\s+)?los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?|an[áa]lisis|qu[eé]\s+(hay|tengo)\s+(en\s+(el\s+)?)?an[áa]lisis|partes?\s+de|avisos?\s+(de\s+hoy|en\s+(el\s+)?an[áa]lisis|que\s+tengo|de|en)|dime\s+todos\s+los\s+avisos?|todos\s+los\s+avisos?)\b/i.test(raw)) {
+    // Excluir palabras reservadas como localidad
+    const palabrasReservadas = /^(an[áa]lisis|ruta|análisis|hoy|todos?|mis?)$/i;
     const mLoc = raw.match(/(?:en|de)\s+([a-z\u00e0-\u00fc][a-z\u00e0-\u00fc\s]{2,20})(?:\s|$)/i);
+    const loc  = mLoc?.[1]?.trim()||'';
     const mCli = raw.match(/\b(bbva|cajamar|caja\s+rural|campsa|repsol|dia|sprinter)\b/i);
-    return { intento:'ANALIZAR_PARTES', localidad: mLoc?.[1]?.trim()||'', cliente: mCli?.[1]||'' };
+    return { intento:'ANALIZAR_PARTES', localidad: palabrasReservadas.test(loc)?'':loc, cliente: mCli?.[1]||'' };
   }
 
   // ── CREAR RUTA ──
@@ -14048,12 +14114,6 @@ function iramClasificar(txt) {
     return { intento:'REGISTRAR_MTO', trim: trimM ? trimM[1].toUpperCase() : null };
   }
 
-  // ── ANALIZAR PARTES (con localidad opcional) ──
-  if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?|qu[eé]\s+(hay|tengo|pone)\s+en|partes?\s+de|avisos?\s+(?:de|en))\b/i.test(raw)) {
-    const mLoc = raw.match(/(?:en|de)\s+([a-z\u00e0-\u00fc][a-z\u00e0-\u00fc\s]{2,20})(?:\s|$)/i);
-    return { intento:'ANALIZAR_PARTES', localidad: mLoc?.[1]?.trim()||'' };
-  }
-
   // ── CREAR RUTA ──
   if (/\b(crea|haz|hacer|genera|prepara)\b.*\b(ruta|paradas?)\b|\b(ruta\s+con|añad[ei]r?\s+a\s+ruta)\b/i.test(raw)) {
     const mN = raw.match(/(\d+)\s+(?:avisos?|partes?|paradas?)/i);
@@ -14131,6 +14191,13 @@ function iramClasificar(txt) {
     const m = raw.match(/(?:mto|mantenimiento)\s+(?:del?\s+|de\s+)?(.+?)(?:\s+(?:de|en)\s+(.+))?$/i);
     return { intento:'MTO_ESTADO', cliente: m?.[1]?.trim()||'', localidad: m?.[2]?.trim()||'' };
   }
+  // Frases cortas: "tiene Q2 Chiva", "Q2 de Buñol hecho", "está hecho el Q2 de X"
+  if (/\b(q[1-4]|int)\b/i.test(raw) && /\b(tiene|hecho|est[aá]|completado|chiva|bu[ñn]ol|valencia|requena|moncada|siete|loriguilla)\b/i.test(raw)) {
+    const mT = raw.match(/\b(q[1-4]|int)\b/i);
+    const mL = raw.match(/\b(chiva|bu[ñn]ol|valencia|requena|moncada|siete\s+aguas|loriguilla|camporrobles|utiel|pedralba)\b/i);
+    const mC = raw.match(/\b(bbva|cajamar|caja\s+rural|campsa|repsol)\b/i);
+    return { intento:'MTO_ESTADO', trim: mT?.[1]?.toUpperCase()||'', localidad: mL?.[1]||'', cliente: mC?.[1]||'' };
+  }
 
   // ── CONSULTA EVENTOS ──
   if (/\b(dime\s+(?:los\s+)?eventos?|eventos?\s+de\s+(?:este\s+)?mes|qu[eé]\s+eventos?\s+tengo|agenda\s+(?:de\s+)?(?:hoy|esta\s+semana|este\s+mes))\b/i.test(raw)) {
@@ -14138,7 +14205,7 @@ function iramClasificar(txt) {
   }
 
   // ── CONSULTA RUTA / AVISOS ──
-  if (/\b(qu[eé]\s+avisos?|cu[aá]ntos?\s+avisos?|dime\s+(los\s+)?avisos?|avisos?\s+(que\s+tengo|de\s+hoy|pendientes?|tengo)|paradas?\s+(de\s+hoy|que\s+tengo)|dime\s+(la\s+)?ruta|trabajos?\s+de\s+hoy|cu[aá]nto\s+me\s+queda)\b/i.test(raw)) {
+  if (/\b(qu[eé]\s+avisos?|cu[aá]ntos?\s+avisos?|dime\s+(los\s+)?avisos?|avisos?\s+(que\s+tengo|de\s+hoy|pendientes?|tengo)|paradas?\s+(de\s+hoy|que\s+tengo)|dime\s+(la\s+)?ruta|trabajos?\s+de\s+hoy|cu[aá]nto\s+me\s+queda|qu[eé]\s+(tengo|hay)\s+en\s+(la\s+)?ruta|que\s+trabajo\s+tengo\s+pendiente)\b/i.test(raw)) {
     return { intento:'CONSULTA_AVISOS' };
   }
 
@@ -14211,13 +14278,26 @@ async function iramEjecutarAccion(cl) {
 
   /* ── TIEMPO — Open-Meteo sin API key ── */
   if (cl.intento === 'TIEMPO') {
-    const txt_   = cl._txt || '';
-    const esSemana = /semana|pr[oó]ximos\s+d[íi]as|esta\s+semana|lluver[aá]|har[aá]/i.test(txt_);
-    // Extraer ciudad del texto si la menciona
-    const mCiudad = txt_.match(/(?:en|de|para|en\s+la\s+zona\s+de|en\s+el\s+pueblo\s+de)\s+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
-    const ciudadTexto = mCiudad?.[1]?.trim() || '';
-
+    const txt_     = cl._txt || '';
+    const gemKey   = pycGetKey('gemini');
     pycMsgIA('🌤️ Consultando el tiempo…', false, 'local');
+
+    // Intentar Gemini primero — tiene búsqueda real y entiende el contexto
+    if (gemKey) {
+      try {
+        const resp = await pycGemini(txt_, 'TIEMPO');
+        _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
+        pycMsgIA(resp, false, 'gemini');
+        return '';
+      } catch(e) {
+        // Saturado o error → fallback a Open-Meteo
+      }
+    }
+
+    // Fallback: Open-Meteo con GPS o ciudad extraída del texto
+    const esSemana  = /semana|pr[oó]ximos\s+d[íi]as|esta\s+semana|lluver[aá]|har[aá]/i.test(txt_);
+    const mCiudad   = txt_.match(/(?:en|de|para|en\s+la\s+zona\s+de)\s+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
+    const ciudadTexto = mCiudad?.[1]?.trim() || '';
 
     const consultarTiempo = async (lat, lon, nombreLugar) => {
       try {
@@ -14226,7 +14306,6 @@ async function iramEjecutarAccion(cl) {
           : `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current=temperature_2m,weathercode,windspeed_10m,precipitation&timezone=auto`;
         const data = await fetch(url).then(r => r.json());
         _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
-
         const lugar = nombreLugar ? ` en ${nombreLugar}` : '';
         if (esSemana) {
           const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -14235,22 +14314,17 @@ async function iramEjecutarAccion(cl) {
             const wc = d.weathercode[i];
             const em = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':'⛈️';
             const dia = dias[new Date(fecha).getDay()];
-            const max = Math.round(d.temperature_2m_max[i]);
-            const min = Math.round(d.temperature_2m_min[i]);
-            const lluv = d.precipitation_sum[i] > 0 ? ` 🌧️${d.precipitation_sum[i]}mm` : '';
-            return `${em} ${dia}: ${max}°/${min}°${lluv}`;
+            return `${em} ${dia}: ${Math.round(d.temperature_2m_max[i])}°/${Math.round(d.temperature_2m_min[i])}°${d.precipitation_sum[i]>0?' 🌧️'+d.precipitation_sum[i]+'mm':''}`;
           }).join('\n');
           pycMsgIA(`🌤️ Previsión 7 días${lugar}:\n${lineas}`, false, 'local');
         } else {
           const c = data.current;
-          const temp   = Math.round(c.temperature_2m);
-          const viento = Math.round(c.windspeed_10m);
-          const lluvia = c.precipitation > 0;
-          const wc     = c.weathercode;
-          const emoji  = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':wc<=77?'❄️':wc<=82?'🌦️':'⛈️';
-          const desc   = wc<=1?'Despejado':wc<=3?'Parcialmente nublado':wc<=48?'Niebla':wc<=55?'Llovizna':wc<=67?'Lluvia':wc<=77?'Nieve':wc<=82?'Chubascos':'Tormenta';
-          const consejo= temp>25?'💦 Calor — bebe agua':temp<10?'🧥 Fresco — abrígate':lluvia?'☂️ Lleva paraguas':'👌 Buen día para salir';
-          pycMsgIA(`${emoji} Tiempo ahora${lugar}\n🌡️ ${temp}°C · ${desc}\n🌬️ Viento ${viento} km/h${lluvia?'\n🌧️ Lluvia':''}.\n${consejo}`, false, 'local');
+          const temp = Math.round(c.temperature_2m), viento = Math.round(c.windspeed_10m);
+          const wc   = c.weathercode;
+          const emoji = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':wc<=77?'❄️':wc<=82?'🌦️':'⛈️';
+          const desc  = wc<=1?'Despejado':wc<=3?'Parcialmente nublado':wc<=48?'Niebla':wc<=55?'Llovizna':wc<=67?'Lluvia':'Tormenta';
+          const cons  = temp>25?'💦 Calor':temp<10?'🧥 Fresco':c.precipitation>0?'☂️ Lleva paraguas':'👌 Buen día';
+          pycMsgIA(`${emoji} Tiempo ahora${lugar}\n🌡️ ${temp}°C · ${desc}\n🌬️ ${viento} km/h\n${cons}`, false, 'local');
         }
       } catch(e) {
         _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
@@ -14259,30 +14333,15 @@ async function iramEjecutarAccion(cl) {
     };
 
     if (ciudadTexto) {
-      // Geocodificar ciudad con Nominatim
       try {
-        const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ciudadTexto+', España')}&format=json&limit=1`, { headers:{'User-Agent':'PycLibreta/1.0'} }).then(r=>r.json());
-        if (geo?.[0]) {
-          await consultarTiempo(parseFloat(geo[0].lat), parseFloat(geo[0].lon), ciudadTexto);
-        } else {
-          // Ciudad no encontrada → GPS
-          navigator.geolocation.getCurrentPosition(pos => consultarTiempo(pos.coords.latitude, pos.coords.longitude, ''), () => {
-            _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
-            pycMsgIA(`📍 No encontré "${ciudadTexto}". Activa el GPS para el tiempo local.`, false, 'local');
-          });
-        }
-      } catch(e) {
-        navigator.geolocation.getCurrentPosition(pos => consultarTiempo(pos.coords.latitude, pos.coords.longitude, ''), () => {});
-      }
-    } else {
-      navigator.geolocation.getCurrentPosition(
-        pos => consultarTiempo(pos.coords.latitude, pos.coords.longitude, ''),
-        () => {
-          _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
-          pycMsgIA('📍 Necesito tu ubicación para el tiempo. Activa el GPS.', false, 'local');
-        }
-      );
+        const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ciudadTexto+', España')}&format=json&limit=1`, {headers:{'User-Agent':'PycLibreta/1.0'}}).then(r=>r.json());
+        if (geo?.[0]) { await consultarTiempo(parseFloat(geo[0].lat), parseFloat(geo[0].lon), ciudadTexto); return ''; }
+      } catch(e) {}
     }
+    navigator.geolocation.getCurrentPosition(
+      pos => consultarTiempo(pos.coords.latitude, pos.coords.longitude, ''),
+      () => { _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…'); pycMsgIA('📍 Activa el GPS para el tiempo.', false, 'local'); }
+    );
     return '';
   }
 
@@ -14381,8 +14440,28 @@ async function iramEjecutarAccion(cl) {
 
   /* ── NOTICIAS — RSS ── */
   if (cl.intento === 'NOTICIAS') {
+    const gemKey = pycGetKey('gemini');
     pycMsgIA('📰 Cargando noticias…', false, 'local');
     const tema = (cl.tema || cl._txt || '').toLowerCase();
+
+    // Gemini primero — busca noticias reales con google_search
+    if (gemKey) {
+      try {
+        const query = /superdeporte|valenciacf|valencia.*basket/i.test(tema)
+          ? 'últimas noticias Superdeporte Valencia CF Valencia Basket hoy'
+          : /deporte|futbol|baloncesto|marca|as\b/i.test(tema)
+          ? 'últimas noticias deportes España hoy'
+          : /valencia|levante|provincias/i.test(tema)
+          ? 'últimas noticias Valencia España hoy'
+          : 'últimas noticias España hoy resumen';
+        const resp = await pycGemini(query, 'NOTICIAS');
+        _pycHist = _pycHist.filter(m => m.text !== '📰 Cargando noticias…');
+        pycMsgIA(`📰 Noticias de hoy:\n${resp}`, false, 'gemini');
+        return '';
+      } catch(e) {
+        // Fallback a RSS
+      }
+    }
 
     // Parsear RSS directo sin intermediario
     const parseRSS = async (url) => {
@@ -14431,6 +14510,28 @@ async function iramEjecutarAccion(cl) {
 
     const lista = items.map(i=>`• ${i.title}`).join('\n');
     pycMsgIA(`📰 Titulares de ${labels[cat]}:\n${lista}`, false, 'local');
+    return '';
+  }
+
+  /* ── WIKIPEDIA ── */
+  if (cl.intento === 'WIKIPEDIA') {
+    const query = cl.tema || cl._txt?.replace(/qu[eé]\s+es\s+|qu[eé]\s+significa\s+|info\s+(de|sobre)\s+/i,'').trim() || '';
+    if (!query) return '🤔 ¿Sobre qué quieres información?';
+    pycMsgIA('🔍 Buscando en Wikipedia…', false, 'local');
+    try {
+      const url = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+      const data = await fetch(url).then(r=>r.json());
+      _pycHist = _pycHist.filter(m => m.text !== '🔍 Buscando en Wikipedia…');
+      if (data.type === 'disambiguation' || !data.extract) {
+        pycMsgIA(`🔍 No encontré "${query}" en Wikipedia. Prueba con otro término.`, false, 'local');
+      } else {
+        const resumen = data.extract.slice(0,300).replace(/\n/g,' ');
+        pycMsgIA(`📖 ${data.title}\n${resumen}${data.extract.length>300?'…':''}`, false, 'local');
+      }
+    } catch(e) {
+      _pycHist = _pycHist.filter(m => m.text !== '🔍 Buscando en Wikipedia…');
+      pycMsgIA('⚠️ No pude acceder a Wikipedia.', false, 'local');
+    }
     return '';
   }
 
@@ -14522,23 +14623,6 @@ async function iramEjecutarAccion(cl) {
   }
 
   /* ── CONSULTA RUTA ── */
-  if (cl.intento === 'CONSULTA_AVISOS') {
-    const ruta   = loadArr(K_RUTA);
-    const pend   = ruta.filter(r => r.estado === 'pendiente');
-    const hechas = ruta.filter(r => r.estado === 'completada');
-    if (!ruta.length) return 'No hay ruta cargada hoy.';
-    const lista = pend.map((p,i) => {
-      const c = p.clienteReal||p.clienteNorm||p.cliente||'?';
-      const l = p.localidad||'';
-      const t = (p.trabajo||'').slice(0,50);
-      return `${i+1}. ${c}${l?' · '+l:''}: ${t}`;
-    }).join('\n');
-    let resp = `${pend.length} paradas pendientes`;
-    if (hechas.length) resp += `, ${hechas.length} completadas`;
-    resp += '.\n' + lista;
-    return resp;
-  }
-
   /* ── CONSULTA TAREAS ── */
   if (cl.intento === 'CONSULTA_TAREAS') {
     const tareas = loadArr(K_TAREAS); // K_TAREAS — solo tareas personales
@@ -15178,6 +15262,17 @@ async function iramEjecutarAccion(cl) {
 
     if (!anPend.length && !ruta.length) return '📊 No hay avisos cargados hoy.';
 
+    // Si no hay ruta pero sí análisis → mostrar análisis directamente
+    if (!ruta.length && anPend.length) {
+      const porCliente = {};
+      anPend.forEach(a => { const c=a.clienteReal||a.clienteNorm||a.cliente||'?'; if(!porCliente[c])porCliente[c]=0; porCliente[c]++; });
+      const urgentes = anPend.filter(a=>a.urgente);
+      let r = `📊 Hoy tienes ${anPend.length} aviso${anPend.length!==1?'s':''} en análisis.\n`;
+      r += Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(' · ');
+      if (urgentes.length) r+=`\n🚨 Urgente${urgentes.length>1?'s':''}: ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}`;
+      return r;
+    }
+
     let resp = '';
     if (rutaPend.length === 0 && ruta.length > 0) {
       resp = `📍 Ruta completada ✅ Buen trabajo.`;
@@ -15195,11 +15290,17 @@ async function iramEjecutarAccion(cl) {
   if (cl.intento === 'SIGUIENTE_AVISO') {
     const ruta = loadArr(K_RUTA);
     const sig  = ruta.find(r => r.estado==='pendiente');
-    if (!sig) return 'No hay avisos pendientes.';
+    if (!sig) return 'No hay avisos pendientes en la ruta.';
     _iramUltimaAccion = { tipo:'waze', datos: sig };
     iramDiarioAccion(`Siguiente aviso: ${sig.clienteReal||sig.cliente} · ${sig.localidad||''}`);
-    iramConfirmarWaze(sig);
-    return `${sig.clienteReal||sig.clienteNorm||sig.cliente} · ${sig.localidad||''}.`;
+    const dir  = sig.direccion || sig.localidad || '';
+    const hor  = sig.horarioTxt || '';
+    let resp = `📍 Siguiente parada:\n🏢 ${sig.clienteReal||sig.clienteNorm||sig.cliente} · ${sig.localidad||''}`;
+    if (dir) resp += `\n📌 ${dir}`;
+    if (hor) resp += `\n🕐 ${hor}`;
+    if (sig.trabajo) resp += `\n🔧 ${sig.trabajo.slice(0,60)}`;
+    resp += `\n¿Abro Waze?`;
+    return resp;
   }
 
   /* ── NAVEGAR ── */
