@@ -12217,22 +12217,6 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 
 /* Toggle IAs */
-.ia-toggle {
-  display: flex; gap: 2px;
-  background: rgba(255,255,255,.04); border-radius: 10px; padding: 3px;
-  border: 1px solid rgba(255,255,255,.07);
-}
-.ia-btn {
-  flex: 1; padding: 7px 4px; border-radius: 8px; border: none;
-  font-size: 10px; font-weight: 700; cursor: pointer; letter-spacing: .03em;
-  color: rgba(255,255,255,.3); background: transparent; transition: all .2s;
-  display: flex; align-items: center; justify-content: center; gap: 4px;
-  font-family: monospace;
-}
-.ia-btn.on { color: white; }
-.ia-btn.groq.on   { background: rgba(249,115,22,.18); color: #fb923c; }
-.ia-btn.mistral.on{ background: rgba(251,191,36,.12); color: #fbbf24; }
-.ia-btn.gemini.on { background: rgba(99,102,241,.18); color: #a5b4fc; }
 
 /* ── MODO CHAT ── */
 #iram-chat {
@@ -12518,7 +12502,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="pyc-key-desc" id="pyc-key-desc">Se guarda solo en tu móvil.</div>
     <div class="pyc-key-row" style="margin-top:8px">
       <input class="pyc-key-input" id="pyc-key-input-ctx" type="password" placeholder="Pega tu key aquí…" autocomplete="off" style="flex:1">
-      <button class="pyc-key-save" id="pyc-key-btn-ctx" onclick="pycGuardarKeyCtx()" style="margin-left:4px">Guardar</button>
+      <button class="pyc-key-save" id="pyc-key-btn-ctx" onclick="bkGuardarKey('groq')" style="margin-left:4px">Guardar</button>
     </div>
     <!-- Enlace rápido a donde obtener la key -->
     <div id="pyc-key-link" style="font-size:11px;color:#7c3aed;margin-top:6px;text-align:right"></div>
@@ -12533,15 +12517,15 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="pyc-key-lbl">🔑 Todas las API keys</div>
     <div class="pyc-key-row" style="margin-top:8px">
       <input class="pyc-key-input" id="pyc-key-groq" type="password" placeholder="Groq (console.groq.com)" autocomplete="off" style="flex:1">
-      <button class="pyc-key-save" onclick="pycGuardarKey('groq')" style="margin-left:4px">✓</button>
+      <button class="pyc-key-save" onclick="bkGuardarKey('groq')" style="margin-left:4px">✓</button>
     </div>
     <div class="pyc-key-row" style="margin-top:6px">
       <input class="pyc-key-input" id="pyc-key-mistral" type="password" placeholder="Mistral (mistral.ai)" autocomplete="off" style="flex:1">
-      <button class="pyc-key-save" onclick="pycGuardarKey('mistral')" style="margin-left:4px">✓</button>
+      <button class="pyc-key-save" onclick="bkGuardarKey('mistral')" style="margin-left:4px">✓</button>
     </div>
     <div class="pyc-key-row" style="margin-top:6px">
       <input class="pyc-key-input" id="pyc-key-gemini" type="password" placeholder="Gemini (aistudio.google.com)" autocomplete="off" style="flex:1">
-      <button class="pyc-key-save" onclick="pycGuardarKey('gemini')" style="margin-left:4px">✓</button>
+      <button class="pyc-key-save" onclick="bkGuardarKey('gemini')" style="margin-left:4px">✓</button>
     </div>
     <div style="text-align:right;margin-top:8px">
       <button onclick="pycOcultarTodasKeys()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">← Cerrar</button>
@@ -12722,26 +12706,6 @@ function iramAbrirMusica() {
   }, 2000);
 }
 
-function iramAbrirBuscar(query, filtro) {
-  pycCerrarChat();
-  irA('buscar');
-  setTimeout(() => {
-    buscarIrVista('buscar');
-    const inp = document.getElementById('search-hero-input');
-    if (inp && query) {
-      inp.value = query;
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    if (filtro) {
-      // Aplicar filtro de pestaña si se especifica
-      setTimeout(() => {
-        const btns = document.querySelectorAll('.srp-pill');
-        btns.forEach(b => { if (b.textContent.toLowerCase().includes(filtro.toLowerCase())) b.click(); });
-      }, 300);
-    }
-  }, 200);
-}
-
 function iramWaze() {
   try {
     const ruta = loadArr(K_RUTA);
@@ -12910,7 +12874,6 @@ let _pycRecognition = null;
 let _pycHablando    = false;
 let _pycThinking    = false;
 let _iramIA         = 'groq';
-let _iramModo       = 'local'; // 'local' | 'web'
 
 /* ── Navegación entre pantallas de Iram ── */
 let _wakeLock = null;
@@ -12943,24 +12906,6 @@ function iramShowMode(mode) {
 }
 
 /* ── Toggle modo local/web ── */
-function iramSetModo(modo, btn) {
-  _iramModo = modo;
-  _iramIA   = modo === 'web' ? 'gemini' : 'groq';
-  btn.closest('.ia-toggle').querySelectorAll('.ia-btn').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  const st = document.getElementById('pyc-status');
-  if (st) st.textContent = modo === 'web' ? '🌐 Web' : '💬 Iram';
-}
-
-function iramSetIA(ia, btn) {
-  _iramIA = ia;
-  if (btn) {
-    btn.closest('.ia-toggle')?.querySelectorAll('.ia-btn').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-  }
-}
-
-/* ── Verificar key configurada ── */
 function pycGetKey(ia) {
   const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
   return localStorage.getItem(stores[ia] || '') || '';
@@ -12993,52 +12938,6 @@ function pycOcultarKeyBox() {
   if (boxAll) boxAll.style.display = 'none';
 }
 
-function pycGuardarKeyCtx() {
-  const input = document.getElementById('pyc-key-input-ctx');
-  const btn   = document.getElementById('pyc-key-btn-ctx');
-  const ia    = btn?.dataset?.ia || 'groq';
-  const val   = input?.value?.trim();
-  if (!val) return;
-  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
-  localStorage.setItem(stores[ia] || PYC_KEY_GROQ, val);
-  if (input) input.value = '';
-  pycOcultarKeyBox();
-  pycMsgIA(`✅ Key de ${ia} guardada. Ya puedo funcionar.`, false, 'local');
-}
-
-function pycGuardarKey(ia) {
-  const ids    = { groq:'pyc-key-groq', mistral:'pyc-key-mistral', gemini:'pyc-key-gemini' };
-  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
-  const input  = document.getElementById(ids[ia]);
-  const val    = input?.value?.trim();
-  if (!val) return;
-  localStorage.setItem(stores[ia], val);
-  if (input) input.value = '';
-  const btn = input?.nextElementSibling;
-  if (btn) { btn.textContent = '✅'; setTimeout(() => btn.textContent = '✓', 1500); }
-}
-
-function pycMostrarTodasKeys() {
-  const box = document.getElementById('pyc-key-box');
-  if (box) box.style.display = 'none';
-  const boxAll = document.getElementById('pyc-key-box-all');
-  if (boxAll) {
-    boxAll.style.display = 'block';
-    // Rellenar con keys actuales (enmascaradas)
-    const fills = { 'pyc-key-groq': PYC_KEY_GROQ, 'pyc-key-mistral': PYC_KEY_MISTRAL, 'pyc-key-gemini': PYC_KEY_GEMINI };
-    Object.entries(fills).forEach(([id, store]) => {
-      const el = document.getElementById(id);
-      if (el) el.placeholder = localStorage.getItem(store) ? '●●●●●●●● (guardada)' : el.placeholder;
-    });
-  }
-}
-
-function pycOcultarTodasKeys() {
-  const boxAll = document.getElementById('pyc-key-box-all');
-  if (boxAll) boxAll.style.display = 'none';
-  pycCheckKey();
-}
-
 function pycCheckKey() {
   // Groq primero — clasificador principal
   if (!pycGetKey('groq')) {
@@ -13047,7 +12946,6 @@ function pycCheckKey() {
   } else if (!pycGetKey('mistral')) {
     pycMostrarKeyCtx('mistral');
   // Gemini solo en modo WEB
-  } else if (_iramModo === 'web' && !pycGetKey('gemini')) {
     pycMostrarKeyCtx('gemini');
   } else {
     pycOcultarKeyBox();
@@ -13168,7 +13066,6 @@ function iramLimpiarChat() {
 
 function pycAbrirChat() {
   // Siempre arrancar en modo IRAM (local), nunca en WEB
-  _iramModo = 'local';
   _iramIA   = 'groq';
 
   document.getElementById('pyc-overlay').classList.add('open');
@@ -13213,15 +13110,6 @@ function iramDiario() {
     if (d.fecha !== hoy) return null;
     return d;
   } catch(e) { return null; }
-}
-
-function iramDiarioSet(clave, valor) {
-  try {
-    const hoy = new Date().toISOString().slice(0,10);
-    const d = iramDiario() || { fecha: hoy, acciones: [] };
-    d[clave] = valor;
-    localStorage.setItem(K_IRAM_DIARIO, JSON.stringify(d));
-  } catch(e) {}
 }
 
 function iramDiarioAccion(txt) {
@@ -13594,250 +13482,6 @@ MODO: ${modo}${modo === 'CONDUCCIÓN' ? ' — respuestas muy cortas, fáciles de
 /* ══════════════════════════════════════════════════════
    IRAM — Llamada a Gemini (modo WEB)
    ══════════════════════════════════════════════════════ */
-async function pycGemini(userMsg, _intento = 0) {
-  const key = pycGetKey('gemini');
-  if (!key) {
-    pycMsgIA('⚠️ Configura tu API key de Gemini arriba.');
-    return;
-  }
-
-  const esWeb = _iramModo === 'web' || PALABRAS_WEB.test(userMsg);
-
-  // Construir mensajes con alternancia estricta user/model que exige Gemini
-  const rawHist = _pycHist
-    .filter(m => !m.thinking && !m.streaming && m.text && m.text.trim())
-    .slice(-20);
-
-  const mensajes = [];
-  let lastRole = null;
-  for (const m of rawHist) {
-    const role = m.role === 'user' ? 'user' : 'model';
-    // Eliminar HTML si viene de editor enriquecido
-    const txt = (m.text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!txt) continue;
-    if (role === lastRole) {
-      // Fusionar con el último mensaje del mismo rol
-      if (mensajes.length) {
-        const last = mensajes[mensajes.length - 1];
-        last.parts[0].text += ' ' + txt;
-      }
-    } else {
-      mensajes.push({ role, parts: [{ text: txt }] });
-      lastRole = role;
-    }
-  }
-
-  // Gemini requiere que el último mensaje sea 'user'
-  if (!mensajes.length || mensajes[mensajes.length - 1].role !== 'user') {
-    mensajes.push({ role: 'user', parts: [{ text: userMsg }] });
-  }
-
-  // Gemini requiere que empiece con 'user'
-  if (mensajes[0]?.role === 'model') mensajes.shift();
-
-  const esTrabajo = /aviso|ruta|parte|mantenimiento|mto|cliente|oficina|cajamar|bbva|repsol|campsa|historial|parada/i.test(txt);
-  let systemTxt = iramSystemPrompt();
-  if (esTrabajo) systemTxt += '\n\n' + pycContexto();
-
-  const modelo = 'gemini-2.5-flash-lite';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
-
-  const body = {
-    system_instruction: { parts: [{ text: systemTxt }] },
-    contents: mensajes,
-    generationConfig: { maxOutputTokens: 500, temperature: 0.7 },
-    ...(esWeb && { tools: [{ google_search: {} }] })
-  };
-
-  if (esWeb) {
-    const st = document.getElementById('pyc-status');
-    if (st) st.textContent = '🌐 Buscando…';
-  }
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(()=>({}));
-    const msg = err?.error?.message || '';
-    // Gemini saturado — reintento automático hasta 2 veces
-    if ((msg.includes('high demand') || msg.includes('overloaded') || resp.status === 503 || resp.status === 429) && _intento < 2) {
-      const espera = (_intento + 1) * 3000;
-      pycMsgIA(`⏳ Gemini saturado, reintentando en ${espera/1000}s…`, true, 'local');
-      await new Promise(r => setTimeout(r, espera));
-      _pycHist = _pycHist.filter(m => !m.thinking);
-      return pycGemini(userMsg, _intento + 1);
-    }
-    if (msg.includes('high demand') || msg.includes('overloaded') || resp.status === 503) {
-      throw new Error('Gemini está saturado ahora mismo. Prueba en un momento o usa el modo 💬 IRAM.');
-    }
-    throw new Error(msg || 'Error Gemini ' + resp.status);
-  }
-
-  const data = await resp.json();
-  // Gemini puede devolver múltiples partes (texto + tool_use)
-  const texto = (data?.candidates?.[0]?.content?.parts || [])
-    .filter(p => p.text)
-    .map(p => p.text)
-    .join('') || '(Sin respuesta)';
-  return texto;
-}
-
-/* ══════════════════════════════════════════════════════
-   IRAM — Llamada a Groq (modo LOCAL, streaming)
-   ══════════════════════════════════════════════════════ */
-async function pycGroq(userMsg) {
-  const key = pycGetKey('groq');
-  if (!key) throw new Error('Sin key Groq');
-
-  // Historial limpio — contexto SOLO en system prompt
-  const mensajes = _pycHist
-    .filter(m => !m.thinking && !m.streaming)
-    .slice(-20)
-    .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
-
-  const url  = 'https://api.groq.com/openai/v1/chat/completions';
-  const body = {
-    model: 'llama-3.3-70b-versatile',
-    messages: [
-      { role: 'system', content: iramSystemPrompt() + '\n\n' + pycContexto() },
-      ...mensajes
-    ],
-    max_tokens: 2000,    temperature: 0.7,
-    stream: true
-  };
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(()=>({}));
-    throw new Error(err?.error?.message || 'Error Groq ' + resp.status);
-  }
-
-  // Streaming
-  const reader  = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let texto  = '';
-  let msgIdx = null;
-
-  _pycHist = _pycHist.filter(m => !m.thinking);
-  _pycHist.push({ role:'model', text:'', streaming:true, ia:'groq' });
-  msgIdx = _pycHist.length - 1;
-  pycRenderMsgs();
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value);
-    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
-    for (const line of lines) {
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') break;
-      try {
-        const parsed = JSON.parse(data);
-        const delta  = parsed?.choices?.[0]?.delta?.content || '';
-        if (delta) {
-          texto += delta;
-          _pycHist[msgIdx].text = texto;
-          pycRenderMsgs();
-          iramActualizarDrive(texto);
-          const msgs = document.getElementById('pyc-msgs');
-          if (msgs) msgs.scrollTop = msgs.scrollHeight;
-        }
-      } catch(e) {}
-    }
-  }
-
-  _pycHist[msgIdx].streaming = false;
-  iramGuardarHistorial(); // Guardar después del streaming
-  return texto || '(Sin respuesta)';
-}
-
-/* ══════════════════════════════════════════════════════
-   IRAM — Llamada a Mistral (modo LOCAL, streaming)
-   ══════════════════════════════════════════════════════ */
-async function pycMistral(userMsg) {
-  const key = pycGetKey('mistral');
-  if (!key) throw new Error('Sin key Mistral');
-
-  const mensajes = _pycHist
-    .filter(m => !m.thinking && !m.streaming)
-    .slice(-20)
-    .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
-
-  const url  = 'https://api.mistral.ai/v1/chat/completions';
-  const body = {
-    model: 'mistral-large-latest',
-    messages: [
-      { role: 'system', content: iramSystemPrompt() + '\n\n' + pycContexto() },
-      ...mensajes
-    ],
-    max_tokens: 500,
-    temperature: 0.7,
-    stream: true
-  };
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(()=>({}));
-    throw new Error(err?.error?.message || 'Error Mistral ' + resp.status);
-  }
-
-  const reader  = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let texto  = '';
-  let msgIdx = null;
-
-  _pycHist = _pycHist.filter(m => !m.thinking);
-  _pycHist.push({ role:'model', text:'', streaming:true, ia:'mistral' });
-  msgIdx = _pycHist.length - 1;
-  pycRenderMsgs();
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value);
-    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
-    for (const line of lines) {
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') break;
-      try {
-        const parsed = JSON.parse(data);
-        const delta  = parsed?.choices?.[0]?.delta?.content || '';
-        if (delta) {
-          texto += delta;
-          _pycHist[msgIdx].text = texto;
-          pycRenderMsgs();
-          iramActualizarDrive(texto);
-          const msgs = document.getElementById('pyc-msgs');
-          if (msgs) msgs.scrollTop = msgs.scrollHeight;
-        }
-      } catch(e) {}
-    }
-  }
-
-  _pycHist[msgIdx].streaming = false;
-  iramGuardarHistorial(); // Guardar después del streaming
-  return texto || '(Sin respuesta)';
-}
-
-/* ══════════════════════════════════════════════════════
-   IRAM — Routing y envío
-   ══════════════════════════════════════════════════════ */
-const PALABRAS_WEB = /\b(busca\s+en\s+internet|temperatura|tiempo\s+en|lluvia|clima|noticias|tráfico\s+en|precio\s+de|cuánto\s+cuesta|festivo|festivos|día\s+libre|huelga|wikipedia|en\s+internet|en\s+la\s+web|juega|partido\s+de|resultado\s+de|clasificación\s+de)\b/i;
-
 async function pycEnviar() {
   if (_pycThinking) return;
   const ta  = document.getElementById('pyc-ta');
@@ -13930,7 +13574,7 @@ async function pycEnviar() {
   // Mostrar indicador de escucha mientras clasifica
   const _intentosLocales = [
     'LLAMAR','CREAR_TAREA','CONSULTA_TAREAS','CONSULTA_AVISOS','CONSULTA_LOCALIDADES',
-    'CONSULTA_EVENTOS','CREAR_EVENTO','CREAR_NOTA','CANCELAR_EVENTO',
+    'CONSULTA_EVENTOS','CREAR_EVENTO','CREAR_NOTA','CANCELAR_EVENTO','CONFIRMAR','CANCELAR',
     'CONTAR_AVISOS','HORARIO','MTO_ESTADO','NAVEGAR','URGENTE','SIGUIENTE_AVISO',
     'HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE',
     'ANALIZAR_PARTES','CREAR_RUTA','ANADIR_AVISO','RUTA_SIN_MTO',
@@ -13969,9 +13613,11 @@ async function pycEnviar() {
     if (_clIA.intento === 'CREAR_NOTA') {
       if (_clIA.texto)  _clIA.texto  = limpiarTexto(_clIA.texto);
     }
+    _clIA._txt = txt.toLowerCase(); // texto original para ejecutores
     _cl = _clIA;
   } else {
     _cl = iramClasificar(txt); // Fallback local
+    _cl._txt = txt.toLowerCase();
   }
 
   if (_intentosLocales.includes(_cl.intento)) {
@@ -13984,43 +13630,8 @@ async function pycEnviar() {
     }
   }
 
-  // ── Llamada a IA ──
-  _pycThinking = true;
-  _pycHist.push({ role:'model', text:'⏳ …', thinking:true });
-  pycRenderMsgs();
-
-  try {
-    let respuesta = null;
-    const esWeb = _iramModo === 'web' || PALABRAS_WEB.test(txt);
-
-    for (const ia of ['groq']) {
-      try {
-        if (ia === 'groq') respuesta = await pycGroq(txt);
-        if (respuesta) {
-          iramLog(_cl.intento || 'CHAT', ia, true);
-          _iramIA = ia;
-          break;
-        }
-      } catch(e) {
-        iramLog(_cl.intento || 'CHAT', 'groq', false);
-        respuesta = '🤔 No he podido responder. Prueba de nuevo.';
-      }
-    }
-
-    _pycHist = _pycHist.filter(m => !m.thinking);
-    const yaEnHistorial = _pycHist.some(m => m.role === 'model' && !m.thinking && m.text === respuesta);
-    if (!yaEnHistorial) {
-      pycMsgIA(respuesta || '⚠️ Sin respuesta', false, _iramIA);
-    } else {
-      if (respuesta && respuesta.length > 5) setTimeout(() => pycHablar(respuesta), 300);
-      iramGuardarHistorial();
-    }
-  } catch(e) {
-    _pycHist = _pycHist.filter(m => !m.thinking);
-    pycMsgIA('⚠️ ' + e.message);
-  } finally {
-    _pycThinking = false;
-  }
+  // ── CHAT: nunca Groq respondiendo, siempre mensaje de ayuda ──
+  pycMsgIA(`🤔 No he entendido.\nPrueba: "qué avisos tengo", "siguiente parada", "tiempo en Valencia", "noticias de deportes", "gasolinera", "dónde comer en X", "mantenimientos pendientes hoy"`, false, 'local');
 }
 
 /* ══════════════════════════════════════════════════════
@@ -14271,6 +13882,14 @@ function iramClasificar(txt) {
   const t   = iramNorm(txt);
   const raw = txt.toLowerCase().trim();
 
+  // ── CONFIRMAR / CANCELAR ──
+  if (/^(s[íi]|sí|venga|vale|ok|claro|adelante|confirma|de\s+acuerdo|perfecto)$/i.test(raw.trim())) {
+    return { intento:'CONFIRMAR', _txt: raw };
+  }
+  if (/^(no|cancela|para|stop|nada|olvida|cancel)$/i.test(raw.trim())) {
+    return { intento:'CANCELAR', _txt: raw };
+  }
+
   // ── BUSCAR OFICINA ──
   if (/\b(qu[eé]\s+(oficina|cliente|n[uú]mero)\s+(es|hay|tiene|de)|dime\s+(la\s+)?oficina\s+de|la\s+oficina\s+de|n[uú]mero\s+de\s+oficina|qui[eé]n\s+es\s+el?\s*\d|cu[aá]l\s+es\s+la\s+oficina|qu[eé]\s+oficina\s+hay\s+en|y\s+la\s+de|la\s+de\s+[a-záéíóú])\b/i.test(raw) ||
       (/\b\d{4,6}\b/.test(raw) && /\b(qu[eé]\s+es|c[oó]mo\s+se\s+llama|qui[eé]n\s+es)\b/i.test(raw))) {
@@ -14297,12 +13916,19 @@ function iramClasificar(txt) {
   }
 
   // ── NOTICIAS ──
-  if (/\b(noticias|titulares|qu[eé]\s+ha\s+pasado|[uú]ltima\s+hora|prensa|qu[eé]\s+est[aá]\s+pasando|novedades|dime\s+(los\s+)?titulares|hay\s+alguna\s+noticia|algo\s+importante\s+hoy|qu[eé]\s+pasa\s+en\s+el\s+mundo)\b/i.test(raw)) {
-    const tema = /deporte|f[uú]tbol|baloncesto|basket|liga|champion/i.test(raw)?'deportes':/valencia/i.test(raw)?'valencia':'';
+  if (/\b(noticias|titulares|qu[eé]\s+ha\s+pasado|[uú]ltima\s+hora|prensa|qu[eé]\s+est[aá]\s+pasando|novedades|dime\s+(los\s+)?titulares|hay\s+alguna\s+noticia|algo\s+importante\s+hoy|qu[eé]\s+pasa\s+en\s+el\s+mundo|titulares\s+deportivos|noticias\s+deportivas?)\b/i.test(raw)) {
+    const tema = /superdeporte|valenciacf|valencia\s*basket|che\b/i.test(raw)?'superdeporte'
+               : /deporte|f[uú]tbol|baloncesto|basket|liga|champion|marca\b|\bas\b|deportivo/i.test(raw)?'deportes'
+               : /valencia|levante|provincias/i.test(raw)?'valencia'
+               : /el\s*pa[íi]s|pa[íi]s\b/i.test(raw)?'pais'
+               : '';
     return { intento:'NOTICIAS', tema };
   }
 
-  // ── RESUMEN DÍA ──
+  // ── AVERIAS SIN MTO (análisis del día) ──
+  if (/\b(mantenimientos?\s+pendientes?\s+(de\s+)?(hoy|esta\s+semana)|qu[eé]\s+(partes?|avisos?)\s+(de\s+hoy\s+)?no\s+tienen?\s+(el\s+)?(q[1-4]|mto|mantenimiento)|de\s+los\s+de\s+hoy\s+cu[aá]les?\s+(les?\s+)?falta)\b/i.test(raw)) {
+    return { intento:'AVERIAS_SIN_MTO' };
+  }
   if (/\b(resumen\s+(del?\s+)?d[íi]a|c[oó]mo\s+va\s+el\s+d[íi]a|qu[eé]\s+tal\s+va|balance\s+del?\s+d[íi]a)\b/i.test(raw)) {
     return { intento:'RESUMEN_DIA' };
   }
@@ -14323,10 +13949,11 @@ function iramClasificar(txt) {
     return { intento:'COMPLETAR_AVISO', trabajo: txt };
   }
 
-  // ── ANALIZAR PARTES (con localidad opcional) ──
-  if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?|qu[eé]\s+(hay|tengo|pone)\s+en|partes?\s+de|avisos?\s+(?:de|en))\b/i.test(raw)) {
+  // ── ANALIZAR PARTES ──
+  if (/\b(analiza|resume|agrupa|dime\s+los\s+partes?|qu[eé]\s+partes?|patrones?|resumen\s+de\s+(los\s+)?partes?|an[áa]lisis|qu[eé]\s+(hay|tengo)\s+(en\s+(el\s+)?)?an[áa]lisis|partes?\s+de|avisos?\s+(de\s+hoy|en\s+(el\s+)?an[áa]lisis|que\s+tengo|de|en))\b/i.test(raw)) {
     const mLoc = raw.match(/(?:en|de)\s+([a-z\u00e0-\u00fc][a-z\u00e0-\u00fc\s]{2,20})(?:\s|$)/i);
-    return { intento:'ANALIZAR_PARTES', localidad: mLoc?.[1]?.trim()||'' };
+    const mCli = raw.match(/\b(bbva|cajamar|caja\s+rural|campsa|repsol|dia|sprinter)\b/i);
+    return { intento:'ANALIZAR_PARTES', localidad: mLoc?.[1]?.trim()||'', cliente: mCli?.[1]||'' };
   }
 
   // ── CREAR RUTA ──
@@ -14757,31 +14384,46 @@ async function iramEjecutarAccion(cl) {
     pycMsgIA('📰 Cargando noticias…', false, 'local');
     const tema = (cl.tema || cl._txt || '').toLowerCase();
 
-    const feeds = {
-      superdeporte: ['https://api.rss2json.com/v1/api.json?rss_url=https://www.superdeporte.es/rss/2.0/'],
-      deportes:     ['https://api.rss2json.com/v1/api.json?rss_url=https://e00-marca.uecdn.es/rss/portada.xml',
-                     'https://api.rss2json.com/v1/api.json?rss_url=https://www.as.com/rss/tags/ultimas_noticias.xml'],
-      valencia:     ['https://api.rss2json.com/v1/api.json?rss_url=https://www.levante-emv.com/rss/section/14',
-                     'https://api.rss2json.com/v1/api.json?rss_url=https://www.lasprovincias.es/rss/2.0/index.xml'],
-      pais:         ['https://api.rss2json.com/v1/api.json?rss_url=https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada'],
-      general:      ['https://api.rss2json.com/v1/api.json?rss_url=https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada',
-                     'https://api.rss2json.com/v1/api.json?rss_url=https://www.20minutos.es/rss/'],
+    // Parsear RSS directo sin intermediario
+    const parseRSS = async (url) => {
+      try {
+        const xml = await fetch(url, {headers:{'User-Agent':'PycLibreta/1.0'}}).then(r=>r.text());
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        return [...doc.querySelectorAll('item')].slice(0,6).map(el => ({ title: el.querySelector('title')?.textContent?.replace('<![CDATA[','').replace(']]>','').trim()||'' }));
+      } catch(e) { return []; }
+    };
+    const parseProxy = async (rssUrl) => {
+      try {
+        const d = await fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(rssUrl)).then(r=>r.json());
+        return d.items?.slice(0,6)||[];
+      } catch(e) { return []; }
     };
 
-    const cat = /superdeporte|valencia\s*cf|valencia\s*basket|che/i.test(tema) ? 'superdeporte'
-              : /deporte|f[uú]tbol|baloncesto|basket|liga|champion|marca|as\b/i.test(tema) ? 'deportes'
-              : /valencia|levante|provincias/i.test(tema) ? 'valencia'
-              : /el\s*pa[íi]s|pa[íi]s\b/i.test(tema) ? 'pais'
+    const cat = /superdeporte|valenciacf|valencia\s*basket|che\b/i.test(tema)?'superdeporte'
+              : /deporte|f[uú]tbol|baloncesto|basket|liga|champion|marca\b|\bas\b|deportivo/i.test(tema)?'deportes'
+              : /valencia|levante|provincias/i.test(tema)?'valencia'
+              : /el\s*pa[íi]s|pa[íi]s\b/i.test(tema)?'pais'
               : 'general';
 
     const labels = { superdeporte:'Superdeporte', deportes:'deportes', valencia:'Valencia', pais:'El País', general:'hoy' };
 
     let items = [];
-    for (const url of feeds[cat]) {
-      try {
-        const data = await fetch(url).then(r=>r.json());
-        if (data.items?.length) { items = data.items.slice(0,6); break; }
-      } catch(e) {}
+    if (cat==='superdeporte') {
+      items = await parseRSS('https://www.superdeporte.es/rss/2.0/');
+      if (!items.length) items = await parseProxy('https://www.superdeporte.es/rss/2.0/');
+    } else if (cat==='deportes') {
+      items = await parseRSS('https://e00-marca.uecdn.es/rss/portada.xml');
+      if (!items.length) items = await parseProxy('https://e00-marca.uecdn.es/rss/portada.xml');
+      if (!items.length) items = await parseProxy('https://www.as.com/rss/tags/ultimas_noticias.xml');
+    } else if (cat==='valencia') {
+      items = await parseRSS('https://www.levante-emv.com/rss/section/14');
+      if (!items.length) items = await parseProxy('https://www.lasprovincias.es/rss/2.0/index.xml');
+    } else if (cat==='pais') {
+      items = await parseRSS('https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada');
+      if (!items.length) items = await parseProxy('https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada');
+    } else {
+      items = await parseRSS('https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada');
+      if (!items.length) items = await parseProxy('https://www.20minutos.es/rss/');
     }
 
     _pycHist = _pycHist.filter(m => m.text !== '📰 Cargando noticias…');
@@ -14947,6 +14589,35 @@ async function iramEjecutarAccion(cl) {
     const mat    = tareas.filter(t => t.estado==='pendiente' && matKw.test(t.titulo));
     if (!mat.length) return 'No tienes material pendiente en las tareas.';
     return `Material pendiente: ${mat.slice(0,5).map(t=>t.titulo).join(', ')}.`;
+  }
+
+  /* ── CONFIRMAR / CANCELAR ── */
+  if (cl.intento === 'CONFIRMAR') {
+    if (!_iramUltimaAccion) return '🤔 ¿Confirmar qué? No hay nada pendiente.';
+    const ua = _iramUltimaAccion;
+    _iramUltimaAccion = null;
+    if (ua.tipo === 'registrar_mto') {
+      const mtoMan = loadObj(K_MTO_MAN);
+      const fecha  = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+      let reg = 0;
+      for (const p of (ua.datos?.paradas||[])) {
+        const key = mtoKey(p);
+        if (!mtoMan[key]) mtoMan[key] = {};
+        mtoMan[key][ua.datos?.trim||'Q2'] = fecha;
+        reg++;
+      }
+      save(K_MTO_MAN, mtoMan);
+      if (typeof renderMTO === 'function') renderMTO();
+      return `✅ ${ua.datos?.trim||'Q2'} registrado en ${reg} parada${reg!==1?'s':''} (${fecha})`;
+    }
+    if (ua.tipo === 'waze') { iramConfirmarWaze(ua.datos); return ''; }
+    if (ua.tipo === 'llamar') { iramConfirmarLlamar(ua.datos); return ''; }
+    return '✅ Confirmado';
+  }
+
+  if (cl.intento === 'CANCELAR') {
+    if (_iramUltimaAccion) { _iramUltimaAccion = null; return '❌ Cancelado.'; }
+    return '🤔 No hay nada que cancelar.';
   }
 
   /* ── BUSCAR OFICINA — identifica por código y activa contexto ── */
@@ -15563,37 +15234,6 @@ function iramLog(intento, ia, ok) {
 }
 
 /* Devuelve estadísticas de uso — útil para depurar y para futura sugerencia automática */
-function iramStats() {
-  try {
-    const log = JSON.parse(localStorage.getItem(K_IRAM_LOG) || '[]');
-    if (!log.length) return 'Sin datos de uso todavía.';
-
-    // Agrupar por IA
-    const porIA = {};
-    const porIntento = {};
-    log.forEach(r => {
-      // Por IA
-      if (!porIA[r.ia]) porIA[r.ia] = { total:0, ok:0 };
-      porIA[r.ia].total++;
-      if (r.ok) porIA[r.ia].ok++;
-      // Por intento
-      if (!porIntento[r.intento]) porIntento[r.intento] = 0;
-      porIntento[r.intento]++;
-    });
-
-    const iaStr = Object.entries(porIA)
-      .map(([ia, d]) => `${ia}: ${d.total} usos (${Math.round(d.ok/d.total*100)}% ok)`)
-      .join(' · ');
-
-    const top3 = Object.entries(porIntento)
-      .sort((a,b)=>b[1]-a[1]).slice(0,3)
-      .map(([i,n])=>`${i}(${n})`).join(', ');
-
-    return `${log.length} interacciones · ${iaStr} · Top: ${top3}`;
-  } catch(e) { return 'Error leyendo log.'; }
-}
-
-/* ── Normalización básica para búsquedas ── */
 function iramNorm(s) {
   return (s||'').toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
@@ -15758,29 +15398,6 @@ function pycToggleVoz() {
 }
 
 /* Elige la mejor alternativa de reconocimiento de voz */
-function iramMejorAlternativa(alternativas) {
-  if (!alternativas.length) return '';
-  if (alternativas.length === 1) return alternativas[0];
-
-  // Palabras clave de la app — si alguna alternativa las contiene, preferirla
-  const palabrasClave = [
-    'ruta','aviso','avisos','tarea','nota','evento','horario','mantenimiento','mto',
-    'cajamar','bbva','repsol','llévame','waze','llamar','urgente','pendiente',
-    'tiempo','temperatura','busca','siguiente','parada'
-  ];
-
-  // Puntuar cada alternativa
-  const puntuadas = alternativas.map(alt => {
-    const norm = alt.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    const puntos = palabrasClave.reduce((acc, kw) => acc + (norm.includes(kw) ? 1 : 0), 0);
-    return { alt, puntos };
-  });
-
-  // Devolver la de mayor puntuación, o la primera si empatan
-  puntuadas.sort((a,b) => b.puntos - a.puntos);
-  return puntuadas[0].alt;
-}
-
 function pycPararVoz() {
   _pycHablando = false;
   if (_pycRecognition) { try { _pycRecognition.stop(); } catch(e){} _pycRecognition = null; }
