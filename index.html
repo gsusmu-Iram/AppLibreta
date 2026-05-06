@@ -4931,18 +4931,35 @@ function renderizar() {
           const pc = nrmCod(p.codigo||'');
           return pc && (ec === pc || codigoVariantes(p.codigo||'').includes(ec));
         });
-        const _mtoKey  = _exRow ? mtoKey(_exRow) : null;
+        // Fallback: buscar por nombre+localidad si no hay código
+        const _exRow2 = _exRow || (p.localidad ? _excelD.find(c => {
+          const cN = iramNorm(c.CLIENTE||c.cliente||'');
+          const cL = iramNorm(c.MUNICIPIO||c.municipio||'');
+          const pN = iramNorm(p.clienteNorm||p.clienteReal||p.cliente||'');
+          const pL = iramNorm(p.localidad||'');
+          return pN && cN.includes(pN.slice(0,4)) && cL.includes(pL.slice(0,4));
+        }) : null);
+        const _exRowF  = _exRow || _exRow2;
+        const _mtoKey  = _exRowF ? mtoKey(_exRowF) : null;
         const _mtoManD = _mtoKey ? (_mtoMan[_mtoKey]||{}) : {};
-        const _getVal  = t => _mtoManD[t] || (_exRow ? (String(_exRow[t]||'')) : '') || '';
-        const _tiposMTO= (typeof getMtoTipos==='function' && (_exRow||p.clienteNorm))
-          ? getMtoTipos(_exRow?(_exRow.CLIENTE||''):p.clienteNorm||p.cliente||'')
+        // Tres capas: manual + Excel + historial (igual que módulo MTO)
+        const _getVal  = t => {
+          if (_mtoManD[t]) return _mtoManD[t];
+          if (_exRowF) { const ex = getExcelDate(_exRowF, t); if (ex) return ex; }
+          return '';
+        };
+        const _tiposMTO= (typeof getMtoTipos==='function' && (_exRowF||p.clienteNorm))
+          ? getMtoTipos(_exRowF?(_exRowF.CLIENTE||''):p.clienteNorm||p.cliente||'')
           : ['INT','Q1','Q2','Q3','Q4'];
         const bMTO = _tiposMTO.map(t => {
-          const v   = _getVal(t);
-          const ok  = v && v.trim() !== '' && v !== '0';
-          const cur = t === _trimAct;
+          const v      = _getVal(t);
+          const ok     = v && v.trim() !== '' && v !== '0';
+          const cur    = t === _trimAct;
+          const manual = ok && !!_mtoManD[t];
           if (!ok) return cur ? `<span style="display:inline-flex;align-items:center;gap:2px;background:rgba(0,0,0,.06);color:#94a3b8;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">${mtoLabel(t)}</span>` : '';
-          return `<span style="display:inline-flex;align-items:center;gap:2px;background:${cur?'#dcfce7':'#ede9fe'};color:${cur?'#15803d':'#6d28d9'};border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">✅ ${mtoLabel(t)}</span>`;
+          const bg  = manual ? '#ede9fe' : '#dcfce7';
+          const col2 = manual ? '#6d28d9' : '#15803d';
+          return `<span style="display:inline-flex;align-items:center;gap:2px;background:${bg};color:${col2};border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">✅ ${mtoLabel(t)}</span>`;
         }).filter(Boolean).join(' ');
 
         html+=`
@@ -6371,9 +6388,8 @@ function guardarFinalizar() {
   save(K_EQUIPOS, equipos);
 
   cerrarFinalizar();
-  // Auto-marcar MTO: usar código del Excel para que coincida con pyc_excel_data
-  const codigoExcel = cliRowExcel ? (cliRowExcel.CODIGO || cliRowExcel.codigo || p.codigo) : p.codigo;
-  try { autoMarcarMTO({ ...p, codigo: codigoExcel, trabajoRealizado: trabajo }); } catch(e) {}
+  // Auto-marcar MTO: pasar la fila Excel directamente si ya la tenemos
+  try { autoMarcarMTO({ ...p, codigo: codigoExcel, trabajoRealizado: trabajo }, cliRowExcel); } catch(e) { console.warn('autoMarcarMTO:', e); }
 
   // ── Si es cliente nuevo, añadirlo al Excel local ──
   if (!cliRowExcel && p.codigo && !/^(INC|OT|AL_|WO|TASK)\d*/i.test(p.codigo)) {
@@ -8014,11 +8030,12 @@ function confirmarBorrar() {
    Detecta el tipo de revisión desde el texto del trabajo
    y marca el slot libre correspondiente
    ================================================================ */
-function autoMarcarMTO(parte) {
+function autoMarcarMTO(parte, excelRowDirecto) {
   const clientes = loadArr(K_EXCEL);
   if (!clientes.length) return;
 
-  const trabajo = (parte.trabajoRealizado || parte.trabajo || '').toLowerCase();
+  // Usar texto del parte si trabajoRealizado está vacío
+  const trabajo = (parte.trabajoRealizado || parte.trabajo || parte.descripcion || '').toLowerCase();
   const sistema = String(parte.codigo || parte.sistema || '').replace(/\D/g,'');
   const clienteNorm = (parte.clienteReal || parte.clienteNorm || '').toUpperCase();
 
@@ -8037,14 +8054,26 @@ function autoMarcarMTO(parte) {
 
   if (!tipo) return;
 
-  // Buscar oficina por código
-  const nrm = s => String(s||'').replace(/[\s.\-]/g,'').replace(/^0+/,'');
-  const ofi = clientes.find(c => {
-    const cod = nrm(c.CODIGO||c.codigo||'');
-    const suf = String(c.CODIGO||c.codigo||'').split('-').pop().replace(/\D/g,'');
-    return (cod === nrm(sistema) || suf === sistema || sistema.startsWith(cod) || cod.startsWith(sistema))
-      && (clienteNorm.includes((c.CLIENTE||c.cliente||'').split(' ')[0]) || true);
-  });
+  // Si tenemos la fila Excel directamente, usarla; si no, buscar
+  let ofi = excelRowDirecto || null;
+  if (!ofi) {
+    const nrm = s => String(s||'').replace(/[\s.\-]/g,'').replace(/^0+/,'');
+    // Buscar primero por código, luego por nombre+localidad
+    ofi = clientes.find(c => {
+      const cod = nrm(c.CODIGO||c.codigo||'');
+      const suf = String(c.CODIGO||c.codigo||'').split('-').pop().replace(/\D/g,'');
+      return (cod === nrm(sistema) || suf === sistema || sistema.startsWith(cod) || cod.startsWith(sistema));
+    });
+    // Fallback: buscar por nombre + localidad si no hay código
+    if (!ofi && clienteNorm && parte.localidad) {
+      const nL = iramNorm(parte.localidad);
+      ofi = clientes.find(c => {
+        const cN = iramNorm(c.CLIENTE||c.cliente||'');
+        const cL = iramNorm(c.MUNICIPIO||c.municipio||'');
+        return clienteNorm.includes(cN.split(' ')[0].toUpperCase()) && cL.includes(nL.slice(0,4));
+      });
+    }
+  }
   if (!ofi) return;
 
   const key    = mtoKey(ofi);
@@ -14610,25 +14639,40 @@ async function iramEjecutarAccion(cl) {
   if (cl.intento === 'NOTICIAS') {
     pycMsgIA('📰 Cargando noticias…', false, 'local');
     const tema = cl.tema || '';
+    const ts   = Date.now(); // anti-caché
+
     const feeds = {
-      deportes: 'https://api.rss2json.com/v1/api.json?rss_url=https://e00-marca.uecdn.es/rss/portada.xml',
-      valencia: 'https://api.rss2json.com/v1/api.json?rss_url=https://www.levante-emv.com/rss/section/14',
-      general:  'https://api.rss2json.com/v1/api.json?rss_url=https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada',
+      deportes: [
+        `https://api.rss2json.com/v1/api.json?rss_url=https://e00-marca.uecdn.es/rss/portada.xml&t=${ts}`,
+        `https://api.rss2json.com/v1/api.json?rss_url=https://www.as.com/rss/tags/ultimas_noticias.xml&t=${ts}`,
+      ],
+      valencia: [
+        `https://api.rss2json.com/v1/api.json?rss_url=https://www.levante-emv.com/rss/section/14&t=${ts}`,
+        `https://api.rss2json.com/v1/api.json?rss_url=https://www.lasprovincias.es/rss/2.0/index.xml&t=${ts}`,
+      ],
+      general: [
+        `https://api.rss2json.com/v1/api.json?rss_url=https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada&t=${ts}`,
+        `https://api.rss2json.com/v1/api.json?rss_url=https://www.elmundo.es/rss/portada.xml&t=${ts}`,
+      ],
     };
-    const url = /deporte|futbol|baloncesto|valenciafc|basket/i.test(tema) ? feeds.deportes
-              : /valencia/i.test(tema) ? feeds.valencia
-              : feeds.general;
-    try {
-      const data = await fetch(url).then(r=>r.json());
-      const items = (data.items||[]).slice(0,5);
-      _pycHist = _pycHist.filter(m => m.text !== '📰 Cargando noticias…');
-      if (!items.length) { pycMsgIA('📰 No hay noticias disponibles ahora.', false, 'local'); return ''; }
-      const lista = items.map(i=>`• ${i.title}`).join('\n');
-      pycMsgIA(`📰 Noticias${tema?' de '+tema:''}:\n${lista}`, false, 'local');
-    } catch(e) {
-      _pycHist = _pycHist.filter(m => m.text !== '📰 Cargando noticias…');
-      pycMsgIA('⚠️ No pude cargar noticias. Comprueba la conexión.', false, 'local');
+
+    const cat = /deporte|f[uú]tbol|baloncesto|valenciafc|basket|liga|champion/i.test(tema) ? 'deportes'
+              : /valencia/i.test(tema) ? 'valencia' : 'general';
+
+    let items = [];
+    for (const url of feeds[cat]) {
+      try {
+        const data = await fetch(url).then(r=>r.json());
+        if (data.items?.length) { items = data.items.slice(0,6); break; }
+      } catch(e) {}
     }
+
+    _pycHist = _pycHist.filter(m => m.text !== '📰 Cargando noticias…');
+    if (!items.length) { pycMsgIA('📰 No pude cargar noticias. Comprueba la conexión.', false, 'local'); return ''; }
+
+    const label = cat==='deportes'?'deportes':cat==='valencia'?'Valencia':'hoy';
+    const lista = items.map(i=>`• ${i.title}`).join('\n');
+    pycMsgIA(`📰 Titulares de ${label}:\n${lista}`, false, 'local');
     return '';
   }
 
@@ -15515,12 +15559,44 @@ function iramBuscarCliente(nombre, localidad) {
 function pycHablar(txt) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  // Limitar a las primeras 200 chars para no leer párrafos enteros
-  const u = new SpeechSynthesisUtterance(txt.slice(0,200));
-  u.lang = 'es-ES'; u.rate = 1.05; u.pitch = 1;
+
+  // Limpiar texto — quitar emojis y caracteres especiales que confunden TTS
+  const limpio = txt
+    .replace(/[☀️⛅🌧️🌫️❄️🌦️⛈️🌡️🌬️☂️💦🧥👌🔧📊📍🏢🔍📅📌⚠️🚨🔥✅⏳🗑️📰⛽🍽️💊🛒]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!limpio) return;
+
+  // Dividir en trozos por puntuación — máx 180 chars cada uno
+  const trozos = [];
+  const partes = limpio.split(/(?<=[.!?·\n])\s*/);
+  let actual = '';
+  for (const parte of partes) {
+    if ((actual + parte).length > 180) {
+      if (actual) trozos.push(actual.trim());
+      actual = parte;
+    } else {
+      actual += (actual ? ' ' : '') + parte;
+    }
+  }
+  if (actual.trim()) trozos.push(actual.trim());
+
+  if (!trozos.length) return;
+
   _pycHablando = true;
-  u.onend = () => { _pycHablando = false; };
-  window.speechSynthesis.speak(u);
+  let idx = 0;
+
+  const hablarTrozo = () => {
+    if (idx >= trozos.length) { _pycHablando = false; return; }
+    const u = new SpeechSynthesisUtterance(trozos[idx++]);
+    u.lang = 'es-ES'; u.rate = 1.05; u.pitch = 1;
+    u.onend = hablarTrozo;
+    u.onerror = () => { _pycHablando = false; };
+    window.speechSynthesis.speak(u);
+  };
+
+  hablarTrozo();
 }
 
 /* ── Voz: activar/desactivar ── */
