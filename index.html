@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="screen-orientation" content="any">
 <title>PycLibreta</title>
 
 <!-- ── PWA: manifest + iconos ── -->
@@ -3510,7 +3511,10 @@ body { font-size: 14px; }
       </div>
       <div class="field-group">
         <div class="field-lbl">Dirección</div>
-        <input class="field-input" id="ubic-addr" type="text" placeholder="Calle, número, ciudad">
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="field-input" id="ubic-addr" type="text" placeholder="Calle, número, ciudad" style="flex:1">
+          <button onclick="ubicGPS()" style="background:#f97316;border:none;border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;cursor:pointer;white-space:nowrap;flex-shrink:0">📍 GPS</button>
+        </div>
       </div>
       <div class="field-group">
         <div class="field-lbl">Tipo</div>
@@ -6494,6 +6498,38 @@ function renderUbics() {
 
 let _editIdx = -1;  // índice de ubicación en edición (-1 = nueva)
 
+function ubicGPS() {
+  const btn = document.querySelector('[onclick="ubicGPS()"]');
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+  navigator.geolocation.getCurrentPosition(async pos => {
+    try {
+      const { latitude: lat, longitude: lon } = pos.coords;
+      // Guardar coordenadas para usar al guardar
+      document.getElementById('ubic-addr').dataset.lat = lat;
+      document.getElementById('ubic-addr').dataset.lon = lon;
+      // Reverse geocoding con Nominatim
+      const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=es`;
+      const data = await fetch(url, { headers: { 'User-Agent': 'PycLibreta/1.0' } }).then(r=>r.json());
+      const addr = data.address;
+      const calle = addr.road||addr.pedestrian||addr.footway||'';
+      const num   = addr.house_number||'';
+      const ciudad= addr.city||addr.town||addr.village||addr.municipality||'';
+      const dir   = [calle+(num?' '+num:''), ciudad].filter(Boolean).join(', ');
+      document.getElementById('ubic-addr').value = dir;
+      if (!document.getElementById('ubic-nombre').value) {
+        document.getElementById('ubic-nombre').value = ciudad || 'Mi ubicación';
+      }
+    } catch(e) {
+      alert('No pude obtener la dirección. Escríbela manualmente.');
+    } finally {
+      if (btn) { btn.textContent = '📍 GPS'; btn.disabled = false; }
+    }
+  }, () => {
+    if (btn) { btn.textContent = '📍 GPS'; btn.disabled = false; }
+    alert('Activa el GPS para usar esta función.');
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
 function abrirModalUbic() {
   _editIdx = -1;
   document.getElementById('ubic-nombre').value = '';
@@ -6526,11 +6562,15 @@ function guardarUbic() {
   const addr   = document.getElementById('ubic-addr').value.trim();
   const tipo   = document.getElementById('ubic-tipo').value;
   if (!nombre || !addr) return;
+  const addrEl = document.getElementById('ubic-addr');
+  const lat    = addrEl.dataset.lat ? parseFloat(addrEl.dataset.lat) : null;
+  const lon    = addrEl.dataset.lon ? parseFloat(addrEl.dataset.lon) : null;
   const ubics  = loadArr(K_UBICS);
+  const entry  = { nombre, addr, tipo, ...(lat&&lon?{lat,lon}:{}) };
   if (_editIdx >= 0) {
-    ubics[_editIdx] = {nombre, addr, tipo};
+    ubics[_editIdx] = entry;
   } else {
-    ubics.push({nombre, addr, tipo});
+    ubics.push(entry);
   }
   save(K_UBICS, ubics);
   cerrarModalUbic();
@@ -7531,7 +7571,35 @@ function getMtoBloque(cli) {
 document.addEventListener('DOMContentLoaded', () => {
   try {
 
-  // Fecha header
+  // ── Doble pulsación atrás para salir ──
+  let _backPressTime = 0;
+  window.addEventListener('popstate', e => {
+    // Primero intentar cerrar modales/overlays abiertos
+    const modales = ['edit-parte-panel','edit-cli-panel','contacto-panel','nuevo-aviso-panel','it-vista'];
+    for (const id of modales) {
+      const el = document.getElementById(id);
+      if (el && el.style.display !== 'none' && el.offsetParent !== null) {
+        document.getElementById(id+'bd' in document.getElementById(id)?.parentNode ? id+'bd' : id.replace('-panel','-bd'))?.remove();
+        el.remove();
+        history.pushState(null, '', location.href);
+        return;
+      }
+    }
+    const iramOpen = document.getElementById('iram-overlay')?.classList.contains('open');
+    if (iramOpen) { pycCerrarChat(); history.pushState(null, '', location.href); return; }
+
+    const now = Date.now();
+    if (now - _backPressTime < 2000) {
+      // Segunda pulsación → salir
+      return;
+    }
+    _backPressTime = now;
+    history.pushState(null, '', location.href);
+    toast('Pulsa de nuevo para salir');
+  });
+  history.pushState(null, '', location.href);
+
+  // ── Rotación de pantalla — permitir ──
   const D = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const M = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const hoy = new Date();
@@ -9375,6 +9443,18 @@ function editarClienteExcel(datos) {
       ${inp('ecli-direccion', datos.direccion, 'Calle, número…')}
       ${lbl('Horario')}
       ${inp('ecli-horario', datos.horario, 'L-V 08:30-14:00')}
+      ${lbl('Zona')}
+      <select id="ecli-zona" style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box;color:#1a2744;appearance:none">
+        <option value="">— Sin zona —</option>
+        <option value="1">1 — Valencia Ciudad</option>
+        <option value="2">2 — Valencia Norte</option>
+        <option value="3">3 — Valencia Oeste</option>
+        <option value="4">4 — Valencia Sur</option>
+        <option value="5">5 — Ribera · Safor</option>
+        <option value="6">6 — Castellón</option>
+        <option value="7">7 — Alicante</option>
+        <option value="8">8 — Murcia</option>
+      </select>
     </div>
     <div style="padding:12px 16px;background:#fff;border-top:1px solid rgba(26,39,68,.08)">
       <button onclick="guardarClienteExcel('${escH(datos.codigo)}')" style="width:100%;padding:14px;border-radius:12px;border:none;background:#f97316;color:#fff;font-size:15px;font-weight:700;cursor:pointer">💾 Guardar en Excel</button>
@@ -9388,6 +9468,7 @@ function guardarClienteExcel(codigoOriginal) {
   const localidad = document.getElementById('ecli-localidad')?.value.trim();
   const direccion = document.getElementById('ecli-direccion')?.value.trim();
   const horario   = document.getElementById('ecli-horario')?.value.trim();
+  const zona      = document.getElementById('ecli-zona')?.value.trim();
 
   if (!cliente && !codigo) { toast('Necesitas al menos cliente o código'); return; }
 
@@ -9402,6 +9483,7 @@ function guardarClienteExcel(codigoOriginal) {
     if (localidad) excel[idx].MUNICIPIO = localidad;
     if (direccion) excel[idx].DIRECCION = direccion;
     if (horario)   excel[idx].HORARIO   = horario;
+    if (zona)      excel[idx].ZONA      = zona;
     save(K_EXCEL, excel);
   } else {
     // Cliente nuevo — añadirlo al Excel
@@ -9441,8 +9523,32 @@ function guardarClienteExcel(codigoOriginal) {
 }
 
 function anadirAAnalisis(datos) {
+  // Mini bottom sheet con selector SEG/PCI
+  const bd = document.createElement('div');
+  bd.id = 'anadir-bd';
+  bd.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998';
+  bd.onclick = () => { bd.remove(); document.getElementById('anadir-sheet')?.remove(); };
+  document.body.appendChild(bd);
+
+  const sheet = document.createElement('div');
+  sheet.id = 'anadir-sheet';
+  sheet.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:16px 16px 0 0;z-index:9999;padding:20px 16px 32px;box-shadow:0 -4px 24px rgba(0,0,0,.15)';
+  sheet.innerHTML = `
+    <div style="font-weight:700;font-size:15px;color:#1a2744;margin-bottom:4px">${datos.cliente||datos.codigo||'Cliente'}</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:16px">${datos.localidad||''} · Añadir a análisis</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button onclick="confirmarAnadirAAnalisis(JSON.parse(document.getElementById('anadir-datos').value),'SEG')" style="padding:14px;border-radius:12px;border:2px solid #7c3aed;background:#ede9fe;color:#7c3aed;font-weight:700;font-size:15px;cursor:pointer">🔒 SEG</button>
+      <button onclick="confirmarAnadirAAnalisis(JSON.parse(document.getElementById('anadir-datos').value),'PCI')" style="padding:14px;border-radius:12px;border:2px solid #d97706;background:#fef3c7;color:#d97706;font-weight:700;font-size:15px;cursor:pointer">🔥 PCI</button>
+    </div>
+    <input type="hidden" id="anadir-datos" value="${escH(JSON.stringify(datos))}">`;
+  document.body.appendChild(sheet);
+}
+
+function confirmarAnadirAAnalisis(datos, tipo) {
+  document.getElementById('anadir-bd')?.remove();
+  document.getElementById('anadir-sheet')?.remove();
+
   const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
-  // Comprobar si ya existe
   const yaExiste = analisis.some(a => a.codigo && a.codigo === datos.codigo && a.estado !== 'completado');
   if (yaExiste) { toast(`${datos.cliente} ya está en análisis`); return; }
   analisis.unshift({
@@ -9456,7 +9562,8 @@ function anadirAAnalisis(datos) {
     horarioTxt:  datos.horario  || '',
     trabajo:     '',
     descripcion: '',
-    tipo:        'SEG',
+    tipo,
+    esPCI:       tipo === 'PCI',
     estado:      'pendiente',
     fecha:       new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}),
     isNew:       false,
@@ -9464,7 +9571,7 @@ function anadirAAnalisis(datos) {
   });
   localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
   if (typeof renderizar === 'function') renderizar();
-  toast(`✅ ${datos.cliente||datos.codigo} añadido a análisis`);
+  toast(`✅ ${datos.cliente||datos.codigo} (${tipo}) añadido a análisis`);
 }
 
 function abrirNuevoAvisoDesdeCliente(datos) {
@@ -12362,16 +12469,11 @@ document.addEventListener('DOMContentLoaded', () => {
     <!-- Header -->
     <div class="iram-hdr">
       <div class="iram-hdr-top">
-        <button class="iram-close" onclick="pycCerrarChat()">✕</button>
         <div class="iram-hdr-center">
           <div class="iram-hdr-name">IRAM</div>
-          <div class="iram-hdr-sub"><div class="iram-hdr-dot"></div><span id="pyc-status">Listo · Gemini 2.0</span></div>
+          <div class="iram-hdr-sub"><div class="iram-hdr-dot"></div><span id="pyc-status">Listo · Groq</span></div>
         </div>
-        <button class="iram-close" onclick="iramLimpiarChat()" title="Limpiar chat" style="font-size:14px;opacity:.7">🗑️</button>
-      </div>
-      <div class="ia-toggle">
-        <button class="ia-btn groq on" id="btn-iram" onclick="iramSetModo('local',this)">💬 IRAM</button>
-        <button class="ia-btn gemini" id="btn-web" onclick="iramSetModo('web',this)">🌐 WEB</button>
+        <button class="iram-close" onclick="pycCerrarChat()" title="Cerrar">✕</button>
       </div>
     </div>
 
@@ -12385,6 +12487,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     <!-- Input -->
     <div class="iram-input-area">
+      <button onclick="iramLimpiarChat()" title="Limpiar chat" style="background:none;border:none;font-size:18px;cursor:pointer;padding:6px 8px;opacity:.5;flex-shrink:0;color:var(--ink-mid)" title="Limpiar">🗑️</button>
       <textarea class="iram-textarea" id="pyc-ta" rows="1"
         placeholder="Escribe o pulsa el micrófono…"
         oninput="pycAutoResize(this)"
@@ -12985,11 +13088,6 @@ function pycAbrirChat() {
   iramShowMode('chat');
   iramRellenarDrive();
 
-  // Resetear toggle visualmente a IRAM
-  document.querySelectorAll('.ia-btn').forEach(b => b.classList.remove('on'));
-  const btnIram = document.getElementById('btn-iram');
-  if (btnIram) btnIram.classList.add('on');
-
   pycCheckKey();
   const tenia = iramCargarHistorial();
   if (!tenia || !_pycHist.length) {
@@ -13520,8 +13618,7 @@ async function pycGroq(userMsg) {
       { role: 'system', content: iramSystemPrompt() + '\n\n' + pycContexto() },
       ...mensajes
     ],
-    max_tokens: 500,
-    temperature: 0.7,
+    max_tokens: 2000,    temperature: 0.7,
     stream: true
   };
 
@@ -13911,7 +14008,12 @@ EJEMPLOS:
 "dónde puedo comer cerca" → {"intento":"LUGAR","tipo":"restaurant"}
 "hay alguna farmacia cerca" → {"intento":"LUGAR","tipo":"pharmacy"}
 "noticias de hoy" → {"intento":"NOTICIAS","tema":""}
-"noticias de deportes" → {"intento":"NOTICIAS","tema":"deportes"}
+"dime los titulares de deportes" → {"intento":"NOTICIAS","tema":"deportes"}
+"dime los titulares de hoy" → {"intento":"NOTICIAS","tema":""}
+"hay alguna noticia importante" → {"intento":"NOTICIAS","tema":""}
+"última hora" → {"intento":"NOTICIAS","tema":""}
+"qué ha pasado hoy" → {"intento":"NOTICIAS","tema":""}
+"titulares deportivos" → {"intento":"NOTICIAS","tema":"deportes"}
 "cómo va el día" → {"intento":"RESUMEN_DIA"}
 "cuánto me queda" → {"intento":"CUANTO_QUEDA"}
 "cancelar el evento de Buñol" → {"intento":"CANCELAR_EVENTO","titulo":"Buñol"}
@@ -14092,7 +14194,7 @@ function iramClasificar(txt) {
 
   // ── TIEMPO ──
   if (/\b(qu[eé]\s+tiempo|c[oó]mo\s+est[aá]\s+el\s+tiempo|temperatura|va\s+a\s+llover|llueve|har[aá]\s+calor|har[aá]\s+fr[íi]o|clima|meteoro|tiempo\s+hoy|tiempo\s+que\s+hace|hace\s+fr[íi]o|hace\s+calor)\b/i.test(raw)) {
-    return { intento:'TIEMPO' };
+    return { intento:'TIEMPO', _txt: raw };
   }
 
   // ── GASOLINERA ──
@@ -14107,8 +14209,8 @@ function iramClasificar(txt) {
   }
 
   // ── NOTICIAS ──
-  if (/\b(noticias|qu[eé]\s+ha\s+pasado|[uú]ltima\s+hora|titulares|prensa|qu[eé]\s+est[aá]\s+pasando|novedades\s+de\s+hoy)\b/i.test(raw)) {
-    const tema = /deporte|f[uú]tbol|baloncesto|basket/i.test(raw)?'deportes':/valencia/i.test(raw)?'valencia':'';
+  if (/\b(noticias|titulares|qu[eé]\s+ha\s+pasado|[uú]ltima\s+hora|prensa|qu[eé]\s+est[aá]\s+pasando|novedades|dime\s+(los\s+)?titulares|hay\s+alguna\s+noticia|algo\s+importante\s+hoy|qu[eé]\s+pasa\s+en\s+el\s+mundo)\b/i.test(raw)) {
+    const tema = /deporte|f[uú]tbol|baloncesto|basket|liga|champion/i.test(raw)?'deportes':/valencia/i.test(raw)?'valencia':'';
     return { intento:'NOTICIAS', tema };
   }
 
@@ -14394,23 +14496,40 @@ async function iramEjecutarAccion(cl) {
 
   /* ── TIEMPO — Open-Meteo sin API key ── */
   if (cl.intento === 'TIEMPO') {
+    const esSemana = /semana|pr[oó]ximos\s+d[íi]as|esta\s+semana|lluver[aá]|hará/i.test(cl._txt||'');
     pycMsgIA('🌤️ Consultando el tiempo…', false, 'local');
     navigator.geolocation.getCurrentPosition(async pos => {
       try {
         const { latitude: lat, longitude: lon } = pos.coords;
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current=temperature_2m,weathercode,windspeed_10m,precipitation&timezone=auto&forecast_days=1`;
+        const url = esSemana
+          ? `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&timezone=auto&forecast_days=7`
+          : `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current=temperature_2m,weathercode,windspeed_10m,precipitation&timezone=auto`;
         const data = await fetch(url).then(r=>r.json());
-        const c = data.current;
-        const temp = Math.round(c.temperature_2m);
-        const viento = Math.round(c.windspeed_10m);
-        const lluvia = c.precipitation > 0;
-        const wc = c.weathercode;
-        const emoji = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':wc<=77?'❄️':wc<=82?'🌦️':'⛈️';
-        const desc = wc<=1?'Despejado':wc<=3?'Parcialmente nublado':wc<=48?'Niebla':wc<=55?'Llovizna':wc<=67?'Lluvia':wc<=77?'Nieve':wc<=82?'Chubascos':'Tormenta';
-        const consejo = temp>25?'💦 Calor — bebe agua':temp<10?'🧥 Fresco — abrígate':lluvia?'☂️ Lleva paraguas':'👌 Buen día para salir';
-        // Reemplazar el mensaje de espera
         _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
-        pycMsgIA(`${emoji} Tiempo ahora\n🌡️ ${temp}°C · ${desc}\n🌬️ Viento ${viento} km/h${lluvia?'\n🌧️ Lluvia':''}.\n${consejo}`, false, 'local');
+        if (esSemana) {
+          const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+          const d = data.daily;
+          const lineas = d.time.slice(0,7).map((fecha,i) => {
+            const wc = d.weathercode[i];
+            const em = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':'⛈️';
+            const dia = dias[new Date(fecha).getDay()];
+            const max = Math.round(d.temperature_2m_max[i]);
+            const min = Math.round(d.temperature_2m_min[i]);
+            const lluv = d.precipitation_sum[i] > 0 ? ` 🌧️${d.precipitation_sum[i]}mm` : '';
+            return `${em} ${dia}: ${max}°/${min}°${lluv}`;
+          }).join('\n');
+          pycMsgIA(`🌤️ Previsión 7 días:\n${lineas}`, false, 'local');
+        } else {
+          const c = data.current;
+          const temp = Math.round(c.temperature_2m);
+          const viento = Math.round(c.windspeed_10m);
+          const lluvia = c.precipitation > 0;
+          const wc = c.weathercode;
+          const emoji = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':wc<=77?'❄️':wc<=82?'🌦️':'⛈️';
+          const desc = wc<=1?'Despejado':wc<=3?'Parcialmente nublado':wc<=48?'Niebla':wc<=55?'Llovizna':wc<=67?'Lluvia':wc<=77?'Nieve':wc<=82?'Chubascos':'Tormenta';
+          const consejo = temp>25?'💦 Calor — bebe agua':temp<10?'🧥 Fresco — abrígate':lluvia?'☂️ Lleva paraguas':'👌 Buen día para salir';
+          pycMsgIA(`${emoji} Tiempo ahora\n🌡️ ${temp}°C · ${desc}\n🌬️ Viento ${viento} km/h${lluvia?'\n🌧️ Lluvia':''}.\n${consejo}`, false, 'local');
+        }
       } catch(e) {
         _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
         pycMsgIA('⚠️ No pude obtener el tiempo. Comprueba la conexión.', false, 'local');
