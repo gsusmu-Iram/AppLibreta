@@ -3655,6 +3655,16 @@ body { font-size: 14px; }
           <button onclick="bkGuardarKey('gemini')"
             style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
         </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <span style="font-size:12px;font-weight:600;color:var(--ink-mid);min-width:52px">TomTom</span>
+          <input id="bk-key-tomtom" type="password" autocomplete="off"
+            placeholder="●●●● (escribe para guardar)"
+            oninput="bkGuardarKey('tomtom')"
+            style="flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid rgba(26,39,68,.15);font-size:12px;background:var(--card)">
+          <span id="kcheck-tomtom" style="font-size:14px"></span>
+          <button onclick="bkGuardarKey('tomtom')"
+            style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
+        </div>
       </div>
       <div style="font-size:10px;color:var(--ink-xl);margin-top:6px;opacity:.6">Se guardan solo en tu móvil</div>
     </div>
@@ -5702,6 +5712,50 @@ function getSys(s) {
   return '<span class="sys-tag sys-seg">🔒 SEG</span>';
 }
 
+async function consultarTrafico(idParada, localidad, direccion, btn) {
+  const key = pycGetKey('tomtom');
+  if (!key) { toast('⚠️ Configura la API key de TomTom en Backup'); return; }
+
+  const orig = btn.textContent;
+  btn.textContent = '⏳'; btn.disabled = true;
+
+  try {
+    // Geocodificar destino
+    const destQuery = [direccion, localidad, 'España'].filter(Boolean).join(', ');
+    const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(destQuery)}&format=json&limit=1`, { headers:{'User-Agent':'PycLibreta/1.0'} }).then(r=>r.json());
+    if (!geo?.[0]) { toast('📍 No encontré la dirección de destino'); return; }
+    const destLat = parseFloat(geo[0].lat);
+    const destLon = parseFloat(geo[0].lon);
+
+    // GPS actual
+    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout:8000 }));
+    const { latitude: origLat, longitude: origLon } = pos.coords;
+
+    // TomTom Routing API
+    const url = `https://api.tomtom.com/routing/1/calculateRoute/${origLat},${origLon}:${destLat},${destLon}/json?key=${key}&traffic=true&language=es-ES`;
+    const data = await fetch(url).then(r=>r.json());
+    const ruta  = data.routes?.[0];
+    if (!ruta) { toast('No pude calcular la ruta'); return; }
+
+    const seg  = ruta.summary.travelTimeInSeconds;
+    const dem  = ruta.summary.trafficDelayInSeconds;
+    const dist = (ruta.summary.lengthInMeters / 1000).toFixed(1);
+    const min  = Math.round(seg / 60);
+    const demMin = Math.round(dem / 60);
+
+    const trafico = demMin > 3 ? `🔴 +${demMin}min por tráfico` : demMin > 0 ? `🟡 +${demMin}min` : '🟢 Sin retenciones';
+    const el = document.getElementById(`tiempo-${idParada}`);
+    if (el) {
+      el.innerHTML = `<div style="font-size:11px;color:var(--ink-mid);margin-top:4px">🚗 ${min}min · ${dist}km · ${trafico}</div>`;
+    }
+    toast(`🚗 ${min}min · ${dist}km · ${trafico}`);
+  } catch(e) {
+    toast('⚠️ Error consultando tráfico');
+  } finally {
+    btn.textContent = orig; btn.disabled = false;
+  }
+}
+
 function navWaze(dir, loc) {
   const q = encodeURIComponent((dir||'') + ' ' + (loc||''));
   window.open('https://waze.com/ul?q=' + q + '&navigate=yes', '_blank');
@@ -5832,6 +5886,10 @@ function renderLista() {
           <div class="expand-actions">
             <button class="btn-waze" style="flex:1" onclick="navWaze('${p.direccion}','${p.localidad}')">👻 Waze</button>
             <button class="btn-maps" style="flex:1" onclick="navMaps('${p.direccion}','${p.localidad}')">📍 Maps</button>
+            <button onclick="consultarTrafico('${p.id}','${escQ(p.localidad||'')}','${escQ(p.direccion||'')}',this)"
+              style="flex:0 0 auto;background:#1a2744;border:none;border-radius:var(--r-pill);
+                     padding:10px 11px;font-size:13px;font-weight:800;color:white;
+                     cursor:pointer;-webkit-tap-highlight-color:transparent" title="Ver tráfico">🚗</button>
             <button onclick="abrirFinalizarPara('${p.id}')"
               style="flex:1;background:var(--ok);border:none;border-radius:var(--r-pill);
                      padding:10px;font-size:12px;font-weight:800;color:white;
@@ -6652,7 +6710,7 @@ function abrirDatos() {
   document.getElementById('datos-sheet').classList.add('open');
   // Mostrar estado de keys (enmascarado)
   const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
-  const ids    = { groq:'bk-key-groq', mistral:'bk-key-mistral', gemini:'bk-key-gemini' };
+  const ids    = { groq:'bk-key-groq', mistral:'bk-key-mistral', gemini:'bk-key-gemini', tomtom:'bk-key-tomtom' };
   Object.entries(stores).forEach(([ia, store]) => {
     const el = document.getElementById(ids[ia]);
     if (el) el.placeholder = localStorage.getItem(store) ? '●●●● (guardada — escribe para cambiar)' : el.placeholder;
@@ -6660,7 +6718,7 @@ function abrirDatos() {
 }
 
 function bkGuardarKey(ia) {
-  const ids    = { groq:'bk-key-groq', mistral:'bk-key-mistral', gemini:'bk-key-gemini' };
+  const ids    = { groq:'bk-key-groq', mistral:'bk-key-mistral', gemini:'bk-key-gemini', tomtom:'bk-key-tomtom' };
   const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
   const input  = document.getElementById(ids[ia]);
   const val    = input?.value?.trim();
@@ -13577,8 +13635,9 @@ async function pycGemini(userMsg, _intento = 0) {
   // Gemini requiere que empiece con 'user'
   if (mensajes[0]?.role === 'model') mensajes.shift();
 
+  const esTrabajo = /aviso|ruta|parte|mantenimiento|mto|cliente|oficina|cajamar|bbva|repsol|campsa|historial|parada/i.test(txt);
   let systemTxt = iramSystemPrompt();
-  if (!esWeb) systemTxt += '\n\n' + pycContexto();
+  if (esTrabajo) systemTxt += '\n\n' + pycContexto();
 
   const modelo = 'gemini-2.5-flash-lite';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
@@ -14525,20 +14584,27 @@ async function iramEjecutarAccion(cl) {
 
   /* ── TIEMPO — Open-Meteo sin API key ── */
   if (cl.intento === 'TIEMPO') {
-    const esSemana = /semana|pr[oó]ximos\s+d[íi]as|esta\s+semana|lluver[aá]|hará/i.test(cl._txt||'');
+    const txt_   = cl._txt || '';
+    const esSemana = /semana|pr[oó]ximos\s+d[íi]as|esta\s+semana|lluver[aá]|har[aá]/i.test(txt_);
+    // Extraer ciudad del texto si la menciona
+    const mCiudad = txt_.match(/(?:en|de|para|en\s+la\s+zona\s+de|en\s+el\s+pueblo\s+de)\s+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
+    const ciudadTexto = mCiudad?.[1]?.trim() || '';
+
     pycMsgIA('🌤️ Consultando el tiempo…', false, 'local');
-    navigator.geolocation.getCurrentPosition(async pos => {
+
+    const consultarTiempo = async (lat, lon, nombreLugar) => {
       try {
-        const { latitude: lat, longitude: lon } = pos.coords;
         const url = esSemana
           ? `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&timezone=auto&forecast_days=7`
           : `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current=temperature_2m,weathercode,windspeed_10m,precipitation&timezone=auto`;
-        const data = await fetch(url).then(r=>r.json());
+        const data = await fetch(url).then(r => r.json());
         _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
+
+        const lugar = nombreLugar ? ` en ${nombreLugar}` : '';
         if (esSemana) {
           const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
           const d = data.daily;
-          const lineas = d.time.slice(0,7).map((fecha,i) => {
+          const lineas = d.time.slice(0,7).map((fecha, i) => {
             const wc = d.weathercode[i];
             const em = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':'⛈️';
             const dia = dias[new Date(fecha).getDay()];
@@ -14547,26 +14613,49 @@ async function iramEjecutarAccion(cl) {
             const lluv = d.precipitation_sum[i] > 0 ? ` 🌧️${d.precipitation_sum[i]}mm` : '';
             return `${em} ${dia}: ${max}°/${min}°${lluv}`;
           }).join('\n');
-          pycMsgIA(`🌤️ Previsión 7 días:\n${lineas}`, false, 'local');
+          pycMsgIA(`🌤️ Previsión 7 días${lugar}:\n${lineas}`, false, 'local');
         } else {
           const c = data.current;
-          const temp = Math.round(c.temperature_2m);
+          const temp   = Math.round(c.temperature_2m);
           const viento = Math.round(c.windspeed_10m);
           const lluvia = c.precipitation > 0;
-          const wc = c.weathercode;
-          const emoji = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':wc<=77?'❄️':wc<=82?'🌦️':'⛈️';
-          const desc = wc<=1?'Despejado':wc<=3?'Parcialmente nublado':wc<=48?'Niebla':wc<=55?'Llovizna':wc<=67?'Lluvia':wc<=77?'Nieve':wc<=82?'Chubascos':'Tormenta';
-          const consejo = temp>25?'💦 Calor — bebe agua':temp<10?'🧥 Fresco — abrígate':lluvia?'☂️ Lleva paraguas':'👌 Buen día para salir';
-          pycMsgIA(`${emoji} Tiempo ahora\n🌡️ ${temp}°C · ${desc}\n🌬️ Viento ${viento} km/h${lluvia?'\n🌧️ Lluvia':''}.\n${consejo}`, false, 'local');
+          const wc     = c.weathercode;
+          const emoji  = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':wc<=77?'❄️':wc<=82?'🌦️':'⛈️';
+          const desc   = wc<=1?'Despejado':wc<=3?'Parcialmente nublado':wc<=48?'Niebla':wc<=55?'Llovizna':wc<=67?'Lluvia':wc<=77?'Nieve':wc<=82?'Chubascos':'Tormenta';
+          const consejo= temp>25?'💦 Calor — bebe agua':temp<10?'🧥 Fresco — abrígate':lluvia?'☂️ Lleva paraguas':'👌 Buen día para salir';
+          pycMsgIA(`${emoji} Tiempo ahora${lugar}\n🌡️ ${temp}°C · ${desc}\n🌬️ Viento ${viento} km/h${lluvia?'\n🌧️ Lluvia':''}.\n${consejo}`, false, 'local');
         }
       } catch(e) {
         _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
         pycMsgIA('⚠️ No pude obtener el tiempo. Comprueba la conexión.', false, 'local');
       }
-    }, () => {
-      _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
-      pycMsgIA('📍 Necesito tu ubicación para el tiempo. Activa el GPS.', false, 'local');
-    });
+    };
+
+    if (ciudadTexto) {
+      // Geocodificar ciudad con Nominatim
+      try {
+        const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ciudadTexto+', España')}&format=json&limit=1`, { headers:{'User-Agent':'PycLibreta/1.0'} }).then(r=>r.json());
+        if (geo?.[0]) {
+          await consultarTiempo(parseFloat(geo[0].lat), parseFloat(geo[0].lon), ciudadTexto);
+        } else {
+          // Ciudad no encontrada → GPS
+          navigator.geolocation.getCurrentPosition(pos => consultarTiempo(pos.coords.latitude, pos.coords.longitude, ''), () => {
+            _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
+            pycMsgIA(`📍 No encontré "${ciudadTexto}". Activa el GPS para el tiempo local.`, false, 'local');
+          });
+        }
+      } catch(e) {
+        navigator.geolocation.getCurrentPosition(pos => consultarTiempo(pos.coords.latitude, pos.coords.longitude, ''), () => {});
+      }
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        pos => consultarTiempo(pos.coords.latitude, pos.coords.longitude, ''),
+        () => {
+          _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
+          pycMsgIA('📍 Necesito tu ubicación para el tiempo. Activa el GPS.', false, 'local');
+        }
+      );
+    }
     return '';
   }
 
@@ -14606,58 +14695,86 @@ async function iramEjecutarAccion(cl) {
 
   /* ── LUGAR — Overpass OSM ── */
   if (cl.intento === 'LUGAR') {
-    const tipo = cl.tipo || 'restaurant';
-    const emoji = tipo==='restaurant'?'🍽️':tipo==='pharmacy'?'💊':tipo==='fuel'?'⛽':tipo==='supermarket'?'🛒':'📍';
-    const label = tipo==='restaurant'?'Restaurantes':tipo==='pharmacy'?'Farmacias':tipo==='fuel'?'Gasolineras':tipo==='supermarket'?'Supermercados':'Lugares';
-    pycMsgIA(`${emoji} Buscando ${label.toLowerCase()} cerca…`, false, 'local');
-    navigator.geolocation.getCurrentPosition(async pos => {
+    const tipo  = cl.tipo || 'restaurant';
+    const emoji = tipo==='restaurant'?'🍽️':tipo==='pharmacy'?'💊':tipo==='supermarket'?'🛒':'📍';
+    const label = tipo==='restaurant'?'Restaurantes':tipo==='pharmacy'?'Farmacias':tipo==='supermarket'?'Supermercados':'Lugares';
+    const txt_  = cl._txt || '';
+    const mCiudad = txt_.match(/(?:en|cerca\s+de|en\s+el\s+pueblo\s+de)\s+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
+    const ciudadTexto = mCiudad?.[1]?.trim() || '';
+
+    pycMsgIA(`${emoji} Buscando ${label.toLowerCase()}${ciudadTexto?' en '+ciudadTexto:''}…`, false, 'local');
+
+    const buscarLugares = async (lat, lon) => {
       try {
-        const { latitude: lat, longitude: lon } = pos.coords;
-        const radio = 2000;
-        const query = `[out:json][timeout:10];node["amenity"="${tipo}"](around:${radio},${lat},${lon});out body 8;`;
-        const data  = await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:query}).then(r=>r.json());
+        const radio = 5000;
+        const query = `[out:json][timeout:25];node["amenity"="${tipo}"](around:${radio},${lat},${lon});out body 8;`;
+        const data  = await fetch('https://overpass-api.de/api/interpreter', { method:'POST', body:query }).then(r=>r.json());
         _pycHist = _pycHist.filter(m => !m.text.includes('Buscando'));
-        const lugares = (data.elements||[]).slice(0,6).map(e=>{
-          const dist = Math.round(Math.sqrt(Math.pow((e.lat-lat)*111000,2)+Math.pow((e.lon-lon)*111000*Math.cos(lat*Math.PI/180),2)));
-          const nombre = e.tags?.name||'Sin nombre';
+        const lugares = (data.elements||[]).slice(0,6).map(e => {
+          const dist   = Math.round(Math.sqrt(Math.pow((e.lat-lat)*111000,2)+Math.pow((e.lon-lon)*111000*Math.cos(lat*Math.PI/180),2)));
+          const nombre = e.tags?.name || 'Sin nombre';
           return `${emoji} ${nombre} · ${dist<1000?dist+'m':(dist/1000).toFixed(1)+'km'}`;
         }).join('\n');
-        if (!lugares) { pycMsgIA(`${emoji} No hay ${label.toLowerCase()} cerca.`, false, 'local'); return; }
-        pycMsgIA(`${emoji} ${label} cerca:\n${lugares}`, false, 'local');
+        if (!lugares) {
+          pycMsgIA(`${emoji} No hay ${label.toLowerCase()} en 5km${ciudadTexto?' de '+ciudadTexto:''}.`, false, 'local');
+        } else {
+          pycMsgIA(`${emoji} ${label}${ciudadTexto?' en '+ciudadTexto:' cerca'}:\n${lugares}`, false, 'local');
+        }
       } catch(e) {
         _pycHist = _pycHist.filter(m => !m.text.includes('Buscando'));
         pycMsgIA('⚠️ No pude obtener lugares. Comprueba la conexión.', false, 'local');
       }
-    }, () => {
-      _pycHist = _pycHist.filter(m => !m.text.includes('Buscando'));
-      pycMsgIA('📍 Necesito tu ubicación para buscar lugares.', false, 'local');
-    });
+    };
+
+    if (ciudadTexto) {
+      try {
+        const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ciudadTexto+', España')}&format=json&limit=1`, { headers:{'User-Agent':'PycLibreta/1.0'} }).then(r=>r.json());
+        if (geo?.[0]) {
+          await buscarLugares(parseFloat(geo[0].lat), parseFloat(geo[0].lon));
+        } else {
+          navigator.geolocation.getCurrentPosition(pos => buscarLugares(pos.coords.latitude, pos.coords.longitude), () => {
+            _pycHist = _pycHist.filter(m => !m.text.includes('Buscando'));
+            pycMsgIA(`📍 No encontré "${ciudadTexto}". Activa el GPS.`, false, 'local');
+          });
+        }
+      } catch(e) {
+        navigator.geolocation.getCurrentPosition(pos => buscarLugares(pos.coords.latitude, pos.coords.longitude), () => {});
+      }
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        pos => buscarLugares(pos.coords.latitude, pos.coords.longitude),
+        () => {
+          _pycHist = _pycHist.filter(m => !m.text.includes('Buscando'));
+          pycMsgIA('📍 Necesito tu ubicación. Activa el GPS.', false, 'local');
+        }
+      );
+    }
     return '';
   }
 
   /* ── NOTICIAS — RSS ── */
   if (cl.intento === 'NOTICIAS') {
     pycMsgIA('📰 Cargando noticias…', false, 'local');
-    const tema = cl.tema || '';
-    const ts   = Date.now(); // anti-caché
+    const tema = (cl.tema || cl._txt || '').toLowerCase();
 
     const feeds = {
-      deportes: [
-        `https://api.rss2json.com/v1/api.json?rss_url=https://e00-marca.uecdn.es/rss/portada.xml&t=${ts}`,
-        `https://api.rss2json.com/v1/api.json?rss_url=https://www.as.com/rss/tags/ultimas_noticias.xml&t=${ts}`,
-      ],
-      valencia: [
-        `https://api.rss2json.com/v1/api.json?rss_url=https://www.levante-emv.com/rss/section/14&t=${ts}`,
-        `https://api.rss2json.com/v1/api.json?rss_url=https://www.lasprovincias.es/rss/2.0/index.xml&t=${ts}`,
-      ],
-      general: [
-        `https://api.rss2json.com/v1/api.json?rss_url=https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada&t=${ts}`,
-        `https://api.rss2json.com/v1/api.json?rss_url=https://www.elmundo.es/rss/portada.xml&t=${ts}`,
-      ],
+      superdeporte: ['https://api.rss2json.com/v1/api.json?rss_url=https://www.superdeporte.es/rss/2.0/'],
+      deportes:     ['https://api.rss2json.com/v1/api.json?rss_url=https://e00-marca.uecdn.es/rss/portada.xml',
+                     'https://api.rss2json.com/v1/api.json?rss_url=https://www.as.com/rss/tags/ultimas_noticias.xml'],
+      valencia:     ['https://api.rss2json.com/v1/api.json?rss_url=https://www.levante-emv.com/rss/section/14',
+                     'https://api.rss2json.com/v1/api.json?rss_url=https://www.lasprovincias.es/rss/2.0/index.xml'],
+      pais:         ['https://api.rss2json.com/v1/api.json?rss_url=https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada'],
+      general:      ['https://api.rss2json.com/v1/api.json?rss_url=https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada',
+                     'https://api.rss2json.com/v1/api.json?rss_url=https://www.20minutos.es/rss/'],
     };
 
-    const cat = /deporte|f[uú]tbol|baloncesto|valenciafc|basket|liga|champion/i.test(tema) ? 'deportes'
-              : /valencia/i.test(tema) ? 'valencia' : 'general';
+    const cat = /superdeporte|valencia\s*cf|valencia\s*basket|che/i.test(tema) ? 'superdeporte'
+              : /deporte|f[uú]tbol|baloncesto|basket|liga|champion|marca|as\b/i.test(tema) ? 'deportes'
+              : /valencia|levante|provincias/i.test(tema) ? 'valencia'
+              : /el\s*pa[íi]s|pa[íi]s\b/i.test(tema) ? 'pais'
+              : 'general';
+
+    const labels = { superdeporte:'Superdeporte', deportes:'deportes', valencia:'Valencia', pais:'El País', general:'hoy' };
 
     let items = [];
     for (const url of feeds[cat]) {
@@ -14670,9 +14787,8 @@ async function iramEjecutarAccion(cl) {
     _pycHist = _pycHist.filter(m => m.text !== '📰 Cargando noticias…');
     if (!items.length) { pycMsgIA('📰 No pude cargar noticias. Comprueba la conexión.', false, 'local'); return ''; }
 
-    const label = cat==='deportes'?'deportes':cat==='valencia'?'Valencia':'hoy';
     const lista = items.map(i=>`• ${i.title}`).join('\n');
-    pycMsgIA(`📰 Titulares de ${label}:\n${lista}`, false, 'local');
+    pycMsgIA(`📰 Titulares de ${labels[cat]}:\n${lista}`, false, 'local');
     return '';
   }
 
