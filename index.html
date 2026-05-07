@@ -4614,6 +4614,14 @@ function analizar() {
   guardarPartes(partes);
   document.getElementById('input-partes').value='';
   renderizar();
+  // Actualizar badge de clientes nuevos en Backup
+  try {
+    const nuevos = typeof datosClientesNuevos === 'function' ? datosClientesNuevos() : [];
+    const badge  = document.getElementById('datos-nuevos-badge');
+    if (badge) { badge.textContent = nuevos.length || ''; badge.style.display = nuevos.length ? 'flex' : 'none'; }
+    const pulseDot = document.querySelector('.logo-icon.datos-pulse');
+    if (pulseDot) pulseDot.style.outline = nuevos.length ? '2px solid #f97316' : '';
+  } catch(e) {}
 }
 
 /* ================================================================
@@ -8208,6 +8216,7 @@ function mtoGetExtintores(codOfi) {
    HELPERS
    ================================================================ */
 function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function stripHTML(s) { return String(s||''). replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(); }
 function escQ(s) { return String(s||'').replace(/'/g,"\\'").replace(/"/g,'\\"'); }
 
 function toast(msg, dur=2500) {
@@ -8960,10 +8969,10 @@ function ejecutarBusqueda(q) {
       tipo:'inf', id:i.id, detalle:i.detalle||'',
       hint: '',
       title:   `${i.entidad||'—'}${i.codigo?' · '+i.codigo:''}${i.poblacion?' · '+i.poblacion:''}`,
-      sub:     (i.detalle||'').slice(0,100),
+      sub:     stripHTML(i.detalle||'').slice(0,100),
       meta:    (i.etiquetas||[]).join(' '),
       titleHL: escH(i.entidad||'—'),
-      subHL:   escH((i.detalle||'').slice(0,100)),
+      subHL:   escH(stripHTML(i.detalle||'').slice(0,100)),
     }));
     const total = tagResults.length;
     document.getElementById('buscar-empty').classList.add('hidden');
@@ -13501,25 +13510,25 @@ async function pycEnviar() {
     _iramDialogo  = null;
     if (dialogo.esperando === 'CREAR_TAREA') {
       const cl2 = { ...dialogo.datos, titulo: txt };
-      const res  = iramEjecutarAccion(cl2);
+      const res  = await iramEjecutarAccion(cl2);
       if (res) pycMsgIA(res, false, 'local');
       _pycThinking = false; return;
     }
     if (dialogo.esperando === 'CREAR_EVENTO') {
       const cl2 = { ...dialogo.datos, titulo: txt };
-      const res  = iramEjecutarAccion(cl2);
+      const res  = await iramEjecutarAccion(cl2);
       if (res) pycMsgIA(res, false, 'local');
       _pycThinking = false; return;
     }
     if (dialogo.esperando === 'CREAR_EVENTO_FECHA') {
       const cl2 = { ...dialogo.datos, fecha: iramFechaISO(iramNorm(txt)) };
-      const res  = iramEjecutarAccion(cl2);
+      const res  = await iramEjecutarAccion(cl2);
       if (res) pycMsgIA(res, false, 'local');
       _pycThinking = false; return;
     }
     if (dialogo.esperando === 'CREAR_NOTA') {
       const cl2 = { ...dialogo.datos, texto: txt };
-      const res  = iramEjecutarAccion(cl2);
+      const res  = await iramEjecutarAccion(cl2);
       if (res) pycMsgIA(res, false, 'local');
       _pycThinking = false; return;
     }
@@ -13582,16 +13591,16 @@ async function pycEnviar() {
     'HISTORIAL_CLIENTE','MTO_SEMANA','AVERIAS_SIN_MTO','MATERIAL_PENDIENTE',
     'ANALIZAR_PARTES','CREAR_RUTA','ANADIR_AVISO','RUTA_SIN_MTO',
     'COMPLETAR_AVISO','REGISTRAR_MTO','MARCAR_TAREA_HECHA','BUSCAR_OFICINA',
-    'WIKIPEDIA','TIEMPO','GASOLINERA','LUGAR','NOTICIAS','RESUMEN_DIA','CUANTO_QUEDA'
+    'WIKIPEDIA','TIEMPO','GASOLINERA','LUGAR','NOTICIAS','TRAFICO','RESUMEN_DIA','CUANTO_QUEDA'
   ];
 
   // ── Clasificar: LOCAL PRIMERO, Groq solo si no reconoce ──
   _pycThinking = true;
   let _cl;
   try {
-    // 1. Intentar clasificador local — instantáneo, sin consumir Groq
-    const clasificarLocal = typeof iramClasificar === 'function' ? iramClasificar : () => ({intento:'CHAT'});
-    const _clLocal = clasificarLocal(txt);
+    // 1. Clasificador local — sin consumir Groq
+    const _fnClasificar = window.iramClasificar || (typeof iramClasificar !== 'undefined' ? iramClasificar : null);
+    const _clLocal = _fnClasificar ? _fnClasificar(txt) : { intento: 'CHAT' };
     _clLocal._txt = txt.toLowerCase();
 
     if (_clLocal.intento && _clLocal.intento !== 'CHAT') {
@@ -13639,24 +13648,24 @@ async function pycEnviar() {
 /* ══════════════════════════════════════════════════════
    GEMINI — búsqueda web con google_search grounding
    ══════════════════════════════════════════════════════ */
-async function pycGemini(userMsg, intento) {
+async function pycGemini(fraseOriginal) {
   const key = pycGetKey('gemini');
   if (!key) throw new Error('Sin key Gemini');
 
   const modelo = 'gemini-2.5-flash-lite';
   const url    = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
 
-  // System prompt mínimo — sin contexto de avisos para búsquedas web
-  const system = `Eres IRAM, asistente de Jesús, técnico de seguridad en Valencia, España. 
-Hoy es ${new Date().toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long', year:'numeric'})}.
-Responde en español, de forma breve y directa. Usa emojis cuando aporten claridad.
-Si buscas tiempo o lugares, incluye la ciudad concreta que pide el usuario.`;
+  const hoy = new Date().toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const system = `Eres IRAM, asistente de Jesús, técnico de seguridad en Valencia, España. Hoy es ${hoy}.
+Responde en español, de forma breve y directa. Máximo 5 líneas. Usa emojis cuando aporten claridad.
+Si te preguntan por resultados deportivos, noticias o tiempo — busca la información real y dala concreta.
+NO inventes. NO des resúmenes genéricos. DA datos específicos y reales.`;
 
   const body = {
     system_instruction: { parts: [{ text: system }] },
-    contents: [{ role: 'user', parts: [{ text: userMsg }] }],
+    contents: [{ role: 'user', parts: [{ text: fraseOriginal }] }],
     tools: [{ google_search: {} }],
-    generationConfig: { temperature: 1.0, maxOutputTokens: 500 }
+    generationConfig: { temperature: 1.0, maxOutputTokens: 400 }
   };
 
   const resp = await fetch(url, {
@@ -13668,10 +13677,8 @@ Si buscas tiempo o lugares, incluye la ciudad concreta que pide el usuario.`;
   if (!resp.ok) {
     const err = await resp.json().catch(()=>({}));
     const msg = err?.error?.message || '';
-    if (resp.status === 429 || msg.includes('quota') || msg.includes('high demand')) {
-      throw new Error('saturado');
-    }
-    throw new Error(`Gemini ${resp.status}: ${msg.slice(0,80)}`);
+    if (resp.status === 429 || msg.includes('quota')) throw new Error('saturado');
+    throw new Error(`Gemini ${resp.status}`);
   }
 
   const data = await resp.json();
@@ -13959,6 +13966,12 @@ function iramClasificar(txt) {
     return { intento:'TIEMPO', _txt: raw };
   }
 
+  // ── TRÁFICO ──
+  if (/\b(tr[aá]fico|hay\s+retenci[oó]n|c[oó]mo\s+est[aá]\s+la\s+carretera|c[oó]mo\s+est[aá]\s+la\s+a-?\d|hay\s+atascos?|c[oó]mo\s+va\s+la\s+carretera|estado\s+de\s+la\s+v[íi]a)\b/i.test(raw)) {
+    const mLoc = raw.match(/(?:en|hacia|para|a)\s+([A-Za-záéíóúüñ][a-zA-Záéíóúüñ\s]{2,20})(?:\s|$)/i);
+    return { intento:'TRAFICO', destino: mLoc?.[1]?.trim()||'' };
+  }
+
   // ── GASOLINERA ──
   if (/\b(gasolinera|echarle\s+gasolina|gasoil|combustible|repostar|echar\s+gasolina|precio\s+(de\s+la\s+)?gasolina)\b/i.test(raw)) {
     return { intento:'GASOLINERA' };
@@ -14206,17 +14219,17 @@ function iramClasificar(txt) {
     return { intento:'CONSULTA_TAREAS' };
   }
 
-  // ── CREAR EVENTO — solo con "crea un evento" explícito ──
-  if (/\bcrea[r]?\s+(?:un\s+)?evento\b/i.test(raw)) {
+  // ── CREAR EVENTO — con "crea un evento" explícito ──
+  if (/\bcrea[r]?\s+(?:un[ao]?\s+)?evento\b/i.test(raw)) {
     const fecha = iramFechaISO(t);
     const hora  = iramHoraStr(raw);
     const titulo= txt
-      .replace(/\bcrea[r]?\s+(?:un\s+)?evento\b/gi,'')
+      .replace(/\bcrea[r]?\s+(?:un[ao]?\s+)?evento\b/gi,'')
+      .replace(/\bpara\s+(ma[ñn]ana|hoy|el\s+\w+)\b/gi,'')
       .replace(/\bel\s+(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*\d*\b/gi,'')
       .replace(/\ba\s+las?\s+\d{1,2}(:\d{2})?\b/gi,'')
       .replace(/\s+/g,' ').trim();
-    if (!titulo) return { intento:'CHAT' }; // Sin título → chat
-    return { intento:'CREAR_EVENTO', titulo, fecha, hora };
+    return { intento:'CREAR_EVENTO', titulo: titulo || '', fecha, hora };
   }
 
   // ── CREAR NOTA — solo con "crea una nota" explícito ──
@@ -14270,20 +14283,17 @@ async function iramEjecutarAccion(cl) {
 
   /* ── TIEMPO — Open-Meteo sin API key ── */
   if (cl.intento === 'TIEMPO') {
-    const txt_     = cl._txt || '';
-    const gemKey   = pycGetKey('gemini');
+    const fraseOriginal = cl._txt || '';
+    const gemKey = pycGetKey('gemini');
     pycMsgIA('🌤️ Consultando el tiempo…', false, 'local');
 
-    // Intentar Gemini primero — tiene búsqueda real y entiende el contexto
     if (gemKey) {
       try {
-        const resp = await pycGemini(txt_, 'TIEMPO');
+        const resp = await pycGemini(fraseOriginal);
         _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
         pycMsgIA(resp, false, 'gemini');
         return '';
-      } catch(e) {
-        // Saturado o error → fallback a Open-Meteo
-      }
+      } catch(e) { /* fallback Open-Meteo */ }
     }
 
     // Fallback: Open-Meteo con GPS o ciudad extraída del texto
@@ -14335,6 +14345,25 @@ async function iramEjecutarAccion(cl) {
       () => { _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…'); pycMsgIA('📍 Activa el GPS para el tiempo.', false, 'local'); }
     );
     return '';
+  }
+
+  /* ── TRÁFICO ── */
+  if (cl.intento === 'TRAFICO') {
+    const fraseOriginal = cl._txt || '';
+    const gemKey = pycGetKey('gemini');
+    if (gemKey) {
+      pycMsgIA('🚗 Consultando tráfico…', false, 'local');
+      try {
+        const resp = await pycGemini(fraseOriginal);
+        _pycHist = _pycHist.filter(m => m.text !== '🚗 Consultando tráfico…');
+        pycMsgIA(resp, false, 'gemini');
+      } catch(e) {
+        _pycHist = _pycHist.filter(m => m.text !== '🚗 Consultando tráfico…');
+        pycMsgIA('⚠️ No pude consultar el tráfico.', false, 'local');
+      }
+      return '';
+    }
+    return '🚗 Configura Gemini en Backup para consultar tráfico en tiempo real.';
   }
 
   /* ── GASOLINERA — API Ministerio Energía España ── */
@@ -14434,25 +14463,15 @@ async function iramEjecutarAccion(cl) {
   if (cl.intento === 'NOTICIAS') {
     const gemKey = pycGetKey('gemini');
     pycMsgIA('📰 Cargando noticias…', false, 'local');
-    const tema = (cl.tema || cl._txt || '').toLowerCase();
+    const fraseOriginal = cl._txt || '';
 
-    // Gemini primero — busca noticias reales con google_search
     if (gemKey) {
       try {
-        const query = /superdeporte|valenciacf|valencia.*basket/i.test(tema)
-          ? 'últimas noticias Superdeporte Valencia CF Valencia Basket hoy'
-          : /deporte|futbol|baloncesto|marca|as\b/i.test(tema)
-          ? 'últimas noticias deportes España hoy'
-          : /valencia|levante|provincias/i.test(tema)
-          ? 'últimas noticias Valencia España hoy'
-          : 'últimas noticias España hoy resumen';
-        const resp = await pycGemini(query, 'NOTICIAS');
+        const resp = await pycGemini(fraseOriginal);
         _pycHist = _pycHist.filter(m => m.text !== '📰 Cargando noticias…');
-        pycMsgIA(`📰 Noticias de hoy:\n${resp}`, false, 'gemini');
+        pycMsgIA(resp, false, 'gemini');
         return '';
-      } catch(e) {
-        // Fallback a RSS
-      }
+      } catch(e) { /* fallback RSS */ }
     }
 
     // Parsear RSS directo sin intermediario
@@ -15504,6 +15523,11 @@ function pycAutoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 80) + 'px';
 }
 /* ── FIN IRAM ── */
+
+// Registrar en window para acceso global garantizado
+window.iramClasificar    = iramClasificar;
+window.iramClasificarIA  = iramClasificarIA;
+window.iramEjecutarAccion = iramEjecutarAccion;
 </script>
 <!-- ── FIN ASISTENTE IA ── -->
 
