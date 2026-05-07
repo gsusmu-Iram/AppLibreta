@@ -13597,7 +13597,7 @@ async function pycEnviar() {
   // Clasificar con IA (rápido) o fallback local
   let _cl;
   const _clIA = await iramClasificarIA(txt).catch(() => null);
-  if (_clIA) {
+  if (_clIA && _clIA.intento !== 'CHAT') {
     // ── Limpiar palabras de comando de los campos que Groq devuelve ──
     const limpiarTitulo = (s) => (s||'')
       .replace(/\bcrea[r]?\s+un[ao]?\s+(tarea|evento|nota)\b/gi, '')
@@ -13989,7 +13989,7 @@ function iramClasificar(txt) {
   }
 
   // ── AVERIAS SIN MTO (análisis del día) ──
-  if (/\b(mantenimientos?\s+pendientes?\s+(de\s+)?(hoy|esta\s+semana)|qu[eé]\s+(partes?|avisos?)\s+(de\s+hoy\s+)?no\s+tienen?\s+(el\s+)?(q[1-4]|mto|mantenimiento)|de\s+los\s+de\s+hoy\s+cu[aá]les?\s+(les?\s+)?falta)\b/i.test(raw)) {
+  if (/\b(mantenimientos?\s+pendientes?\s+(de\s+)?(hoy|esta\s+semana)|qu[eé]\s+(partes?|avisos?)\s+(de\s+hoy\s+)?no\s+tienen?\s+(el\s+)?(q[1-4]|mto|mantenimiento)|de\s+los\s+de\s+hoy\s+cu[aá]les?\s+(les?\s+)?falta|est[aá]n?\s+hechos?\s+(los\s+)?mantenimientos?|qu[eé]\s+mantenimientos?\s+faltan|mantenimientos?\s+sin\s+hacer)\b/i.test(raw)) {
     return { intento:'AVERIAS_SIN_MTO' };
   }
   if (/\b(resumen\s+(del?\s+)?d[íi]a|c[oó]mo\s+va\s+el\s+d[íi]a|qu[eé]\s+tal\s+va|balance\s+del?\s+d[íi]a)\b/i.test(raw)) {
