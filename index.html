@@ -13590,7 +13590,8 @@ async function pycEnviar() {
   let _cl;
   try {
     // 1. Intentar clasificador local — instantáneo, sin consumir Groq
-    const _clLocal = iramClasificar(txt);
+    const clasificarLocal = typeof iramClasificar === 'function' ? iramClasificar : () => ({intento:'CHAT'});
+    const _clLocal = clasificarLocal(txt);
     _clLocal._txt = txt.toLowerCase();
 
     if (_clLocal.intento && _clLocal.intento !== 'CHAT') {
@@ -13808,6 +13809,8 @@ EJEMPLOS:
 
 /* ══════════════════════════════════════════════════════
    IRAM CLASSIFIER — IA traduce lenguaje natural a JSON
+   ══════════════════════════════════════════════════════ */
+async function iramClasificarIA(txt) {
   // Contexto: últimas 2 frases del historial para que entienda referencias
   const contexto = _pycHist
     .filter(m => !m.thinking && m.text && m.text.trim())
