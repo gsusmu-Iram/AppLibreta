@@ -12970,14 +12970,8 @@ function pycOcultarKeyBox() {
 }
 
 function pycCheckKey() {
-  // Groq primero — clasificador principal
   if (!pycGetKey('groq')) {
     pycMostrarKeyCtx('groq');
-  // Mistral segundo — fallback del clasificador
-  } else if (!pycGetKey('mistral')) {
-    pycMostrarKeyCtx('mistral');
-  // Gemini solo en modo WEB
-    pycMostrarKeyCtx('gemini');
   } else {
     pycOcultarKeyBox();
   }
@@ -15480,12 +15474,8 @@ function pycToggleVoz() {
     if (st) st.textContent = '🎙️ Escuchando…';
   };
   _pycRecognition.onresult = e => {
-    // Recoger todas las alternativas y elegir la más útil
-    const alternativas = [];
-    for (let i = 0; i < e.results[0].length; i++) {
-      alternativas.push(e.results[0][i].transcript.trim());
-    }
-    const txt = iramMejorAlternativa(alternativas);
+    // La primera alternativa tiene mayor confianza según la API
+    const txt = (e.results[0][0].transcript || '').trim();
     pycPararVoz();
     if (txt) {
       const ta = document.getElementById('pyc-ta');
