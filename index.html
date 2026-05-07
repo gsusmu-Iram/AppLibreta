@@ -5062,7 +5062,7 @@ function renderizar() {
                 <div class="ep-lbl" style="color:var(--purple)">🔧 Info técnica de esta oficina</div>
                 ${p.infoTecnica.map(i=>`<div style="background:rgba(124,58,237,.05);border-left:3px solid var(--purple);border-radius:0 4px 4px 0;padding:6px 9px;margin-top:5px">
                   ${i.tipoDato?`<span style="font-family:var(--font-mono);font-size:9px;color:var(--purple);font-weight:700;text-transform:uppercase;letter-spacing:.07em">${i.tipoDato}</span><br>`:``}
-                  <span style="font-size:11px;font-weight:600;color:var(--navy)">${i.detalle}</span>
+                  <span style="font-size:11px;font-weight:600;color:var(--navy)">${stripHTML(i.detalle||'')}</span>
                   ${i.etiquetas&&i.etiquetas.length?`<div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-xl);margin-top:2px">${i.etiquetas.join(' ')}</div>`:``}
                 </div>`).join('')}
               </div>`:``}
@@ -8732,7 +8732,7 @@ function renderInfoSaved() {
         ${item.tipoDato ? `<span class="ii-tipo">${escH(item.tipoDato)}</span>` : ''}
         <button class="ii-del" onclick="event.stopPropagation();borrarInfo('${item.id}')">✕</button>
       </div>
-      <div class="ii-desc">${escH(item.detalle.slice(0,120))}${item.detalle.length>120?'…':''}</div>
+      <div class="ii-desc">${escH(stripHTML(item.detalle||'').slice(0,120))}${stripHTML(item.detalle||'').length>120?'…':''}</div>
       ${item.etiquetas.length ? `<div class="ii-tags">${item.etiquetas.join(' ')}</div>` : ''}
     </div>`).join('');
 }
@@ -9112,10 +9112,10 @@ function ejecutarBusqueda(q) {
     tipo:'inf', id:i.id, detalle:i.detalle||'',
     hint: (match(i.entidad)||match(i.codigo)) ? '' : (i.tipoDato||''),
     title:   `${i.entidad||'—'}${i.codigo?' · '+i.codigo:''}${i.poblacion?' · '+i.poblacion:''}`,
-    sub:     (i.detalle||'').slice(0,100),
+    sub:     stripHTML(i.detalle||'').slice(0,100),
     meta:    (i.etiquetas||[]).join(' ')||i.tipoDato||'',
     titleHL: `${hl(i.entidad||'')}${i.codigo?' · '+hl(i.codigo):''}`,
-    subHL:   hl((i.detalle||'').slice(0,100)),
+    subHL:   hl(stripHTML(i.detalle||'').slice(0,100)),
   }));
 
   // HORARIOS
