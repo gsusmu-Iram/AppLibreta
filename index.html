@@ -9216,7 +9216,7 @@ function renderResultadosFiltrados() {
     }
     if (r.tipo==='inf') {
       btns += `<button class="res-act nav" onclick="abrirInfoTecPage('${r.id}')">🔍 Ver</button>`;
-      if (r.detalle) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.detalle)},this)">📋 Copiar</button>`;
+      if (r.detalle) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${escH(JSON.stringify(stripHTML(r.detalle||'')))},this)">📋 Copiar</button>`;
     }
     if (r.tipo==='hor') {
       if (r.horario) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.horario)},this)">📋 Copiar horario</button>`;
@@ -9436,11 +9436,11 @@ function mostrarTodaInfo() {
           <span class="res-title">${escH(i.entidad||'—')}${i.codigo?' · '+escH(i.codigo):''}</span>
           <span class="res-badge rb-inf">INFO</span>
         </div>
-        <div class="res-sub">${escH((i.detalle||'').slice(0,100))}${(i.detalle||'').length>100?'…':''}</div>
+        <div class="res-sub">${escH(stripHTML(i.detalle||'').slice(0,100))}${stripHTML(i.detalle||'').length>100?'…':''}</div>
         ${i.etiquetas&&i.etiquetas.length?`<div class="res-meta">${escH(i.etiquetas.join(' '))}</div>`:''}
         <div class="res-actions">
           <button class="res-act nav" onclick="abrirInfoTecPage('${i.id}')">🔍 Ver</button>
-          <button class="res-act copy" onclick="copiarTexto(${JSON.stringify(i.detalle||'')},this)">📋 Copiar</button>
+          <button class="res-act copy" onclick="copiarTexto(${escH(JSON.stringify(stripHTML(i.detalle||'')))},this)">📋 Copiar</button>
         </div>
       </div>`).join('');
 }
