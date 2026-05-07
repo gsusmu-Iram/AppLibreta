@@ -13628,7 +13628,8 @@ async function pycEnviar() {
     pycMsgIA(`🤔 No he entendido.\nPrueba: "qué avisos tengo", "siguiente parada", "tiempo en Valencia", "noticias de deportes", "gasolinera", "mantenimientos pendientes hoy"`, false, 'local');
 
   } catch(e) {
-    pycMsgIA('⚠️ Error interno. Prueba de nuevo.', false, 'local');
+    console.error('IRAM error:', e?.message, e?.stack);
+    pycMsgIA(`⚠️ Error: ${e?.message || 'desconocido'}`, false, 'local');
   } finally {
     _pycThinking = false;
   }
