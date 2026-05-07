@@ -2506,7 +2506,9 @@ body { font-size: 14px; }
   <div class="app-header">
     <div class="header-top">
       <div class="logo">
-        <div class="logo-icon datos-pulse" onclick="abrirDatos()" style="cursor:pointer;position:relative"><svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+        <div class="logo-icon datos-pulse" onclick="abrirDatos()" style="cursor:pointer;position:relative">
+          <span id="datos-nuevos-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#f97316;color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;font-weight:800;align-items:center;justify-content:center;z-index:10;line-height:16px;text-align:center"></span>
+          <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
             <!-- Notebook body -->
             <rect x="4" y="5" width="18" height="22" rx="2" fill="#1d3a6e" stroke="#2d4d8a" stroke-width=".8"/>
             <!-- Spiral rings (orange) -->
@@ -3585,7 +3587,6 @@ body { font-size: 14px; }
       </div>
       <button class="dna-btn" onclick="datosVerNuevos()">Ver</button>
     </div>
-
     <!-- ── EXCEL ── -->
     <div id="datos-sec-excel">
       <div class="dsec-lbl">📋 Excel <span class="dsec-badge dbadge-rec">Recomendado</span></div>
@@ -6829,12 +6830,21 @@ function datosActualizarUI() {
 
   // Alerta clientes nuevos
   const alertEl = document.getElementById('dnuevos-alert');
+  const badgeEl = document.getElementById('datos-nuevos-badge');
   if (alertEl) {
     if (nuevos.length > 0) {
       alertEl.classList.add('visible');
       setText('dnuevos-title', `${nuevos.length} cliente${nuevos.length>1?'s':''} nuevo${nuevos.length>1?'s':''} detectado${nuevos.length>1?'s':''}`);
     } else {
       alertEl.classList.remove('visible');
+    }
+  }
+  if (badgeEl) {
+    if (nuevos.length > 0) {
+      badgeEl.textContent = nuevos.length;
+      badgeEl.style.display = 'flex';
+    } else {
+      badgeEl.style.display = 'none';
     }
   }
 }
@@ -10425,8 +10435,19 @@ function _renderItVer(item) {
   ).join('');
 
   // ── Opción C: renderizado inteligente del detalle ──
-  // PARA REVERTIR: sustituir itDetalleHtml(item.detalle) por escH(item.detalle||'')
-  const detalleHtml = _itFormatDetalle(item.detalle || '');
+  // Strip HTML de Quill antes de formatear
+  const detalleTexto = (item.detalle || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  const detalleHtml = _itFormatDetalle(detalleTexto);
 
   document.getElementById('it-content').innerHTML = `
     <div class="it-entidad">${escH(entidad)}</div>
@@ -15288,11 +15309,17 @@ async function iramEjecutarAccion(cl) {
     if (rutaPend.length === 0 && ruta.length > 0) {
       resp = `📍 Ruta completada ✅ Buen trabajo.`;
     } else if (rutaPend.length > 0) {
-      const sig = rutaPend[0];
-      resp = `📍 Te quedan ${rutaPend.length} aviso${rutaPend.length!==1?'s':''} en ruta${rutaHech.length?' · '+rutaHech.length+' hecho'+(rutaHech.length!==1?'s':''):''}.\nSiguiente: ${sig.clienteReal||sig.clienteNorm||sig.cliente} · ${sig.localidad||''}`;
+      resp = `📍 ${rutaPend.length} aviso${rutaPend.length!==1?'s':''} pendiente${rutaPend.length!==1?'s':''}${rutaHech.length?' · '+rutaHech.length+' hecho'+(rutaHech.length!==1?'s':''):''}:\n`;
+      resp += rutaPend.map((p,i) => {
+        const cli  = p.clienteReal||p.clienteNorm||p.cliente||'?';
+        const loc  = p.localidad||'';
+        const trab = (p.trabajo||p.descripcion||'').slice(0,70);
+        return `${i+1}. ${cli}${loc?' · '+loc:''}: ${trab}`;
+      }).join('\n');
     }
     if (anPend.length) {
-      resp += `${resp?'\n':''}📊 En análisis: ${anPend.length} aviso${anPend.length!==1?'s':''} en total.`;
+      const urgentes = anPend.filter(a=>a.urgente);
+      resp += `${resp?'\n':''}📊 Análisis: ${anPend.length} aviso${anPend.length!==1?'s':''}${urgentes.length?' · 🚨 '+urgentes.length+' urgente'+(urgentes.length!==1?'s':''):''}`;
     }
     return resp.trim();
   }
@@ -15468,10 +15495,16 @@ function pycHablar(txt) {
 }
 
 /* ── Voz: activar/desactivar ── */
+let _pycEscuchando = false; // separado de _pycHablando (TTS)
+
 function pycToggleVoz() {
-  if (_pycHablando) { pycPararVoz(); return; }
+  // Si está escuchando → parar
+  if (_pycEscuchando) { pycPararVoz(); return; }
+  // Si está hablando → parar el TTS y empezar a escuchar
+  if (_pycHablando) { window.speechSynthesis?.cancel(); _pycHablando = false; }
+
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    pycMsgIA('⚠️ Tu navegador no soporta reconocimiento de voz. Usa Chrome.');
+    pycMsgIA('⚠️ Tu navegador no soporta reconocimiento de voz. Usa Chrome.', false, 'local');
     return;
   }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -15479,43 +15512,49 @@ function pycToggleVoz() {
   _pycRecognition.lang = 'es-ES';
   _pycRecognition.continuous = false;
   _pycRecognition.interimResults = false;
-  _pycRecognition.maxAlternatives = 3; // Pedir 3 alternativas para elegir la mejor
+  _pycRecognition.maxAlternatives = 3;
+
   _pycRecognition.onstart = () => {
-    _pycHablando = true;
-    ['iram-nav-mic'].forEach(id => {
-      const el = document.getElementById(id); if(el) el.classList.add('active','listening');
-    });
+    _pycEscuchando = true;
     const vs = document.getElementById('iram-voice-status');
-    if (vs) vs.textContent = 'Escuchando…';
+    if (vs) vs.textContent = '🎙️ Escuchando…';
     const st = document.getElementById('pyc-status');
     if (st) st.textContent = '🎙️ Escuchando…';
+    // Botón micrófono — visual activo
+    const mic = document.getElementById('iram-nav-mic');
+    if (mic) mic.classList.add('active','listening');
   };
+
   _pycRecognition.onresult = e => {
-    // La primera alternativa tiene mayor confianza según la API
     const txt = (e.results[0][0].transcript || '').trim();
     pycPararVoz();
     if (txt) {
       const ta = document.getElementById('pyc-ta');
-      if (ta) ta.value = txt;
+      if (ta) { ta.value = txt; pycAutoResize(ta); }
       pycEnviar();
     }
   };
-  _pycRecognition.onerror = () => pycPararVoz();
-  _pycRecognition.onend   = () => pycPararVoz();
-  _pycRecognition.start();
+
+  _pycRecognition.onerror = (ev) => {
+    console.warn('STT error:', ev.error);
+    pycPararVoz();
+  };
+  _pycRecognition.onend = () => pycPararVoz();
+
+  try { _pycRecognition.start(); }
+  catch(e) { pycPararVoz(); }
 }
 
 /* Elige la mejor alternativa de reconocimiento de voz */
 function pycPararVoz() {
-  _pycHablando = false;
+  _pycEscuchando = false;
   if (_pycRecognition) { try { _pycRecognition.stop(); } catch(e){} _pycRecognition = null; }
-  ['iram-nav-mic'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.classList.remove('active','listening');
-  });
+  const mic = document.getElementById('iram-nav-mic');
+  if (mic) mic.classList.remove('active','listening');
   const vs = document.getElementById('iram-voice-status');
   if (vs) vs.textContent = 'Pulsa para hablar';
   const st = document.getElementById('pyc-status');
-  if (st) st.textContent = 'Listo · ' + _iramIA.charAt(0).toUpperCase() + _iramIA.slice(1);
+  if (st) st.textContent = 'Listo · ' + (_iramIA||'local').charAt(0).toUpperCase() + (_iramIA||'local').slice(1);
 }
 
 function pycAutoResize(el) {
