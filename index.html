@@ -14269,8 +14269,8 @@ async function iramEjecutarAccion(cl) {
     }
 
     // Fallback: Open-Meteo con GPS o ciudad extraída del texto
-    const esSemana  = /semana|pr[oó]ximos\s+d[íi]as|esta\s+semana|lluver[aá]|har[aá]/i.test(txt_);
-    const mCiudad   = txt_.match(/(?:en|de|para|en\s+la\s+zona\s+de)\s+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
+    const esSemana  = /semana|pr[oó]ximos\s+d[íi]as|esta\s+semana|lluver[aá]|har[aá]/i.test(fraseOriginal);
+    const mCiudad   = fraseOriginal.match(/(?:en|de|para|en\s+la\s+zona\s+de)\s+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
     const ciudadTexto = mCiudad?.[1]?.trim() || '';
 
     const consultarTiempo = async (lat, lon, nombreLugar) => {
