@@ -8742,7 +8742,7 @@ function renderInfoSaved() {
         ${item.tipoDato ? `<span class="ii-tipo">${escH(item.tipoDato)}</span>` : ''}
         <button class="ii-del" onclick="event.stopPropagation();borrarInfo('${item.id}')">✕</button>
       </div>
-      <div class="ii-desc">${escH(item.detalle.slice(0,120))}${item.detalle.length>120?'…':''}</div>
+      <div class="ii-desc">${escH(stripHTML(item.detalle||'').slice(0,120))}${stripHTML(item.detalle||'').length>120?'…':''}</div>
       ${item.etiquetas.length ? `<div class="ii-tags">${item.etiquetas.join(' ')}</div>` : ''}
     </div>`).join('');
 }
@@ -9226,7 +9226,7 @@ function renderResultadosFiltrados() {
     }
     if (r.tipo==='inf') {
       btns += `<button class="res-act nav" onclick="abrirInfoTecPage('${r.id}')">🔍 Ver</button>`;
-      if (r.detalle) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.detalle)},this)">📋 Copiar</button>`;
+      if (r.detalle) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${escH(JSON.stringify(stripHTML(r.detalle||'')))},this)">📋 Copiar</button>`;
     }
     if (r.tipo==='hor') {
       if (r.horario) btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto(${JSON.stringify(r.horario)},this)">📋 Copiar horario</button>`;
@@ -9446,11 +9446,11 @@ function mostrarTodaInfo() {
           <span class="res-title">${escH(i.entidad||'—')}${i.codigo?' · '+escH(i.codigo):''}</span>
           <span class="res-badge rb-inf">INFO</span>
         </div>
-        <div class="res-sub">${escH((i.detalle||'').slice(0,100))}${(i.detalle||'').length>100?'…':''}</div>
+        <div class="res-sub">${escH(stripHTML(i.detalle||'').slice(0,100))}${stripHTML(i.detalle||'').length>100?'…':''}</div>
         ${i.etiquetas&&i.etiquetas.length?`<div class="res-meta">${escH(i.etiquetas.join(' '))}</div>`:''}
         <div class="res-actions">
           <button class="res-act nav" onclick="abrirInfoTecPage('${i.id}')">🔍 Ver</button>
-          <button class="res-act copy" onclick="copiarTexto(${JSON.stringify(i.detalle||'')},this)">📋 Copiar</button>
+          <button class="res-act copy" onclick="copiarTexto(${escH(JSON.stringify(stripHTML(i.detalle||'')))},this)">📋 Copiar</button>
         </div>
       </div>`).join('');
 }
@@ -12567,41 +12567,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <div class="iram-overlay" id="pyc-overlay">
 
 
-  <!-- Config key — contextual según IA seleccionada -->
-  <div class="pyc-key-box" id="pyc-key-box" style="display:none;position:relative;z-index:10;margin:8px 16px 0;flex-shrink:0">
-    <div class="pyc-key-lbl" id="pyc-key-lbl">🔑 Configura tu API key</div>
-    <div class="pyc-key-desc" id="pyc-key-desc">Se guarda solo en tu móvil.</div>
-    <div class="pyc-key-row" style="margin-top:8px">
-      <input class="pyc-key-input" id="pyc-key-input-ctx" type="password" placeholder="Pega tu key aquí…" autocomplete="off" style="flex:1">
-      <button class="pyc-key-save" id="pyc-key-btn-ctx" onclick="bkGuardarKey('groq')" style="margin-left:4px">Guardar</button>
-    </div>
-    <!-- Enlace rápido a donde obtener la key -->
-    <div id="pyc-key-link" style="font-size:11px;color:#7c3aed;margin-top:6px;text-align:right"></div>
-    <!-- Botón para ver/editar todas las keys -->
-    <div style="text-align:right;margin-top:8px">
-      <button onclick="pycMostrarTodasKeys()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">Ver todas las keys →</button>
-    </div>
-  </div>
-
-  <!-- Config keys — todas (modo completo) -->
-  <div class="pyc-key-box" id="pyc-key-box-all" style="display:none;position:relative;z-index:10;margin:8px 16px 0;flex-shrink:0">
-    <div class="pyc-key-lbl">🔑 Todas las API keys</div>
-    <div class="pyc-key-row" style="margin-top:8px">
-      <input class="pyc-key-input" id="pyc-key-groq" type="password" placeholder="Groq (console.groq.com)" autocomplete="off" style="flex:1">
-      <button class="pyc-key-save" onclick="bkGuardarKey('groq')" style="margin-left:4px">✓</button>
-    </div>
-    <div class="pyc-key-row" style="margin-top:6px">
-      <input class="pyc-key-input" id="pyc-key-mistral" type="password" placeholder="Mistral (mistral.ai)" autocomplete="off" style="flex:1">
-      <button class="pyc-key-save" onclick="bkGuardarKey('mistral')" style="margin-left:4px">✓</button>
-    </div>
-    <div class="pyc-key-row" style="margin-top:6px">
-      <input class="pyc-key-input" id="pyc-key-gemini" type="password" placeholder="Gemini (aistudio.google.com)" autocomplete="off" style="flex:1">
-      <button class="pyc-key-save" onclick="bkGuardarKey('gemini')" style="margin-left:4px">✓</button>
-    </div>
-    <div style="text-align:right;margin-top:8px">
-      <button onclick="pycOcultarTodasKeys()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">← Cerrar</button>
-    </div>
-  </div>
+  <!-- API keys gestionadas desde Datos & Backup -->
 
   <div class="iram-body">
 
@@ -12982,40 +12948,15 @@ function pycGetKey(ia) {
   return localStorage.getItem(stores[ia] || '') || '';
 }
 
-function pycMostrarKeyCtx(ia) {
-  const box = document.getElementById('pyc-key-box');
-  if (!box) return;
-  const lbl  = document.getElementById('pyc-key-lbl');
-  const desc = document.getElementById('pyc-key-desc');
-  const link = document.getElementById('pyc-key-link');
-  const btn  = document.getElementById('pyc-key-btn-ctx');
-  const nombres = { groq:'Groq', mistral:'Mistral', gemini:'Gemini' };
-  const urls    = { groq:'https://console.groq.com/keys', mistral:'https://console.mistral.ai/api-keys/', gemini:'https://aistudio.google.com/app/apikey' };
-  if (lbl)  lbl.textContent  = `🔑 Configura tu key de ${nombres[ia]||ia}`;
-  if (desc) desc.textContent = 'Se guarda solo en tu móvil. Nunca sale de aquí.';
-  if (link) link.innerHTML   = `<a href="${urls[ia]||'#'}" target="_blank" style="color:#a78bfa;text-decoration:none">Obtener key gratuita →</a>`;
-  if (btn) { btn.dataset.ia = ia; btn.textContent = 'Guardar'; }
-  box.style.display = 'flex';
-  box.style.flexDirection = 'column';
-  // Asegurar que el input esté vacío y visible
-  const input = document.getElementById('pyc-key-input-ctx');
-  if (input) { input.value = ''; input.placeholder = `Pega tu key de ${nombres[ia]||ia} aquí…`; }
-}
+function pycMostrarKeyCtx(ia) { /* Keys gestionadas desde Datos & Backup */ }
 
-function pycOcultarKeyBox() {
-  const box = document.getElementById('pyc-key-box');
-  if (box) box.style.display = 'none';
-  const boxAll = document.getElementById('pyc-key-box-all');
-  if (boxAll) boxAll.style.display = 'none';
-}
+function pycOcultarKeyBox() { /* no-op */ }
 
-function pycCheckKey() {
-  if (!pycGetKey('groq')) {
-    pycMostrarKeyCtx('groq');
-  } else {
-    pycOcultarKeyBox();
-  }
-}
+function pycMostrarTodasKeys() { /* no-op */ }
+
+function pycOcultarTodasKeys() { /* no-op */ }
+
+function pycCheckKey() { /* no-op: keys gestionadas desde Datos & Backup */ }
 
 /* ── Mensajes ── */
 function pycMsgIA(txt, thinking=false, ia=null) {
