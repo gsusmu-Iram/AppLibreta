@@ -6144,6 +6144,16 @@ function abrirFinalizarPara(id) {
       if (modalHdr)  modalHdr.classList.remove('finalizado');
       if (btnGuardar) btnGuardar.classList.remove('ok');
 
+      // Reset botón GPS según si esta parada concreta ya tiene coords GPS guardadas
+      const btnGps = document.getElementById('btn-gps-guardar');
+      if (btnGps) {
+        const cExacta  = _claveExacta(p);
+        const coords   = cargarCoords();
+        const tieneGps = !!(cExacta && coords[cExacta] && coords[cExacta].gps);
+        btnGps.textContent      = tieneGps ? '✅ GPS' : '📍 GPS';
+        btnGps.style.background = tieneGps ? 'rgba(22,163,74,.2)' : 'rgba(255,255,255,.15)';
+      }
+
       // Campo trabajo — placeholder con el aviso del parte
       const campoTrabajo = document.getElementById('campo-trabajo');
       if (campoTrabajo) {
@@ -12557,7 +12567,41 @@ document.addEventListener('DOMContentLoaded', () => {
 <div class="iram-overlay" id="pyc-overlay">
 
 
-  <!-- API keys gestionadas desde Datos & Backup -->
+  <!-- Config key — contextual según IA seleccionada -->
+  <div class="pyc-key-box" id="pyc-key-box" style="display:none;position:relative;z-index:10;margin:8px 16px 0;flex-shrink:0">
+    <div class="pyc-key-lbl" id="pyc-key-lbl">🔑 Configura tu API key</div>
+    <div class="pyc-key-desc" id="pyc-key-desc">Se guarda solo en tu móvil.</div>
+    <div class="pyc-key-row" style="margin-top:8px">
+      <input class="pyc-key-input" id="pyc-key-input-ctx" type="password" placeholder="Pega tu key aquí…" autocomplete="off" style="flex:1">
+      <button class="pyc-key-save" id="pyc-key-btn-ctx" onclick="bkGuardarKey('groq')" style="margin-left:4px">Guardar</button>
+    </div>
+    <!-- Enlace rápido a donde obtener la key -->
+    <div id="pyc-key-link" style="font-size:11px;color:#7c3aed;margin-top:6px;text-align:right"></div>
+    <!-- Botón para ver/editar todas las keys -->
+    <div style="text-align:right;margin-top:8px">
+      <button onclick="pycMostrarTodasKeys()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">Ver todas las keys →</button>
+    </div>
+  </div>
+
+  <!-- Config keys — todas (modo completo) -->
+  <div class="pyc-key-box" id="pyc-key-box-all" style="display:none;position:relative;z-index:10;margin:8px 16px 0;flex-shrink:0">
+    <div class="pyc-key-lbl">🔑 Todas las API keys</div>
+    <div class="pyc-key-row" style="margin-top:8px">
+      <input class="pyc-key-input" id="pyc-key-groq" type="password" placeholder="Groq (console.groq.com)" autocomplete="off" style="flex:1">
+      <button class="pyc-key-save" onclick="bkGuardarKey('groq')" style="margin-left:4px">✓</button>
+    </div>
+    <div class="pyc-key-row" style="margin-top:6px">
+      <input class="pyc-key-input" id="pyc-key-mistral" type="password" placeholder="Mistral (mistral.ai)" autocomplete="off" style="flex:1">
+      <button class="pyc-key-save" onclick="bkGuardarKey('mistral')" style="margin-left:4px">✓</button>
+    </div>
+    <div class="pyc-key-row" style="margin-top:6px">
+      <input class="pyc-key-input" id="pyc-key-gemini" type="password" placeholder="Gemini (aistudio.google.com)" autocomplete="off" style="flex:1">
+      <button class="pyc-key-save" onclick="bkGuardarKey('gemini')" style="margin-left:4px">✓</button>
+    </div>
+    <div style="text-align:right;margin-top:8px">
+      <button onclick="pycOcultarTodasKeys()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">← Cerrar</button>
+    </div>
+  </div>
 
   <div class="iram-body">
 
@@ -12938,15 +12982,40 @@ function pycGetKey(ia) {
   return localStorage.getItem(stores[ia] || '') || '';
 }
 
-function pycMostrarKeyCtx(ia) { /* Keys gestionadas desde Datos & Backup */ }
+function pycMostrarKeyCtx(ia) {
+  const box = document.getElementById('pyc-key-box');
+  if (!box) return;
+  const lbl  = document.getElementById('pyc-key-lbl');
+  const desc = document.getElementById('pyc-key-desc');
+  const link = document.getElementById('pyc-key-link');
+  const btn  = document.getElementById('pyc-key-btn-ctx');
+  const nombres = { groq:'Groq', mistral:'Mistral', gemini:'Gemini' };
+  const urls    = { groq:'https://console.groq.com/keys', mistral:'https://console.mistral.ai/api-keys/', gemini:'https://aistudio.google.com/app/apikey' };
+  if (lbl)  lbl.textContent  = `🔑 Configura tu key de ${nombres[ia]||ia}`;
+  if (desc) desc.textContent = 'Se guarda solo en tu móvil. Nunca sale de aquí.';
+  if (link) link.innerHTML   = `<a href="${urls[ia]||'#'}" target="_blank" style="color:#a78bfa;text-decoration:none">Obtener key gratuita →</a>`;
+  if (btn) { btn.dataset.ia = ia; btn.textContent = 'Guardar'; }
+  box.style.display = 'flex';
+  box.style.flexDirection = 'column';
+  // Asegurar que el input esté vacío y visible
+  const input = document.getElementById('pyc-key-input-ctx');
+  if (input) { input.value = ''; input.placeholder = `Pega tu key de ${nombres[ia]||ia} aquí…`; }
+}
 
-function pycOcultarKeyBox() { /* no-op */ }
+function pycOcultarKeyBox() {
+  const box = document.getElementById('pyc-key-box');
+  if (box) box.style.display = 'none';
+  const boxAll = document.getElementById('pyc-key-box-all');
+  if (boxAll) boxAll.style.display = 'none';
+}
 
-function pycMostrarTodasKeys() { /* no-op */ }
-
-function pycOcultarTodasKeys() { /* no-op */ }
-
-function pycCheckKey() { /* no-op: keys gestionadas desde Datos & Backup */ }
+function pycCheckKey() {
+  if (!pycGetKey('groq')) {
+    pycMostrarKeyCtx('groq');
+  } else {
+    pycOcultarKeyBox();
+  }
+}
 
 /* ── Mensajes ── */
 function pycMsgIA(txt, thinking=false, ia=null) {
