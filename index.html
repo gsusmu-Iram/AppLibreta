@@ -12822,13 +12822,13 @@ function iramAbrirWazeParada(parada) {
   const cliente = parada.clienteReal || parada.clienteNorm || parada.cliente || '?';
   const loc     = parada.localidad || '';
   const dir     = parada.direccion || '';
-  const codigo  = parada.codigo || '';
 
-  // Coordenadas GPS guardadas
-  const coords  = typeof cargarCoords === 'function' ? cargarCoords() : {};
-  let lat = null, lng = null;
-  if (codigo && coords[codigo])              { lat = coords[codigo].lat; lng = coords[codigo].lng; }
-  else if (loc && coords[iramNorm(loc)])     { lat = coords[iramNorm(loc)].lat; lng = coords[iramNorm(loc)].lng; }
+  // Buscar coords usando _getCoordsParada (soporta clave nueva cliente__codigo y fallback localidad)
+  const coords      = typeof cargarCoords === 'function' ? cargarCoords() : {};
+  const coordsData  = typeof _getCoordsParada === 'function' ? _getCoordsParada(parada, coords) : null;
+  const lat         = coordsData?.lat || null;
+  const lng         = coordsData?.lng || null;
+  const tipoCoords  = coordsData?.gps ? '📍 GPS guardado' : coordsData ? '🏘️ Por localidad' : null;
 
   let url;
   if (lat && lng) {
@@ -12836,14 +12836,15 @@ function iramAbrirWazeParada(parada) {
   } else if (dir) {
     url = `https://waze.com/ul?q=${encodeURIComponent(dir + (loc ? ', ' + loc : ''))}&navigate=yes`;
   } else if (loc) {
-    url = `https://waze.com/ul?q=${encodeURIComponent(loc)}&navigate=yes`;
+    url = `https://waze.com/ul?q=${encodeURIComponent(loc + ', Valencia, España')}&navigate=yes`;
   } else {
     pycMsgIA('No tengo dirección para esta parada.'); return;
   }
 
   window.open(url, '_blank');
-  pycMsgIA(`Waze → ${cliente}${loc ? ' · ' + loc : ''}`, false, 'local');
-  iramDiarioAccion(`Waze: ${cliente} · ${loc}`);
+  const origenMsg = tipoCoords || (dir ? '📋 Por dirección' : '🔍 Solo localidad');
+  pycMsgIA(`Waze → ${cliente}${loc ? ' · ' + loc : ''}\n${origenMsg}`, false, 'local');
+  iramDiarioAccion(`Waze: ${cliente} · ${loc} (${origenMsg})`);
 }
 
 /* Panel de confirmación táctil para Waze */
@@ -12851,6 +12852,13 @@ function iramConfirmarWaze(parada) {
   const cliente = parada.clienteReal || parada.clienteNorm || parada.cliente || '?';
   const loc     = parada.localidad || '';
   const dir     = parada.direccion || '';
+
+  const coords     = typeof cargarCoords === 'function' ? cargarCoords() : {};
+  const coordsData = typeof _getCoordsParada === 'function' ? _getCoordsParada(parada, coords) : null;
+  const tipoCoords = coordsData?.gps ? '📍 GPS guardado — ubicación exacta'
+                   : coordsData      ? '🏘️ Por localidad — puede no ser exacto'
+                   : dir             ? '📋 Por dirección del Excel'
+                   :                   '⚠️ Solo nombre de localidad';
 
   document.getElementById('iram-confirm-panel')?.remove();
   const panel = document.createElement('div');
@@ -12860,6 +12868,7 @@ function iramConfirmarWaze(parada) {
     <div style="color:#a78bfa;font-size:11px;font-weight:700;letter-spacing:.1em;margin-bottom:8px">NAVEGAR A</div>
     <div style="color:#fff;font-weight:700;font-size:16px">${cliente}</div>
     <div style="color:#9ca3af;font-size:13px;margin-top:2px">${dir || loc}</div>
+    <div style="color:#a78bfa;font-size:11px;margin-top:6px">${tipoCoords}</div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <button onclick="document.getElementById('iram-confirm-panel').remove()"
         style="flex:1;padding:10px;border-radius:10px;border:1px solid #374151;background:transparent;color:#9ca3af;font-size:14px;cursor:pointer">
