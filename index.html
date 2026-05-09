@@ -5406,9 +5406,17 @@ function cargarCoords() {
   return load(K_COORDS) || {};
 }
 
-// Clave por código (coords exactas GPS)
+// Clave única por cliente+código (coords exactas GPS)
 function _claveExacta(parada) {
-  return parada.codigo ? String(parada.codigo).toLowerCase().trim() : null;
+  const cod = String(parada.codigo || '').toLowerCase().trim();
+  const cli = String(parada.clienteNorm || parada.clienteReal || parada.cliente || '').toLowerCase().replace(/\s+/g,'_').trim().slice(0, 20);
+  if (cod && cli) return `${cli}__${cod}`;
+  if (cod)        return cod;           // fallback retrocompatible
+  if (cli) {
+    const loc = String(parada.localidad || '').toLowerCase().trim();
+    return loc ? `${cli}__${loc}` : cli;
+  }
+  return null;
 }
 
 // Clave por localidad (coords municipio)
@@ -5467,12 +5475,12 @@ async function geocodificarLocalidad(localidad, coords) {
 }
 
 // Guardar coords exactas GPS (llamado desde modal Finalizar)
-function guardarCoordsGPS(parada) {
-  if (!gpsActual || !gpsActual.lat || !gpsActual.lng) return false;
-  if (!parada.codigo) return false;
-  const clave  = String(parada.codigo).toLowerCase().trim();
+function guardarCoordsGPS(parada, lat, lng) {
+  if (!lat || !lng) return false;
+  const clave = _claveExacta(parada);
+  if (!clave) return false;
   const coords = cargarCoords();
-  coords[clave] = { lat: gpsActual.lat, lng: gpsActual.lng, gps: true };
+  coords[clave] = { lat, lng, gps: true, ts: Date.now() };
   save(K_COORDS, coords);
   return true;
 }
@@ -6331,17 +6339,38 @@ function addObsChip(texto) {
 
 function btnGuardarGPS() {
   if (!paradaActual) return;
-  const ok = guardarCoordsGPS(paradaActual);
-  const btn = document.getElementById('btn-gps-guardar');
-  if (ok) {
-    if (btn) { btn.textContent = '✅ GPS'; btn.style.background = 'rgba(22,163,74,.2)'; }
-    tareasToast('📍 Ubicación GPS guardada para ' + (paradaActual.clienteReal || paradaActual.codigo));
-  } else {
-    if (btn) btn.textContent = '⚠️ Sin GPS';
-    tareasToast('⚠️ GPS no disponible o sin código de cliente');
+  if (!navigator.geolocation) {
+    tareasToast('⚠️ GPS no disponible en este dispositivo');
+    return;
   }
-}
+  const btn = document.getElementById('btn-gps-guardar');
+  if (btn) { btn.textContent = '⏳ Obteniendo…'; btn.style.background = 'rgba(251,191,36,.2)'; }
 
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      // Actualizar gpsActual con la posición fresca
+      gpsActual = { lat, lng, ts: Date.now() };
+      save(K_GPS, gpsActual);
+
+      const ok = guardarCoordsGPS(paradaActual, lat, lng);
+      if (ok) {
+        if (btn) { btn.textContent = '✅ GPS'; btn.style.background = 'rgba(22,163,74,.2)'; }
+        tareasToast('📍 Ubicación GPS guardada para ' + (paradaActual.clienteReal || paradaActual.clienteNorm || paradaActual.codigo || '—'));
+      } else {
+        if (btn) { btn.textContent = '⚠️ Sin clave'; btn.style.background = 'rgba(239,68,68,.2)'; }
+        tareasToast('⚠️ No se puede guardar: parada sin cliente ni código');
+      }
+    },
+    err => {
+      if (btn) { btn.textContent = '⚠️ Sin GPS'; btn.style.background = 'rgba(239,68,68,.2)'; }
+      const msg = err.code === 1 ? 'Permiso denegado' : err.code === 2 ? 'Señal GPS no disponible' : 'Tiempo agotado';
+      tareasToast('⚠️ GPS: ' + msg);
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
 function toggleFin() {
   finActivo = !finActivo;
   const btn = document.getElementById('btn-fin');
@@ -13682,7 +13711,30 @@ NO inventes. NO des resúmenes genéricos. DA datos específicos y reales.`;
 
   const body = {
     system_instruction: { parts: [{ text: system }] },
-    contents: [{ role: 'user', parts: [{ text: fraseOriginal }] }],
+    contents: (() => {
+      // Construir historial conversacional: últimos 10 mensajes reales (sin thinking ni status)
+      const hist = _pycHist
+        .filter(m => !m.thinking && m.text && !m.text.startsWith('✦'))
+        .slice(-10);
+      // Convertir al formato Gemini (user/model alternados)
+      const turns = [];
+      for (const m of hist) {
+        const gemRole = m.role === 'user' ? 'user' : 'model';
+        // Fusionar mensajes consecutivos del mismo rol
+        if (turns.length && turns[turns.length-1].role === gemRole) {
+          turns[turns.length-1].parts[0].text += '\n' + m.text;
+        } else {
+          turns.push({ role: gemRole, parts: [{ text: m.text }] });
+        }
+      }
+      // Garantizar que el último turno sea del usuario con el mensaje actual
+      if (!turns.length || turns[turns.length-1].role !== 'user') {
+        turns.push({ role: 'user', parts: [{ text: fraseOriginal }] });
+      } else {
+        turns[turns.length-1].parts[0].text = fraseOriginal;
+      }
+      return turns;
+    })(),
     tools: [{ google_search: {} }],
     generationConfig: { temperature: 1.0, maxOutputTokens: 400 }
   };
