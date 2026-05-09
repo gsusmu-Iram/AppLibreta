@@ -3486,9 +3486,26 @@ body { font-size: 14px; }
     </div><!-- /modal-body -->
 
     <!-- Footer fijo -->
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="cerrarFinalizar()">Cancelar</button>
-      <button class="btn-guardar" id="btn-guardar" onclick="guardarFinalizar()">→ Guardar</button>
+    <div class="modal-actions" style="flex-direction:column;gap:8px;padding-bottom:12px">
+      <!-- Selector MTO -->
+      <div style="display:flex;align-items:center;gap:8px;width:100%;padding:0 2px">
+        <span style="font-size:12px;font-weight:700;color:var(--ink-mid);white-space:nowrap">🔧 MTO:</span>
+        <select id="campo-mto-tipo"
+          style="flex:1;border:1.5px solid rgba(26,39,68,.15);border-radius:8px;padding:7px 8px;
+                 font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
+                 background:white;outline:none;cursor:pointer">
+          <option value="">— Sin MTO —</option>
+          <option value="INT">🛡️ Anual (INT)</option>
+          <option value="Q1">🔥 PCI 1</option>
+          <option value="Q2">🔥 PCI 2</option>
+          <option value="Q3">🔥 PCI 3</option>
+          <option value="Q4">🔥 PCI 4</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;width:100%">
+        <button class="btn-cancel" onclick="cerrarFinalizar()">Cancelar</button>
+        <button class="btn-guardar" id="btn-guardar" onclick="guardarFinalizar()">→ Guardar</button>
+      </div>
     </div>
 
   </div>
@@ -6144,7 +6161,7 @@ function abrirFinalizarPara(id) {
       if (modalHdr)  modalHdr.classList.remove('finalizado');
       if (btnGuardar) btnGuardar.classList.remove('ok');
 
-      // Reset botón GPS según si esta parada concreta ya tiene coords GPS guardadas
+      // Reset botón GPS según si esta parada ya tiene coords guardadas
       const btnGps = document.getElementById('btn-gps-guardar');
       if (btnGps) {
         const cExacta  = _claveExacta(p);
@@ -6153,6 +6170,9 @@ function abrirFinalizarPara(id) {
         btnGps.textContent      = tieneGps ? '✅ GPS' : '📍 GPS';
         btnGps.style.background = tieneGps ? 'rgba(22,163,74,.2)' : 'rgba(255,255,255,.15)';
       }
+      // Reset selector MTO
+      const selMto = document.getElementById('campo-mto-tipo');
+      if (selMto) selMto.value = '';
 
       // Campo trabajo — placeholder con el aviso del parte
       const campoTrabajo = document.getElementById('campo-trabajo');
@@ -6479,8 +6499,24 @@ function guardarFinalizar() {
   save(K_EQUIPOS, equipos);
 
   cerrarFinalizar();
-  // Auto-marcar MTO: pasar la fila Excel directamente si ya la tenemos
-  try { autoMarcarMTO({ ...p, codigo: codigoExcel, trabajoRealizado: trabajo }, cliRowExcel); } catch(e) { console.warn('autoMarcarMTO:', e); }
+  // Marcar MTO: selector explícito primero, luego autodetección por texto
+  try {
+    const mtoSelVal = document.getElementById('campo-mto-tipo')?.value || '';
+    if (mtoSelVal) {
+      const mtoMan  = loadObj(K_MTO_MAN);
+      const keyMto  = cliRowExcel ? mtoKey(cliRowExcel) : mtoKey({ CLIENTE: p.clienteReal||p.clienteNorm||p.cliente||'', CODIGO: p.codigo||'' });
+      if (!mtoMan[keyMto]) mtoMan[keyMto] = {};
+      if (!mtoMan[keyMto][mtoSelVal]) {
+        const hoyStr2 = String(hoy.getDate()).padStart(2,'0') + '/' + String(hoy.getMonth()+1).padStart(2,'0');
+        mtoMan[keyMto][mtoSelVal] = hoyStr2;
+        save(K_MTO_MAN, mtoMan);
+        if (typeof renderMTO === 'function') renderMTO();
+        toast('🔧 MTO ' + mtoSelVal + ': ' + (p.clienteNorm||p.cliente||'') + ' → ' + hoyStr2);
+      }
+    } else {
+      autoMarcarMTO({ ...p, trabajoRealizado: trabajo }, cliRowExcel);
+    }
+  } catch(e) { console.warn('MTO guardar:', e); }
 
   // ── Si es cliente nuevo, añadirlo al Excel local ──
   if (!cliRowExcel && p.codigo && !/^(INC|OT|AL_|WO|TASK)\d*/i.test(p.codigo)) {
@@ -12949,14 +12985,10 @@ function pycGetKey(ia) {
 }
 
 function pycMostrarKeyCtx(ia) { /* Keys gestionadas desde Datos & Backup */ }
-
-function pycOcultarKeyBox() { /* no-op */ }
-
-function pycMostrarTodasKeys() { /* no-op */ }
-
-function pycOcultarTodasKeys() { /* no-op */ }
-
-function pycCheckKey() { /* no-op: keys gestionadas desde Datos & Backup */ }
+function pycOcultarKeyBox()   { /* no-op */ }
+function pycMostrarTodasKeys(){ /* no-op */ }
+function pycOcultarTodasKeys(){ /* no-op */ }
+function pycCheckKey()        { /* no-op: keys gestionadas desde Datos & Backup */ }
 
 /* ── Mensajes ── */
 function pycMsgIA(txt, thinking=false, ia=null) {
@@ -13606,7 +13638,22 @@ async function pycEnviar() {
       }
     }
 
-    // CHAT — mensaje de ayuda
+    // CHAT — intentar Gemini para preguntas generales antes de mostrar ayuda
+    if (pycGetKey('gemini')) {
+      pycMsgIA('✦ …', true, 'local');
+      try {
+        const respChat = await pycGemini(txt);
+        _pycHist = _pycHist.filter(m => !m.thinking);
+        pycMsgIA(respChat, false, 'gemini');
+        return;
+      } catch(eChat) {
+        _pycHist = _pycHist.filter(m => !m.thinking);
+        // Mostrar error real de Gemini en vez de silenciarlo
+        pycMsgIA(`⚠️ Gemini: ${eChat?.message || 'error desconocido'}`, false, 'gemini');
+        return;
+      }
+    }
+
     pycMsgIA(`🤔 No he entendido.\nPrueba: "qué avisos tengo", "siguiente parada", "tiempo en Valencia", "noticias de deportes", "gasolinera", "mantenimientos pendientes hoy"`, false, 'local');
 
   } catch(e) {
@@ -13624,7 +13671,7 @@ async function pycGemini(fraseOriginal) {
   const key = pycGetKey('gemini');
   if (!key) throw new Error('Sin key Gemini');
 
-  const modelo = 'gemini-2.5-flash-lite';
+  const modelo = 'gemini-2.0-flash';
   const url    = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
 
   const hoy = new Date().toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
@@ -14461,10 +14508,11 @@ async function iramEjecutarAccion(cl) {
       } catch(e) { return []; }
     };
 
-    const cat = /superdeporte|valenciacf|valencia\s*basket|che\b/i.test(tema)?'superdeporte'
-              : /deporte|f[uú]tbol|baloncesto|basket|liga|champion|marca\b|\bas\b|deportivo/i.test(tema)?'deportes'
-              : /valencia|levante|provincias/i.test(tema)?'valencia'
-              : /el\s*pa[íi]s|pa[íi]s\b/i.test(tema)?'pais'
+    const temaFrase = cl.tema || fraseOriginal;
+    const cat = /superdeporte|valenciacf|valencia\s*basket|che\b/i.test(temaFrase)?'superdeporte'
+              : /deporte|f[uú]tbol|baloncesto|basket|liga|champion|marca\b|\bas\b|deportivo/i.test(temaFrase)?'deportes'
+              : /valencia|levante|provincias/i.test(temaFrase)?'valencia'
+              : /el\s*pa[íi]s|pa[íi]s\b/i.test(temaFrase)?'pais'
               : 'general';
 
     const labels = { superdeporte:'Superdeporte', deportes:'deportes', valencia:'Valencia', pais:'El País', general:'hoy' };
