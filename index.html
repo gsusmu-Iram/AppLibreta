@@ -3652,25 +3652,28 @@ body { font-size: 14px; }
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:12px;color:var(--ink-xl);min-width:52px;font-weight:600">Groq</span>
           <input id="bk-key-groq" type="password" autocomplete="off"
+            oninput="bkGuardarKey('groq')"
             style="flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid rgba(26,39,68,.15);font-size:12px;background:var(--card)"
             placeholder="gsk_...">
-          <button onclick="bkGuardarKey('groq')"
+          <button onclick="bkGuardarKey('groq',true)"
             style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:12px;color:var(--ink-xl);min-width:52px;font-weight:600">Mistral</span>
           <input id="bk-key-mistral" type="password" autocomplete="off"
+            oninput="bkGuardarKey('mistral')"
             style="flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid rgba(26,39,68,.15);font-size:12px;background:var(--card)"
             placeholder="...">
-          <button onclick="bkGuardarKey('mistral')"
+          <button onclick="bkGuardarKey('mistral',true)"
             style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:12px;color:var(--ink-xl);min-width:52px;font-weight:600">Gemini</span>
           <input id="bk-key-gemini" type="password" autocomplete="off"
+            oninput="bkGuardarKey('gemini')"
             style="flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid rgba(26,39,68,.15);font-size:12px;background:var(--card)"
             placeholder="AIza...">
-          <button onclick="bkGuardarKey('gemini')"
+          <button onclick="bkGuardarKey('gemini',true)"
             style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
@@ -6837,16 +6840,18 @@ function exportarLogIram() {
   } catch(e) { toast('Error exportando el log'); }
 }
 
-function bkGuardarKey(ia) {
+function bkGuardarKey(ia, mostrarToast) {
   const ids    = { groq:'bk-key-groq', mistral:'bk-key-mistral', gemini:'bk-key-gemini', tomtom:'bk-key-tomtom' };
-  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
+  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI, tomtom:'pyc_tomtom_key' };
   const input  = document.getElementById(ids[ia]);
   const val    = input?.value?.trim();
-  if (!val) { toast('Escribe la key primero'); return; }
-  localStorage.setItem(stores[ia], val);
-  input.value = '';
-  input.placeholder = '●●●● (guardada — escribe para cambiar)';
-  toast(`✅ Key de ${ia} guardada`);
+  if (!val) return;
+  try {
+    localStorage.setItem(stores[ia], val);
+    if (mostrarToast) toast(`✅ Key de ${ia} guardada`);
+  } catch(e) {
+    toast('⚠️ Error al guardar: ' + e.message);
+  }
 }
 function cerrarDatos() {
   document.getElementById('datos-overlay').classList.remove('open');
