@@ -6801,6 +6801,11 @@ const K_BACKUP_TS = 'pyc_ultimo_backup';
 const K_HORARIOS  = 'pyc_horarios';
 const K_FESTIVOS  = 'pyc_festivos';
 
+// API key constants — en bloque 1 para ser accesibles desde bkGuardarKey y abrirDatos
+const PYC_KEY_GROQ    = 'pyc_groq_key';
+const PYC_KEY_MISTRAL = 'pyc_mistral_key';
+const PYC_KEY_GEMINI  = 'pyc_gemini_key';
+
 /* ── Abrir / cerrar ── */
 function abrirDatos() {
   datosActualizarUI();
@@ -12777,10 +12782,8 @@ document.addEventListener('DOMContentLoaded', () => {
    ================================================================ */
 'use strict';
 
-const PYC_KEY_GROQ    = 'pyc_groq_key';
 const K_IRAM_LOG      = 'pyc_iram_log';  // Aprendizaje pasivo
 const MAX_IRAM_LOG    = 200;             // Máximo registros
-const PYC_KEY_MISTRAL = 'pyc_mistral_key';
 const K_IRAM_CLOUD    = 'pyc_iramcloud'; // Handle carpeta IramCloud
 
 /* ══════════════════════════════════════════════════════
@@ -12861,20 +12864,21 @@ function iramConfirmarWaze(parada) {
                    :                   '⚠️ Solo nombre de localidad';
 
   document.getElementById('iram-confirm-panel')?.remove();
+  window._iramWazeParada = parada; // guardado seguro sin serializar en HTML
   const panel = document.createElement('div');
   panel.id    = 'iram-confirm-panel';
   panel.style.cssText = 'position:absolute;bottom:80px;left:16px;right:16px;background:#1e1b4b;border-radius:16px;padding:16px;z-index:50;box-shadow:0 8px 32px rgba(0,0,0,.5)';
   panel.innerHTML = `
     <div style="color:#a78bfa;font-size:11px;font-weight:700;letter-spacing:.1em;margin-bottom:8px">NAVEGAR A</div>
-    <div style="color:#fff;font-weight:700;font-size:16px">${cliente}</div>
-    <div style="color:#9ca3af;font-size:13px;margin-top:2px">${dir || loc}</div>
+    <div style="color:#fff;font-weight:700;font-size:16px">${escH(cliente)}</div>
+    <div style="color:#9ca3af;font-size:13px;margin-top:2px">${escH(dir || loc)}</div>
     <div style="color:#a78bfa;font-size:11px;margin-top:6px">${tipoCoords}</div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <button onclick="document.getElementById('iram-confirm-panel').remove()"
         style="flex:1;padding:10px;border-radius:10px;border:1px solid #374151;background:transparent;color:#9ca3af;font-size:14px;cursor:pointer">
         Cancelar
       </button>
-      <button onclick="iramAbrirWazeParada(${JSON.stringify(parada).replace(/"/g,'&quot;')});document.getElementById('iram-confirm-panel').remove()"
+      <button onclick="iramAbrirWazeParada(window._iramWazeParada);document.getElementById('iram-confirm-panel').remove()"
         style="flex:2;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:14px;font-weight:700;cursor:pointer">
         🗺️ Abrir Waze
       </button>
@@ -12978,7 +12982,7 @@ function iramMostrarContactos() {
 
 
 
-const PYC_KEY_GEMINI  = 'pyc_gemini_key';
+// PYC_KEY_GEMINI declarada en bloque 1
 const PYC_HIST_MAX    = 20;
 let _pycHist        = [];
 let _pycRecognition = null;
