@@ -13727,7 +13727,7 @@ async function pycGemini(fraseOriginal) {
   const key = pycGetKey('gemini');
   if (!key) throw new Error('Sin key Gemini');
 
-  const modelo = 'gemini-2.0-flash';
+  const modelo = 'gemini-1.5-flash';
   const url    = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
 
   const hoy = new Date().toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
