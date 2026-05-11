@@ -3659,15 +3659,6 @@ body { font-size: 14px; }
             style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:12px;color:var(--ink-xl);min-width:52px;font-weight:600">Mistral</span>
-          <input id="bk-key-mistral" type="password" autocomplete="off"
-            oninput="bkGuardarKey('mistral')"
-            style="flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid rgba(26,39,68,.15);font-size:12px;background:var(--card)"
-            placeholder="...">
-          <button onclick="bkGuardarKey('mistral',true)"
-            style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:12px;color:var(--ink-xl);min-width:52px;font-weight:600">Gemini</span>
           <input id="bk-key-gemini" type="password" autocomplete="off"
             oninput="bkGuardarKey('gemini')"
@@ -6806,7 +6797,6 @@ const K_FESTIVOS  = 'pyc_festivos';
 
 // API key constants — en bloque 1 para ser accesibles desde bkGuardarKey y abrirDatos
 const PYC_KEY_GROQ    = 'pyc_groq_key';
-const PYC_KEY_MISTRAL = 'pyc_mistral_key';
 const PYC_KEY_GEMINI  = 'pyc_gemini_key';
 
 /* ── Abrir / cerrar ── */
@@ -6815,8 +6805,8 @@ function abrirDatos() {
   document.getElementById('datos-overlay').classList.add('open');
   document.getElementById('datos-sheet').classList.add('open');
   // Mostrar estado de keys (enmascarado)
-  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
-  const ids    = { groq:'bk-key-groq', mistral:'bk-key-mistral', gemini:'bk-key-gemini', tomtom:'bk-key-tomtom' };
+  const stores = { groq: PYC_KEY_GROQ, gemini: PYC_KEY_GEMINI };
+  const ids    = { groq:'bk-key-groq', gemini:'bk-key-gemini', tomtom:'bk-key-tomtom' };
   Object.entries(stores).forEach(([ia, store]) => {
     const el = document.getElementById(ids[ia]);
     if (el) el.placeholder = localStorage.getItem(store) ? '●●●● (guardada — escribe para cambiar)' : el.placeholder;
@@ -6841,8 +6831,8 @@ function exportarLogIram() {
 }
 
 function bkGuardarKey(ia, mostrarToast) {
-  const ids    = { groq:'bk-key-groq', mistral:'bk-key-mistral', gemini:'bk-key-gemini', tomtom:'bk-key-tomtom' };
-  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI, tomtom:'pyc_tomtom_key' };
+  const ids    = { groq:'bk-key-groq', gemini:'bk-key-gemini', tomtom:'bk-key-tomtom' };
+  const stores = { groq: PYC_KEY_GROQ, gemini: PYC_KEY_GEMINI, tomtom:'pyc_tomtom_key' };
   const input  = document.getElementById(ids[ia]);
   const val    = input?.value?.trim();
   if (!val) return;
@@ -13027,7 +13017,7 @@ function iramShowMode(mode) {
 
 /* ── Toggle modo local/web ── */
 function pycGetKey(ia) {
-  const stores = { groq: PYC_KEY_GROQ, mistral: PYC_KEY_MISTRAL, gemini: PYC_KEY_GEMINI };
+  const stores = { groq: PYC_KEY_GROQ, gemini: PYC_KEY_GEMINI };
   return localStorage.getItem(stores[ia] || '') || '';
 }
 
@@ -13714,6 +13704,25 @@ async function pycEnviar() {
 /* ══════════════════════════════════════════════════════
    GEMINI — búsqueda web con google_search grounding
    ══════════════════════════════════════════════════════ */
+/* ── Helper: enviar cualquier frase a Gemini ── */
+async function iramGeminiResponder(frase, msgEspera) {
+  const gemKey = pycGetKey('gemini');
+  if (!gemKey) {
+    pycMsgIA('⚠️ Configura la API key de Gemini en Datos & Backup.', false, 'local');
+    return '';
+  }
+  pycMsgIA(msgEspera || '✦ …', true, 'local');
+  try {
+    const resp = await pycGemini(frase);
+    _pycHist = _pycHist.filter(m => !m.thinking);
+    pycMsgIA(resp, false, 'gemini');
+  } catch(e) {
+    _pycHist = _pycHist.filter(m => !m.thinking);
+    pycMsgIA(`⚠️ Gemini: ${e?.message || 'error desconocido'}`, false, 'gemini');
+  }
+  return '';
+}
+
 async function pycGemini(fraseOriginal) {
   const key = pycGetKey('gemini');
   if (!key) throw new Error('Sin key Gemini');
@@ -13794,7 +13803,8 @@ CONSULTA_AVISOS — avisos de la ruta activa (pendientes/completados)
 CONSULTA_LOCALIDADES — en qué localidades hay avisos (ruta O análisis según contexto)
 ANADIR_AVISO(destino,localidad?) — añadir aviso(s) de X a la ruta. Si dice una localidad, localidad=nombre
 CREAR_RUTA(n?) — crear ruta con N avisos
-ANALIZAR_PARTES(localidad?,cliente?) — consultar TODOS los partes en análisis. Usar cuando pregunta por partes/avisos en general, qué hay en X localidad, qué hay que hacer en X cliente, dónde son los avisos de X
+ANALIZAR_PARTES(localidad?,cliente?) — consultar partes/avisos/averías en análisis. SOLO cuando pregunta por partes, averías, trabajo pendiente
+CLIENTES_LOCALIDAD(localidad?,cliente?) — listar clientes del Excel en un pueblo. Usar cuando dice "qué clientes hay en X", "qué oficinas hay en X", "cuántas oficinas en X"
 RUTA_SIN_MTO(trim?) — qué avisos de la ruta no tienen MTO
 REGISTRAR_MTO(trim,localidad?,cliente?) — SOLO con verbo explícito: "registra","marca","anota","pon","apunta". Sin verbo → usar MTO_ESTADO
 MTO_ESTADO(cliente?,localidad?,trim?) — consultar estado del MTO. Usar cuando dice "tienen el mto hecho", "está hecho el Q2", "cuál es el mto de X"
@@ -13808,24 +13818,26 @@ CREAR_EVENTO(titulo,fecha?,hora?) — evento en calendario
 CONSULTA_EVENTOS — eventos del mes
 LLAMAR(quien) — llamar a contacto
 HORARIO(cliente,localidad?) — horario de una oficina
-BUSCAR_OFICINA(codigo?,cliente?,localidad?) — identificar una oficina por código, nombre o localidad. Usar cuando pregunta "qué oficina es el 0570", "quién es el 22640", "dónde está el Cajamar de Buñol", "número de oficina del BBVA de X", "la oficina de X"
+BUSCAR_OFICINA(codigo?,cliente?,localidad?) — identificar una oficina por código, nombre o localidad. Usar cuando pregunta "qué oficina es el 0570", "quién es el 22640", "dónde está el Cajamar de Buñol", "número de oficina del BBVA de X", "la oficina de X", "qué oficina es [localidad] [cliente]"
 HISTORIAL_CLIENTE(cliente?,localidad?) — historial de visitas
 MATERIAL_PENDIENTE — material pendiente de coger
 URGENTE — urgente al inicio de la ruta
 TIEMPO — consulta el tiempo meteorológico actual
 GASOLINERA — buscar gasolineras cercanas o precio combustible
 LUGAR(tipo?) — buscar restaurantes, farmacias, supermercados cerca. tipo=restaurant/pharmacy/supermarket
-NOTICIAS(tema?) — noticias de hoy. tema=deportes/valencia/general
+NOTICIAS — noticias y titulares del día. Gemini busca directamente con la frase completa
 RESUMEN_DIA — resumen del día: completados, pendientes, tareas, eventos
 CUANTO_QUEDA — cuántos avisos o paradas quedan en la ruta
 CHAT — conversación, pregunta web, o no reconocido
 
 REGLAS CRÍTICAS:
 - REGISTRAR_MTO solo con verbos: "registra","marca","anota","pon","apunta el Q2". "tienen el Q2 hecho" → MTO_ESTADO
-- ANALIZAR_PARTES cuando pregunta por avisos/partes en análisis, averías en X sitio, trabajo en X
-- BUSCAR_OFICINA cuando pregunta por una oficina concreta, su número, código o dirección
+- ANALIZAR_PARTES cuando pregunta por avisos/partes/averías en análisis (trabajo pendiente, averías)
+- CLIENTES_LOCALIDAD cuando pregunta qué clientes u oficinas HAY en un pueblo (busca en la base de datos Excel, no en partes)
+- BUSCAR_OFICINA cuando pregunta por una oficina concreta: SIEMPRE extraer localidad Y cliente si aparecen los dos
 - AVERIAS_SIN_MTO cuando pregunta qué partes/avisos no tienen mantenimiento hecho
 - CANCELAR_EVENTO cuando dice cancelar, eliminar, borrar un evento
+- NOTICIAS solo cuando pide titulares, noticias o qué ha pasado. Preguntas sobre horarios de partidos, resultados, fichajes → CHAT
 - Si no hay verbo de acción claro → clasificar como consulta, nunca como acción
 
 EJEMPLOS:
@@ -13839,6 +13851,12 @@ EJEMPLOS:
 "registra el Q2 de Loriguilla" → {"intento":"REGISTRAR_MTO","trim":"Q2","localidad":"Loriguilla"}
 "qué hay en Moncada" → {"intento":"ANALIZAR_PARTES","localidad":"Moncada"}
 "hay algún aviso de Puerto Sagunto" → {"intento":"ANALIZAR_PARTES","localidad":"Puerto Sagunto"}
+"qué clientes hay en Almassera" → {"intento":"CLIENTES_LOCALIDAD","localidad":"Almassera"}
+"qué oficinas hay en Buñol" → {"intento":"CLIENTES_LOCALIDAD","localidad":"Buñol"}
+"cuántos Cajamar hay en Valencia" → {"intento":"CLIENTES_LOCALIDAD","cliente":"Cajamar","localidad":"Valencia"}
+"qué BBVA tengo en Sagunto" → {"intento":"CLIENTES_LOCALIDAD","cliente":"BBVA","localidad":"Sagunto"}
+"que oficina es ALMASSERA Cajamar" → {"intento":"BUSCAR_OFICINA","cliente":"Cajamar","localidad":"ALMASSERA"}
+"qué oficina es el Cajamar de Almassera" → {"intento":"BUSCAR_OFICINA","cliente":"Cajamar","localidad":"Almassera"}
 "de los avisos de análisis hay algún mantenimiento pendiente" → {"intento":"AVERIAS_SIN_MTO"}
 "qué avisos no tienen mantenimiento hecho" → {"intento":"AVERIAS_SIN_MTO"}
 "donde es la avería de Buñol" → {"intento":"ANALIZAR_PARTES","localidad":"Buñol"}
@@ -13848,13 +13866,12 @@ EJEMPLOS:
 "gasolinera más cercana" → {"intento":"GASOLINERA"}
 "dónde puedo comer cerca" → {"intento":"LUGAR","tipo":"restaurant"}
 "hay alguna farmacia cerca" → {"intento":"LUGAR","tipo":"pharmacy"}
-"noticias de hoy" → {"intento":"NOTICIAS","tema":""}
-"dime los titulares de deportes" → {"intento":"NOTICIAS","tema":"deportes"}
-"dime los titulares de hoy" → {"intento":"NOTICIAS","tema":""}
-"hay alguna noticia importante" → {"intento":"NOTICIAS","tema":""}
-"última hora" → {"intento":"NOTICIAS","tema":""}
-"qué ha pasado hoy" → {"intento":"NOTICIAS","tema":""}
-"titulares deportivos" → {"intento":"NOTICIAS","tema":"deportes"}
+"noticias de hoy" → {"intento":"NOTICIAS"}
+"dime los titulares de deportes" → {"intento":"NOTICIAS"}
+"noticias de Valencia" → {"intento":"NOTICIAS"}
+"a qué hora juega el Valencia Basket" → {"intento":"CHAT"}
+"cuándo juega el Real Madrid" → {"intento":"CHAT"}
+"resultado del partido de anoche" → {"intento":"CHAT"}
 "cómo va el día" → {"intento":"RESUMEN_DIA"}
 "cuánto me queda" → {"intento":"CUANTO_QUEDA"}
 "cancelar el evento de Buñol" → {"intento":"CANCELAR_EVENTO","titulo":"Buñol"}
@@ -14074,12 +14091,7 @@ function iramClasificar(txt) {
 
   // ── NOTICIAS ──
   if (/\b(noticias|titulares|qu[eé]\s+ha\s+pasado|[uú]ltima\s+hora|prensa|qu[eé]\s+est[aá]\s+pasando|novedades|dime\s+(los\s+)?titulares|hay\s+alguna\s+noticia|algo\s+importante\s+hoy|qu[eé]\s+pasa\s+en\s+el\s+mundo|titulares\s+deportivos|noticias\s+deportivas?)\b/i.test(raw)) {
-    const tema = /superdeporte|valenciacf|valencia\s*basket|che\b/i.test(raw)?'superdeporte'
-               : /deporte|f[uú]tbol|baloncesto|basket|liga|champion|marca\b|\bas\b|deportivo/i.test(raw)?'deportes'
-               : /valencia|levante|provincias/i.test(raw)?'valencia'
-               : /el\s*pa[íi]s|pa[íi]s\b/i.test(raw)?'pais'
-               : '';
-    return { intento:'NOTICIAS', tema };
+    return { intento:'NOTICIAS' };
   }
 
   // ── AVERIAS SIN MTO (análisis del día) ──
@@ -14370,89 +14382,14 @@ async function iramEjecutarAccion(cl) {
     return `🗑️ Evento "${ev.titulo}" eliminado.`;
   }
 
-  /* ── TIEMPO — Open-Meteo sin API key ── */
+  /* ── TIEMPO → Gemini ── */
   if (cl.intento === 'TIEMPO') {
-    const fraseOriginal = cl._txt || '';
-    const gemKey = pycGetKey('gemini');
-    pycMsgIA('🌤️ Consultando el tiempo…', false, 'local');
-
-    if (gemKey) {
-      try {
-        const resp = await pycGemini(fraseOriginal);
-        _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
-        pycMsgIA(resp, false, 'gemini');
-        return '';
-      } catch(e) { /* fallback Open-Meteo */ }
-    }
-
-    // Fallback: Open-Meteo con GPS o ciudad extraída del texto
-    const esSemana  = /semana|pr[oó]ximos\s+d[íi]as|esta\s+semana|lluver[aá]|har[aá]/i.test(fraseOriginal);
-    const mCiudad   = fraseOriginal.match(/(?:en|de|para|en\s+la\s+zona\s+de)\s+([A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
-    const ciudadTexto = mCiudad?.[1]?.trim() || '';
-
-    const consultarTiempo = async (lat, lon, nombreLugar) => {
-      try {
-        const url = esSemana
-          ? `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&timezone=auto&forecast_days=7`
-          : `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&current=temperature_2m,weathercode,windspeed_10m,precipitation&timezone=auto`;
-        const data = await fetch(url).then(r => r.json());
-        _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
-        const lugar = nombreLugar ? ` en ${nombreLugar}` : '';
-        if (esSemana) {
-          const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-          const d = data.daily;
-          const lineas = d.time.slice(0,7).map((fecha, i) => {
-            const wc = d.weathercode[i];
-            const em = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':'⛈️';
-            const dia = dias[new Date(fecha).getDay()];
-            return `${em} ${dia}: ${Math.round(d.temperature_2m_max[i])}°/${Math.round(d.temperature_2m_min[i])}°${d.precipitation_sum[i]>0?' 🌧️'+d.precipitation_sum[i]+'mm':''}`;
-          }).join('\n');
-          pycMsgIA(`🌤️ Previsión 7 días${lugar}:\n${lineas}`, false, 'local');
-        } else {
-          const c = data.current;
-          const temp = Math.round(c.temperature_2m), viento = Math.round(c.windspeed_10m);
-          const wc   = c.weathercode;
-          const emoji = wc<=1?'☀️':wc<=3?'⛅':wc<=48?'🌫️':wc<=67?'🌧️':wc<=77?'❄️':wc<=82?'🌦️':'⛈️';
-          const desc  = wc<=1?'Despejado':wc<=3?'Parcialmente nublado':wc<=48?'Niebla':wc<=55?'Llovizna':wc<=67?'Lluvia':'Tormenta';
-          const cons  = temp>25?'💦 Calor':temp<10?'🧥 Fresco':c.precipitation>0?'☂️ Lleva paraguas':'👌 Buen día';
-          pycMsgIA(`${emoji} Tiempo ahora${lugar}\n🌡️ ${temp}°C · ${desc}\n🌬️ ${viento} km/h\n${cons}`, false, 'local');
-        }
-      } catch(e) {
-        _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…');
-        pycMsgIA('⚠️ No pude obtener el tiempo. Comprueba la conexión.', false, 'local');
-      }
-    };
-
-    if (ciudadTexto) {
-      try {
-        const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(ciudadTexto+', España')}&format=json&limit=1`, {headers:{'User-Agent':'PycLibreta/1.0'}}).then(r=>r.json());
-        if (geo?.[0]) { await consultarTiempo(parseFloat(geo[0].lat), parseFloat(geo[0].lon), ciudadTexto); return ''; }
-      } catch(e) {}
-    }
-    navigator.geolocation.getCurrentPosition(
-      pos => consultarTiempo(pos.coords.latitude, pos.coords.longitude, ''),
-      () => { _pycHist = _pycHist.filter(m => m.text !== '🌤️ Consultando el tiempo…'); pycMsgIA('📍 Activa el GPS para el tiempo.', false, 'local'); }
-    );
-    return '';
+    return await iramGeminiResponder(cl._txt || '', '🌤️ Consultando el tiempo…');
   }
 
-  /* ── TRÁFICO ── */
+  /* ── TRÁFICO → Gemini ── */
   if (cl.intento === 'TRAFICO') {
-    const fraseOriginal = cl._txt || '';
-    const gemKey = pycGetKey('gemini');
-    if (gemKey) {
-      pycMsgIA('🚗 Consultando tráfico…', false, 'local');
-      try {
-        const resp = await pycGemini(fraseOriginal);
-        _pycHist = _pycHist.filter(m => m.text !== '🚗 Consultando tráfico…');
-        pycMsgIA(resp, false, 'gemini');
-      } catch(e) {
-        _pycHist = _pycHist.filter(m => m.text !== '🚗 Consultando tráfico…');
-        pycMsgIA('⚠️ No pude consultar el tráfico.', false, 'local');
-      }
-      return '';
-    }
-    return '🚗 Configura Gemini en Backup para consultar tráfico en tiempo real.';
+    return await iramGeminiResponder(cl._txt || '', '🚗 Consultando tráfico…');
   }
 
   /* ── GASOLINERA — API Ministerio Energía España ── */
@@ -14482,9 +14419,9 @@ async function iramEjecutarAccion(cl) {
         _pycHist = _pycHist.filter(m => m.text !== '⛽ Buscando gasolineras cercanas…');
         pycMsgIA('⚠️ No pude obtener gasolineras. Comprueba la conexión.', false, 'local');
       }
-    }, () => {
+    }, async () => {
       _pycHist = _pycHist.filter(m => m.text !== '⛽ Buscando gasolineras cercanas…');
-      pycMsgIA('📍 Necesito tu ubicación para buscar gasolineras.', false, 'local');
+      await iramGeminiResponder(cl._txt || 'gasolineras baratas cerca', '⛽ Buscando…');
     });
     return '';
   }
@@ -14548,92 +14485,14 @@ async function iramEjecutarAccion(cl) {
     return '';
   }
 
-  /* ── NOTICIAS — RSS ── */
+  /* ── NOTICIAS → Gemini ── */
   if (cl.intento === 'NOTICIAS') {
-    const gemKey = pycGetKey('gemini');
-    pycMsgIA('📰 Cargando noticias…', false, 'local');
-    const fraseOriginal = cl._txt || '';
-
-    if (gemKey) {
-      try {
-        const resp = await pycGemini(fraseOriginal);
-        _pycHist = _pycHist.filter(m => m.text !== '📰 Cargando noticias…');
-        pycMsgIA(resp, false, 'gemini');
-        return '';
-      } catch(e) { /* fallback RSS */ }
-    }
-
-    // Parsear RSS directo sin intermediario
-    const parseRSS = async (url) => {
-      try {
-        const xml = await fetch(url, {headers:{'User-Agent':'PycLibreta/1.0'}}).then(r=>r.text());
-        const doc = new DOMParser().parseFromString(xml, 'text/xml');
-        return [...doc.querySelectorAll('item')].slice(0,6).map(el => ({ title: el.querySelector('title')?.textContent?.replace('<![CDATA[','').replace(']]>','').trim()||'' }));
-      } catch(e) { return []; }
-    };
-    const parseProxy = async (rssUrl) => {
-      try {
-        const d = await fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(rssUrl)).then(r=>r.json());
-        return d.items?.slice(0,6)||[];
-      } catch(e) { return []; }
-    };
-
-    const temaFrase = cl.tema || fraseOriginal;
-    const cat = /superdeporte|valenciacf|valencia\s*basket|che\b/i.test(temaFrase)?'superdeporte'
-              : /deporte|f[uú]tbol|baloncesto|basket|liga|champion|marca\b|\bas\b|deportivo/i.test(temaFrase)?'deportes'
-              : /valencia|levante|provincias/i.test(temaFrase)?'valencia'
-              : /el\s*pa[íi]s|pa[íi]s\b/i.test(temaFrase)?'pais'
-              : 'general';
-
-    const labels = { superdeporte:'Superdeporte', deportes:'deportes', valencia:'Valencia', pais:'El País', general:'hoy' };
-
-    let items = [];
-    if (cat==='superdeporte') {
-      items = await parseRSS('https://www.superdeporte.es/rss/2.0/');
-      if (!items.length) items = await parseProxy('https://www.superdeporte.es/rss/2.0/');
-    } else if (cat==='deportes') {
-      items = await parseRSS('https://e00-marca.uecdn.es/rss/portada.xml');
-      if (!items.length) items = await parseProxy('https://e00-marca.uecdn.es/rss/portada.xml');
-      if (!items.length) items = await parseProxy('https://www.as.com/rss/tags/ultimas_noticias.xml');
-    } else if (cat==='valencia') {
-      items = await parseRSS('https://www.levante-emv.com/rss/section/14');
-      if (!items.length) items = await parseProxy('https://www.lasprovincias.es/rss/2.0/index.xml');
-    } else if (cat==='pais') {
-      items = await parseRSS('https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada');
-      if (!items.length) items = await parseProxy('https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada');
-    } else {
-      items = await parseRSS('https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada');
-      if (!items.length) items = await parseProxy('https://www.20minutos.es/rss/');
-    }
-
-    _pycHist = _pycHist.filter(m => m.text !== '📰 Cargando noticias…');
-    if (!items.length) { pycMsgIA('📰 No pude cargar noticias. Comprueba la conexión.', false, 'local'); return ''; }
-
-    const lista = items.map(i=>`• ${i.title}`).join('\n');
-    pycMsgIA(`📰 Titulares de ${labels[cat]}:\n${lista}`, false, 'local');
-    return '';
+    return await iramGeminiResponder(cl._txt || '', '📰 Consultando noticias…');
   }
 
-  /* ── WIKIPEDIA ── */
+  /* ── WIKIPEDIA → Gemini ── */
   if (cl.intento === 'WIKIPEDIA') {
-    const query = cl.tema || cl._txt?.replace(/qu[eé]\s+es\s+|qu[eé]\s+significa\s+|info\s+(de|sobre)\s+/i,'').trim() || '';
-    if (!query) return '🤔 ¿Sobre qué quieres información?';
-    pycMsgIA('🔍 Buscando en Wikipedia…', false, 'local');
-    try {
-      const url = `https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
-      const data = await fetch(url).then(r=>r.json());
-      _pycHist = _pycHist.filter(m => m.text !== '🔍 Buscando en Wikipedia…');
-      if (data.type === 'disambiguation' || !data.extract) {
-        pycMsgIA(`🔍 No encontré "${query}" en Wikipedia. Prueba con otro término.`, false, 'local');
-      } else {
-        const resumen = data.extract.slice(0,300).replace(/\n/g,' ');
-        pycMsgIA(`📖 ${data.title}\n${resumen}${data.extract.length>300?'…':''}`, false, 'local');
-      }
-    } catch(e) {
-      _pycHist = _pycHist.filter(m => m.text !== '🔍 Buscando en Wikipedia…');
-      pycMsgIA('⚠️ No pude acceder a Wikipedia.', false, 'local');
-    }
-    return '';
+    return await iramGeminiResponder(cl._txt || '', '🔍 Buscando información…');
   }
 
   /* ── RESUMEN DÍA ── */
@@ -14648,14 +14507,21 @@ async function iramEjecutarAccion(cl) {
     const tareasPend = tareas.filter(t=>!t.completada).length;
     const hoy      = new Date().toISOString().slice(0,10);
     const eventosHoy = eventos.filter(e=>e.fecha===hoy||e.fechaInicio===hoy);
-    let r = `📋 Resumen del día:\n`;
-    if (complet) r += `✅ ${complet} completado${complet!==1?'s':''}\n`;
-    if (pend)    r += `📍 ${pend} pendiente${pend!==1?'s':''} en ruta\n`;
-    if (anPend)  r += `📊 ${anPend} en análisis\n`;
-    if (tareasPend) r += `📌 ${tareasPend} tarea${tareasPend!==1?'s':''} pendiente${tareasPend!==1?'s':''}\n`;
-    if (eventosHoy.length) r += `📅 ${eventosHoy.map(e=>e.titulo+(e.hora?' a las '+e.hora:'')).join(', ')}\n`;
-    if (!complet && !pend && !anPend) r += `🎉 ¡Todo al día!`;
-    return r.trim();
+    let r = '';
+    if (!complet && !pend && !anPend) {
+      r = eventosHoy.length ? `🎉 Todo al día. Hoy tienes: ${eventosHoy.map(e=>e.titulo+(e.hora?' a las '+e.hora:'')).join(', ')}.` : '🎉 Todo al día. Nada pendiente.';
+    } else {
+      const partes = [];
+      if (complet && pend) partes.push(`llevas ${complet} de ${complet+pend}`);
+      else if (pend)       partes.push(`${pend} aviso${pend!==1?'s':''} pendiente${pend!==1?'s':''} en ruta`);
+      else if (complet)    partes.push(`ruta terminada (${complet} hecho${complet!==1?'s':''})`);
+      if (anPend)          partes.push(`${anPend} en análisis`);
+      if (tareasPend)      partes.push(`${tareasPend} tarea${tareasPend!==1?'s':''} pendiente${tareasPend!==1?'s':''}`);
+      r = partes.join(', ');
+      r = r.charAt(0).toUpperCase() + r.slice(1) + '.';
+      if (eventosHoy.length) r += ` Hoy también: ${eventosHoy.map(e=>e.titulo+(e.hora?' a las '+e.hora:'')).join(', ')}.`;
+    }
+    return r;
   }
 
   /* ── CUANTO QUEDA ── */
@@ -14663,12 +14529,11 @@ async function iramEjecutarAccion(cl) {
     const ruta   = loadArr(K_RUTA);
     const pend   = ruta.filter(r=>r.estado==='pendiente');
     const complet= ruta.filter(r=>r.estado==='completada');
-    if (!pend.length && !complet.length) return '📍 No tienes ruta cargada hoy.';
-    if (!pend.length) return `📍 Ruta completada ✅ Buen trabajo hoy.`;
+    if (!pend.length && !complet.length) return 'No tienes ruta cargada hoy.';
+    if (!pend.length) return `Ruta terminada — ${complet.length} hecho${complet.length!==1?'s':''}. Buen trabajo 👌`;
     const localidades = [...new Set(pend.map(p=>p.localidad).filter(Boolean))];
-    let r = `📍 Te quedan ${pend.length} aviso${pend.length!==1?'s':''} 💪\n`;
-    if (localidades.length) r += `Zonas: ${localidades.join(', ')}`;
-    return r;
+    const zonas = localidades.length ? ` por ${localidades.slice(0,3).join(', ')}${localidades.length>3?' y más':''}` : '';
+    return `Te quedan ${pend.length}${zonas}. Llevas ${complet.length} completado${complet.length!==1?'s':''}.`;
   }
 
   /* ── CONSULTA EVENTOS ── */
@@ -14841,7 +14706,35 @@ async function iramEjecutarAccion(cl) {
     const mtoV = mto?.[trim]||'';
     const mtoStr = mtoV && mtoV!=='0' ? `MTO ${trim} ✅ (${mtoV})` : `MTO ${trim} ⏳ pendiente`;
 
-    return `🏢 ${_iramOficinaActiva.cliente} · ${_iramOficinaActiva.localidad}${_iramOficinaActiva.direccion?'\n📍 '+_iramOficinaActiva.direccion:''}${_iramOficinaActiva.horario?'\n🕐 '+_iramOficinaActiva.horario:''}\n${mtoStr}`;
+    const dir = _iramOficinaActiva.direccion ? `, en ${_iramOficinaActiva.direccion}` : '';
+    const hor = _iramOficinaActiva.horario   ? `. Horario: ${_iramOficinaActiva.horario}` : '';
+    const mtoFrase = mtoV && mtoV!=='0' ? `El ${trim} está hecho (${mtoV}).` : `El ${trim} está pendiente.`;
+    return `${_iramOficinaActiva.cliente} de ${_iramOficinaActiva.localidad}${dir}${hor}. ${mtoFrase}`;
+  }
+
+  /* ── CLIENTES LOCALIDAD — busca en Excel, no en partes ── */
+  if (cl.intento === 'CLIENTES_LOCALIDAD') {
+    const excel = loadArr(K_EXCEL);
+    const nL = iramNorm(cl.localidad || '');
+    const nC = iramNorm(cl.cliente || '');
+    if (!nL && !nC) return 'Dime el pueblo o cliente que quieres buscar.';
+    const matches = excel.filter(c => {
+      const eLoc = iramNorm(c.MUNICIPIO || c.municipio || '');
+      const eCli = iramNorm(c.CLIENTE   || c.cliente   || '');
+      const matchL = !nL || eLoc.includes(nL) || nL.includes(eLoc);
+      const matchC = !nC || eCli.includes(nC);
+      return matchL && matchC;
+    });
+    if (!matches.length) return `En ${cl.localidad||cl.cliente||'esa zona'} no tengo ningún cliente en el Excel.`;
+    const lista = matches.map(c => {
+      const nom = c.CLIENTE || c.cliente || '?';
+      const cod = c.CODIGO  || c.codigo  || '';
+      const mun = c.MUNICIPIO || c.municipio || '';
+      return `• ${nom}${cod ? ' ('+cod+')' : ''}${mun && !nL ? ' · '+mun : ''}`;
+    }).join('\n');
+    const zona    = cl.localidad || cl.cliente || '';
+    const cuantos = matches.length === 1 ? 'uno solo' : `${matches.length}`;
+    return `En ${zona} tienes ${cuantos}:\n${lista}`;
   }
 
   /* ── HISTORIAL CLIENTE ── */
@@ -14864,9 +14757,12 @@ async function iramEjecutarAccion(cl) {
     }).sort((a,b) => (b.FECHA||'').localeCompare(a.FECHA||''));
     const nombre = cl.cliente||ofi?.cliente||'ese cliente';
     const loc    = cl.localidad||ofi?.localidad||'';
-    if (!visitas.length) return `🔍 Sin visitas registradas en ${nombre}${loc?' ('+loc+')':''}.`;
-    const u = visitas[0];
-    return `🔍 Última visita a ${u.CLIENTE||u.cliente} · ${u.LOCALIDAD||u.localidad||''}:\n📅 ${u.FECHA||'?'} — ${u.TRABAJO||u.trabajo||'?'}\nTotal: ${visitas.length} visita${visitas.length!==1?'s':''}`;
+    if (!visitas.length) return `No hay visitas registradas en ${nombre}${loc?' de '+loc:''}.`;
+    const u       = visitas[0];
+    const trabajo = (u.TRABAJO||u.trabajo||'sin descripción').slice(0,80);
+    const locStr  = u.LOCALIDAD||u.localidad ? ` de ${u.LOCALIDAD||u.localidad}` : '';
+    const total   = visitas.length > 1 ? ` En total llevas ${visitas.length} visitas.` : '';
+    return `La última en ${u.CLIENTE||u.cliente}${locStr} fue el ${u.FECHA||'?'} — ${trabajo}.${total}`;
   }
 
   /* ── LLAMAR ── */
@@ -14882,7 +14778,7 @@ async function iramEjecutarAccion(cl) {
     _iramUltimaAccion = { tipo:'llamar', datos: hit };
     iramDiarioAccion(`Ofrecido llamar a ${hit.NOMBRE}`);
     iramConfirmarLlamar(hit);
-    return `${hit.NOMBRE} · ${hit.TELEFONO} — pulsa para llamar.`;
+    return `${hit.NOMBRE}, teléfono ${hit.TELEFONO} — pulsa para llamar.`;
   }
 
   /* ── CONTAR AVISOS ── */
@@ -14890,8 +14786,8 @@ async function iramEjecutarAccion(cl) {
     const ruta = loadArr(K_RUTA);
     const pend = ruta.filter(r => r.estado==='pendiente').length;
     const done = ruta.filter(r => r.estado==='completada').length;
-    if (!pend) return `Sin avisos pendientes. Llevas ${done} completado${done!==1?'s':''}.`;
-    return `${pend} aviso${pend!==1?'s':''} pendiente${pend!==1?'s':''}. Llevas ${done} completado${done!==1?'s':''}.`;
+    if (!pend) return `Sin pendientes — llevas ${done} completado${done!==1?'s':''}.`;
+    return `Te quedan ${pend}, llevas ${done} completado${done!==1?'s':''}.`;
   }
 
   /* ── HORARIO ── */
@@ -14909,8 +14805,7 @@ async function iramEjecutarAccion(cl) {
     const h = cli.HORARIO || cli.horario || '';
     const n = cli.CLIENTE || cli.cliente || cliente;
     const m = cli.MUNICIPIO || cli.municipio || localidad;
-    if (!h) return `${n} en ${m} — sin horario registrado.`;
-    // Calcular si está abierto ahora
+    if (!h) return `${n} en ${m} — no tengo el horario registrado.`;
     const ahoraH = new Date().getHours();
     const ahoraM = new Date().getMinutes();
     const horaActual = ahoraH * 60 + ahoraM;
@@ -14919,9 +14814,9 @@ async function iramEjecutarAccion(cl) {
     if (mHorario) {
       const abre  = parseInt(mHorario[1])*60 + parseInt(mHorario[2]);
       const cierra= parseInt(mHorario[3])*60 + parseInt(mHorario[4]);
-      estadoStr   = horaActual >= abre && horaActual < cierra ? ' 🟢 Abierta' : ' 🔴 Cerrada';
+      estadoStr   = horaActual >= abre && horaActual < cierra ? ' — ahora está abierta.' : ' — ahora está cerrada.';
     }
-    return `🕐 ${n} · ${m}\n${h}${estadoStr}`;
+    return `${n} de ${m}: ${h}${estadoStr}`;
   }
 
   /* ── MTO ESTADO ── */
@@ -15000,7 +14895,8 @@ async function iramEjecutarAccion(cl) {
     iramDiarioAccion(`Siguiente parada: ${sig.clienteReal||sig.cliente} · ${sig.localidad||''}`);
     iramConfirmarWaze(sig);
     const cliente = sig.clienteReal || sig.clienteNorm || sig.cliente || '?';
-    return `${cliente} · ${sig.localidad||''}.`;
+    const loc     = sig.localidad ? ` en ${sig.localidad}` : '';
+    return `La siguiente es ${cliente}${loc}.`;
   }
 
   /* ── NAVEGAR ── */
@@ -15044,7 +14940,7 @@ async function iramEjecutarAccion(cl) {
       return `${ubic.nombre} — pulsa para abrir Waze.`;
     }
 
-    return `No encuentro "${cl.destino}" en la ruta ni en ubicaciones guardadas.`;
+    return `No tengo "${cl.destino}" en la ruta ni en ubicaciones guardadas.`;
   }
 
   /* ── URGENTE ── */
@@ -15057,7 +14953,7 @@ async function iramEjecutarAccion(cl) {
     save(K_RUTA, ruta);
     if (typeof renderRuta === 'function') renderRuta();
     iramDiarioAccion(`Movido urgente al inicio: ${u.clienteReal||u.cliente}`);
-    return `Urgente primero: ${u.clienteReal||u.cliente} · ${u.localidad||''}.`;
+    return `Hecho — ${u.clienteReal||u.cliente}${u.localidad?' de '+u.localidad:''} es el primero ahora.`;
   }
 
   /* ── CREAR TAREA ── */
@@ -15334,22 +15230,24 @@ async function iramEjecutarAccion(cl) {
           _iramOficinaActiva = { cliente:f.clienteReal||f.clienteNorm||f.cliente||'', codigo:f.codigo||'', localidad:f.localidad||'', direccion:f.direccion||'', horario:f.horarioTxt||'' };
         }
         const lista = filtrados.map((a,i)=>`${i+1}. ${a.clienteReal||a.clienteNorm||a.cliente} · ${a.localidad||'?'}: ${(a.trabajo||a.descripcion||'').slice(0,60)}`).join('\n');
-        return `📍 En ${por} tienes ${filtrados.length} parte${filtrados.length!==1?'s':''}:\n${lista}`;
+        const n   = filtrados.length;
+        const hay = n===1 ? 'hay uno' : `hay ${n}`;
+        return `En ${por} ${hay}:\n${lista}`;
       }
-      return `📍 No hay partes de "${por}".`;
+      return `En "${por}" no hay partes pendientes.`;
     }
 
-    if (!pend.length) return 'No hay partes cargados hoy. ✅';
+    if (!pend.length) return 'No hay partes cargados. Todo al día ✅';
     const porCliente = {};
     pend.forEach(a => { const c=a.clienteReal||a.clienteNorm||a.cliente||'?'; if(!porCliente[c])porCliente[c]=0; porCliente[c]++; });
     const urgentes = pend.filter(a=>a.urgente);
     const pci      = pend.filter(a=>a.tipo==='PCI'||a.esPCI);
     const antiguos = pend.filter(a => { if(!a.fecha)return false; const p=a.fecha.split('/'); if(p.length<3)return false; return (hoyD-new Date(p[2]+"-"+p[1]+"-"+p[0]))/86400000>14; });
-    let r = `📊 Hoy tienes ${pend.length} aviso${pend.length!==1?'s':''} en análisis.\n`;
-    r += Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(' · ');
-    if (urgentes.length) r+=`\n🚨 Urgente${urgentes.length>1?'s':''}: ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}`;
-    if (pci.length) r+=`\n🔥 PCI: ${pci.length} parte${pci.length!==1?'s':''}`;
-    if (antiguos.length) r+=`\n⚠️ ${antiguos.length} con más de 14 días`;
+    const resumen = Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c}${n>1?' ('+n+')':''}`).join(', ');
+    let r = `Hoy ${pend.length} aviso${pend.length!==1?'s':''}: ${resumen}.`;
+    if (urgentes.length) r+=`\n🚨 Urgente${urgentes.length>1?'s':''}: ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}.`;
+    if (pci.length) r+=`\n🔥 ${pci.length} de PCI.`;
+    if (antiguos.length) r+=`\n⚠️ ${antiguos.length} llevan más de 14 días.`;
     return r;
   }
 
