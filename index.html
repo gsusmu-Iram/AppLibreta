@@ -6451,8 +6451,11 @@ function guardarFinalizar() {
     'CENTRAL INCENDIO':  vals.incendio || '',
     'CONTROL ACCESO':    vals.acceso   || '',
   };
-  // Si ya existe fila con esta OT → actualizar, si no → añadir al principio
-  const idxHist = p.ot ? hist.findIndex(h => String(h.OT||h.ot||'') === p.ot) : -1;
+  // Si ya existe fila con esta OT o con el mismo KEY hoy → actualizar, si no → añadir
+  const idxHist = hist.findIndex(h => {
+    if (p.ot && (h.OT||h.ot) && String(h.OT||h.ot||'') === p.ot) return true;
+    return h.KEY === nuevaFila.KEY && h.FECHA === fecha;
+  });
   if (idxHist !== -1) {
     hist[idxHist] = nuevaFila;
   } else {
@@ -13205,6 +13208,205 @@ window.addEventListener('pagehide', () => {
    IRAM — Resumen vivo del día
    Se actualiza con cada acción importante
    ══════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════
+   GEMINI — conversación general con frase original
+   ══════════════════════════════════════════════════════ */
+async function pycGemini(fraseOriginal) {
+  const key = pycGetKey('gemini');
+  if (!key) throw new Error('Sin API key de Gemini');
+  const modelo = 'gemini-2.0-flash';
+  const url    = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
+
+  const system = `Eres IRAM, asistente de campo de Gsus, técnico de seguridad electrónica en Valencia (España).
+Responde en español, de forma breve y directa. Máximo 3-4 frases.
+No expliques quién eres ni saludos innecesarios. Ve al grano.`;
+
+  const contexto = _pycHist.filter(m => !m.thinking).slice(-4).map(m => ({
+    role: m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: m.text }]
+  }));
+
+  const body = {
+    system_instruction: { parts: [{ text: system }] },
+    contents: [
+      ...contexto,
+      { role: 'user', parts: [{ text: fraseOriginal }] }
+    ],
+    tools: [{ google_search: {} }],
+    generationConfig: { temperature: 1.0, maxOutputTokens: 400 }
+  };
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  // Si falla con el tool de búsqueda → reintentar sin él
+  if (!resp.ok && (resp.status === 400 || resp.status === 404)) {
+    delete body.tools;
+    const resp2 = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!resp2.ok) {
+      const err2 = await resp2.json().catch(()=>({}));
+      const msg2 = err2?.error?.message || '';
+      if (resp2.status === 429 || msg2.includes('quota')) throw new Error('saturado');
+      throw new Error(`Gemini ${resp2.status}${msg2?' — '+msg2.slice(0,80):''}`);
+    }
+    const data2 = await resp2.json();
+    const text2 = data2?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('').trim();
+    if (!text2) throw new Error('Gemini sin respuesta');
+    return text2;
+  }
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(()=>({}));
+    const msg = err?.error?.message || '';
+    if (resp.status === 429 || msg.includes('quota')) throw new Error('saturado');
+    throw new Error(`Gemini ${resp.status}${msg?' — '+msg.slice(0,80):''}`);
+  }
+
+  const data = await resp.json();
+  const text = data?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('').trim();
+  if (!text) throw new Error('Gemini sin respuesta');
+  return text;
+}
+
+/* ══════════════════════════════════════════════════════
+   IRAM — Enviar mensaje del chat
+   ══════════════════════════════════════════════════════ */
+async function pycEnviar() {
+  if (_pycThinking) return;
+  const ta  = document.getElementById('pyc-ta');
+  const txt = (ta?.value || '').trim();
+  if (!txt) return;
+
+  ta.value = '';
+  pycAutoResize(ta);
+  pycMsgUser(txt);
+  _pycThinking = true;
+
+  // ── Diálogo pendiente ──
+  if (_iramDialogo) {
+    const dialogo = _iramDialogo;
+    _iramDialogo  = null;
+    const mapa = {
+      CREAR_TAREA:        cl => ({ ...cl, titulo: txt }),
+      CREAR_EVENTO:       cl => ({ ...cl, titulo: txt }),
+      CREAR_EVENTO_FECHA: cl => ({ ...cl, fecha: iramFechaISO(iramNorm(txt)) }),
+      CREAR_NOTA:         cl => ({ ...cl, texto: txt }),
+    };
+    const fn = mapa[dialogo.esperando];
+    if (fn) {
+      const res = await iramEjecutarAccion(fn(dialogo.datos));
+      if (res) pycMsgIA(res, false, 'local');
+      _pycThinking = false; return;
+    }
+  }
+
+  // ── Confirmación de acción pendiente ──
+  if (/^(s[íi]|va|dale|venga|ok|claro|hazlo|llama|abre|sí|si|perfecto|adelante)$/i.test(txt) && _iramUltimaAccion) {
+    const acc = _iramUltimaAccion;
+    _iramUltimaAccion = null;
+    if (acc.tipo === 'waze' && acc.datos) {
+      iramAbrirWazeParada(acc.datos);
+      pycMsgIA('Abriendo Waze.', false, 'local');
+      _pycThinking = false; return;
+    }
+    if (acc.tipo === 'llamar' && acc.datos) {
+      iramConfirmarLlamar(acc.datos);
+      pycMsgIA(`${acc.datos.NOMBRE} · ${acc.datos.TELEFONO} — pulsa para llamar.`, false, 'local');
+      _pycThinking = false; return;
+    }
+    if (acc.tipo === 'registrar_mto' && acc.datos) {
+      const { paradas, trim } = acc.datos;
+      const mtoMan   = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
+      const fechaStr = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
+      paradas.forEach(p => {
+        const clave = iramMtoKey(p.cliente||p.clienteReal||'', p.codigo||'', p.loc||p.localidad||'');
+        if (!mtoMan[clave]) mtoMan[clave] = {};
+        mtoMan[clave][trim] = fechaStr;
+      });
+      localStorage.setItem('pyc_mto_manual', JSON.stringify(mtoMan));
+      if (typeof renderMTO === 'function') renderMTO();
+      pycMsgIA(`✅ MTO ${trim} registrado — ${paradas.map(p=>`${p.cliente||p.clienteReal} · ${p.loc||p.localidad||''}`).join(', ')}.`, false, 'local');
+      _pycThinking = false; return;
+    }
+    if (acc.tipo === 'anadir_aviso' && acc.datos) {
+      const { partes } = acc.datos;
+      const rutaAct  = loadArr(K_RUTA);
+      const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+      partes.forEach(a => { a.enRuta = true; });
+      localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
+      partes.forEach(a => {
+        rutaAct.push({ id:'R_'+Date.now()+'_'+Math.random().toString(36).slice(2), clienteReal:a.clienteReal||a.clienteNorm||a.cliente, clienteNorm:a.clienteNorm||a.cliente, cliente:a.cliente, codigo:a.codigo||'', localidad:a.localidad||'', direccion:a.direccion||'', trabajo:a.trabajo||a.descripcion||'', horarioTxt:a.horarioTxt||'', urgente:a.urgente||false, estado:'pendiente' });
+      });
+      save(K_RUTA, rutaAct);
+      if (typeof renderRuta === 'function') renderRuta();
+      pycMsgIA(`✅ ${partes.length} aviso${partes.length>1?'s':''} añadidos a la ruta.`, false, 'local');
+      _pycThinking = false; return;
+    }
+  }
+
+  try {
+    // 1. Clasificador local (regex puro, sin red)
+    let cl = iramClasificar(txt);
+    cl._txt = txt;
+
+    // 2. Si local reconoció intent pero faltan datos clave → Groq rellena campos
+    const necesitaGroq = cl.intento !== 'CHAT' && !cl.cliente && !cl.localidad && !cl.codigo && !cl.trim &&
+      ['REGISTRAR_MTO','HISTORIAL_CLIENTE','MTO_ESTADO','CONSULTA_TRABAJO','HORARIO','BUSCAR_OFICINA'].includes(cl.intento);
+
+    if (necesitaGroq || cl.intento === 'CHAT') {
+      const clIA = await iramClasificarIA(txt).catch(() => null);
+      if (clIA && clIA.intento && clIA.intento !== 'CHAT') {
+        const limpiar = s => (s||'').replace(/\bcrea[r]?\s+un[ao]?\s+(tarea|evento|nota)\b/gi,'').replace(/\s+/g,' ').trim();
+        if (clIA.intento === 'CREAR_TAREA')  { if (clIA.titulo) clIA.titulo = limpiar(clIA.titulo); if (clIA.fecha) clIA.fecha = iramFechaISO(iramNorm(clIA.fecha)); }
+        if (clIA.intento === 'CREAR_EVENTO') { if (clIA.titulo) clIA.titulo = limpiar(clIA.titulo); if (clIA.fecha) clIA.fecha = iramFechaISO(iramNorm(clIA.fecha)); }
+        if (clIA.intento === 'CREAR_NOTA' && clIA.texto) clIA.texto = clIA.texto.replace(/\bcrea[r]?\s+una?\s+nota\b/gi,'').replace(/\s+/g,' ').trim();
+        cl = { ...cl, ...clIA, _txt: txt };
+      }
+    }
+
+    // 3. Ejecutar intent local
+    if (cl.intento !== 'CHAT') {
+      const resultado = await iramEjecutarAccion(cl);
+      if (resultado === '') { _pycThinking = false; return; }
+      if (resultado) {
+        pycMsgIA(resultado, false, 'local');
+        _pycThinking = false; return;
+      }
+    }
+
+    // 4. Todo lo que no es local → Gemini recibe la frase ORIGINAL sin tocar
+    if (pycGetKey('gemini')) {
+      pycMsgIA('✦ …', true, 'local');
+      try {
+        const respGem = await pycGemini(txt);
+        _pycHist = _pycHist.filter(m => !m.thinking);
+        pycMsgIA(respGem, false, 'gemini');
+      } catch(eGem) {
+        _pycHist = _pycHist.filter(m => !m.thinking);
+        pycMsgIA(`⚠️ Gemini: ${eGem?.message || 'error desconocido'}`, false, 'gemini');
+      }
+      _pycThinking = false; return;
+    }
+
+    pycMsgIA('🤔 No he entendido. Sin conexión a Gemini para preguntas generales.', false, 'local');
+
+  } catch(e) {
+    console.error('IRAM error:', e?.message, e?.stack);
+    pycMsgIA(`⚠️ Error: ${e?.message || 'desconocido'}`, false, 'local');
+  } finally {
+    _pycThinking = false;
+  }
+}
+
+
 
 /* ══════════════════════════════════════════════════════
    IRAM — Última acción propuesta (para resolver "sí"/"va")
