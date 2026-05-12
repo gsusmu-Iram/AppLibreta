@@ -3667,16 +3667,6 @@ body { font-size: 14px; }
           <button onclick="bkGuardarKey('gemini',true)"
             style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-          <span style="font-size:12px;font-weight:600;color:var(--ink-mid);min-width:52px">TomTom</span>
-          <input id="bk-key-tomtom" type="password" autocomplete="off"
-            placeholder="●●●● (escribe para guardar)"
-            oninput="bkGuardarKey('tomtom')"
-            style="flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid rgba(26,39,68,.15);font-size:12px;background:var(--card)">
-          <span id="kcheck-tomtom" style="font-size:14px"></span>
-          <button onclick="bkGuardarKey('tomtom')"
-            style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">✓</button>
-        </div>
       </div>
       <div style="font-size:10px;color:var(--ink-xl);margin-top:6px;opacity:.6">Se guardan solo en tu móvil</div>
     </div>
@@ -5753,50 +5743,6 @@ function getSys(s) {
   return '<span class="sys-tag sys-seg">🔒 SEG</span>';
 }
 
-async function consultarTrafico(idParada, localidad, direccion, btn) {
-  const key = pycGetKey('tomtom');
-  if (!key) { toast('⚠️ Configura la API key de TomTom en Backup'); return; }
-
-  const orig = btn.textContent;
-  btn.textContent = '⏳'; btn.disabled = true;
-
-  try {
-    // Geocodificar destino
-    const destQuery = [direccion, localidad, 'España'].filter(Boolean).join(', ');
-    const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(destQuery)}&format=json&limit=1`, { headers:{'User-Agent':'PycLibreta/1.0'} }).then(r=>r.json());
-    if (!geo?.[0]) { toast('📍 No encontré la dirección de destino'); return; }
-    const destLat = parseFloat(geo[0].lat);
-    const destLon = parseFloat(geo[0].lon);
-
-    // GPS actual
-    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout:8000 }));
-    const { latitude: origLat, longitude: origLon } = pos.coords;
-
-    // TomTom Routing API
-    const url = `https://api.tomtom.com/routing/1/calculateRoute/${origLat},${origLon}:${destLat},${destLon}/json?key=${key}&traffic=true&language=es-ES`;
-    const data = await fetch(url).then(r=>r.json());
-    const ruta  = data.routes?.[0];
-    if (!ruta) { toast('No pude calcular la ruta'); return; }
-
-    const seg  = ruta.summary.travelTimeInSeconds;
-    const dem  = ruta.summary.trafficDelayInSeconds;
-    const dist = (ruta.summary.lengthInMeters / 1000).toFixed(1);
-    const min  = Math.round(seg / 60);
-    const demMin = Math.round(dem / 60);
-
-    const trafico = demMin > 3 ? `🔴 +${demMin}min por tráfico` : demMin > 0 ? `🟡 +${demMin}min` : '🟢 Sin retenciones';
-    const el = document.getElementById(`tiempo-${idParada}`);
-    if (el) {
-      el.innerHTML = `<div style="font-size:11px;color:var(--ink-mid);margin-top:4px">🚗 ${min}min · ${dist}km · ${trafico}</div>`;
-    }
-    toast(`🚗 ${min}min · ${dist}km · ${trafico}`);
-  } catch(e) {
-    toast('⚠️ Error consultando tráfico');
-  } finally {
-    btn.textContent = orig; btn.disabled = false;
-  }
-}
-
 function navWaze(dir, loc) {
   const q = encodeURIComponent((dir||'') + ' ' + (loc||''));
   window.open('https://waze.com/ul?q=' + q + '&navigate=yes', '_blank');
@@ -5923,14 +5869,9 @@ function renderLista() {
         <div class="expand-inner">
           <div class="expand-addr">📍 ${dir}</div>
           ${p.aviso ? `<div class="expand-aviso">${p.aviso}</div>` : ''}
-          ${!esActiva ? `<div id="tiempo-${p.id}" class="expand-tiempo"></div>` : ''}
           <div class="expand-actions">
             <button class="btn-waze" style="flex:1" onclick="navWaze('${p.direccion}','${p.localidad}')">👻 Waze</button>
             <button class="btn-maps" style="flex:1" onclick="navMaps('${p.direccion}','${p.localidad}')">📍 Maps</button>
-            <button onclick="consultarTrafico('${p.id}','${escQ(p.localidad||'')}','${escQ(p.direccion||'')}',this)"
-              style="flex:0 0 auto;background:#1a2744;border:none;border-radius:var(--r-pill);
-                     padding:10px 11px;font-size:13px;font-weight:800;color:white;
-                     cursor:pointer;-webkit-tap-highlight-color:transparent" title="Ver tráfico">🚗</button>
             <button onclick="abrirFinalizarPara('${p.id}')"
               style="flex:1;background:var(--ok);border:none;border-radius:var(--r-pill);
                      padding:10px;font-size:12px;font-weight:800;color:white;
@@ -6808,7 +6749,7 @@ function abrirDatos() {
   document.getElementById('datos-sheet').classList.add('open');
   // Mostrar estado de keys (enmascarado)
   const stores = { groq: PYC_KEY_GROQ, gemini: PYC_KEY_GEMINI };
-  const ids    = { groq:'bk-key-groq', gemini:'bk-key-gemini', tomtom:'bk-key-tomtom' };
+  const ids    = { groq:'bk-key-groq', gemini:'bk-key-gemini' };
   Object.entries(stores).forEach(([ia, store]) => {
     const el = document.getElementById(ids[ia]);
     if (el) el.placeholder = localStorage.getItem(store) ? '●●●● (guardada — escribe para cambiar)' : el.placeholder;
@@ -6833,8 +6774,8 @@ function exportarLogIram() {
 }
 
 function bkGuardarKey(ia, mostrarToast) {
-  const ids    = { groq:'bk-key-groq', gemini:'bk-key-gemini', tomtom:'bk-key-tomtom' };
-  const stores = { groq: PYC_KEY_GROQ, gemini: PYC_KEY_GEMINI, tomtom:'pyc_tomtom_key' };
+  const ids    = { groq:'bk-key-groq', gemini:'bk-key-gemini' };
+  const stores = { groq: PYC_KEY_GROQ, gemini: PYC_KEY_GEMINI };
   const input  = document.getElementById(ids[ia]);
   const val    = input?.value?.trim();
   if (!val) return;
@@ -12796,6 +12737,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="drive-next-alerta" id="drive-next-alerta" style="display:none"></div>
       </div>
 
+      <!-- Lista compacta del resto de la ruta -->
+      <div id="drive-lista" style="display:none;background:rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;margin-top:4px"></div>
+
       <!-- Acciones -->
       <div class="drive-actions">
         <div class="drive-action" onclick="iramWaze()">
@@ -13210,6 +13154,23 @@ function iramRellenarDrive() {
       setText('drive-next-dir', '');
       setText('drive-next-work', '');
     }
+
+    // Lista compacta del resto (a partir del segundo pendiente)
+    const listaEl = document.getElementById('drive-lista');
+    if (listaEl) {
+      const resto = pend.slice(1);
+      if (!resto.length) { listaEl.style.display = 'none'; return; }
+      listaEl.style.display = 'block';
+      listaEl.innerHTML = `<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.08em;margin-bottom:6px">RUTA (${resto.length} más)</div>` +
+        resto.map(p => {
+          const cli = p.clienteReal || p.cliente || '?';
+          const loc = p.localidad || '';
+          const urg = p.urgente ? '🚨 ' : '';
+          return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-top:1px solid rgba(255,255,255,.07);font-size:12px;color:rgba(255,255,255,.75)">
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${urg}${cli} · ${loc}</span>
+          </div>`;
+        }).join('');
+    }
   } catch(e) {}
 }
 
@@ -13415,8 +13376,8 @@ async function pycEnviar() {
     const dialogo = _iramDialogo;
     _iramDialogo  = null;
     const mapa = {
-      CREAR_TAREA:        cl => ({ ...cl, titulo: txt }),
-      CREAR_EVENTO:       cl => ({ ...cl, titulo: txt }),
+      CREAR_TAREA:        cl => ({ ...cl, titulo: txt.replace(/\bpara\s+(hoy|ma[ñn]ana|el?\s+\w+)\b/gi,'').replace(/\s+/g,' ').trim(), fecha: cl.fecha || iramFechaISO(iramNorm(txt)) || '' }),
+      CREAR_EVENTO:       cl => ({ ...cl, titulo: txt.replace(/\ba\s+las?\s+[\w\s]+\b/gi,'').replace(/\bpara\s+(hoy|ma[ñn]ana|el?\s+\w+)\b/gi,'').replace(/\s+/g,' ').trim(), hora: iramHoraStr(txt) || cl.hora, fecha: cl.fecha || iramFechaISO(iramNorm(txt)) || '' }),
       CREAR_EVENTO_FECHA: cl => ({ ...cl, fecha: iramFechaISO(iramNorm(txt)) }),
       CREAR_NOTA:         cl => ({ ...cl, texto: txt }),
     };
@@ -13529,8 +13490,93 @@ async function pycEnviar() {
 
 
 /* ══════════════════════════════════════════════════════
-   IRAM — Última acción propuesta (para resolver "sí"/"va")
+   HORARIO — Parser real (L-V = rango, L-X-V = días concretos)
    ══════════════════════════════════════════════════════ */
+const _HOR_LETRA = { 'L':1,'M':2,'X':3,'J':4,'V':5,'S':6,'D':0 };
+const _HOR_NOMBRE = { 'L':'lunes','M':'martes','X':'miércoles','J':'jueves','V':'viernes','S':'sábado','D':'domingo' };
+
+// Devuelve Set con getDay() de los días que abre según el bloque "L-V" o "L-X-V"
+function _parsearDias(bloque) {
+  const letras = bloque.split('-').map(l => l.trim().toUpperCase()).filter(l => _HOR_LETRA[l] !== undefined);
+  if (!letras.length) return new Set();
+  if (letras.length === 2) {
+    // Dos letras → rango L-V, S-D, etc.
+    const desde = _HOR_LETRA[letras[0]];
+    const hasta  = _HOR_LETRA[letras[1]];
+    const SEQ   = [1,2,3,4,5,6,0]; // Lun→Dom
+    const result = new Set();
+    let i = SEQ.indexOf(desde);
+    for (let n = 0; n <= 6; n++) {
+      result.add(SEQ[i % 7]);
+      if (SEQ[i % 7] === hasta) break;
+      i++;
+    }
+    return result;
+  }
+  // Más de 2 letras → días individuales
+  return new Set(letras.map(l => _HOR_LETRA[l]));
+}
+
+// Verbaliza un bloque de días para el chat / TTS
+function _verbalizarDias(bloque) {
+  const letras = bloque.split('-').map(l => l.trim().toUpperCase()).filter(l => _HOR_LETRA[l] !== undefined);
+  if (letras.length === 2 && _parsearDias(bloque).size > 2) {
+    return `de ${_HOR_NOMBRE[letras[0]]} a ${_HOR_NOMBRE[letras[1]]}`;
+  }
+  const nombres = letras.map(l => _HOR_NOMBRE[l]).filter(Boolean);
+  if (nombres.length === 1) return `los ${nombres[0]}`;
+  return nombres.slice(0,-1).join(', ') + ' y ' + nombres.slice(-1)[0];
+}
+
+// Verbaliza horas "08:30-14:00" → "de 8:30 a 14:00"
+function _verbalizarHoras(horasStr) {
+  const m = horasStr.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+  if (!m) return horasStr;
+  const fmt = (h, min) => `${parseInt(h)}${min!=='00'?':'+min:''}`;
+  return `de ${fmt(m[1],m[2])} a ${fmt(m[3],m[4])}`;
+}
+
+// Convierte el string completo a texto natural: "L-V 08:30-14:00 / S 09:00-13:00"
+function verbalizarHorario(horStr) {
+  if (!horStr) return '';
+  return horStr.split(/\s*[\/|]\s*/).map(periodo => {
+    const partes = periodo.trim().split(/\s+/);
+    const dias   = partes[0];
+    const horas  = partes.slice(1).join(' ');
+    const dVerb  = _verbalizarDias(dias);
+    const hVerb  = horas ? ', ' + _verbalizarHoras(horas) : '';
+    return dVerb + hVerb;
+  }).join('; ');
+}
+
+// Comprueba si el horario incluye un día concreto (getDay())
+function horarioAbreDia(horStr, diaGetDay) {
+  if (!horStr) return null; // desconocido
+  for (const periodo of horStr.split(/\s*[\/|]\s*/)) {
+    const bloqDias = periodo.trim().split(/\s+/)[0];
+    const dias = _parsearDias(bloqDias);
+    if (dias.has(diaGetDay)) {
+      // Extraer horas
+      const mH = periodo.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+      return { abre: true, horas: mH ? `${_verbalizarHoras(mH[0])}` : '' };
+    }
+  }
+  return { abre: false, horas: '' };
+}
+
+// Comprueba si ahora mismo está abierto
+function horarioAbreAhora(horStr) {
+  const ahora = new Date();
+  const info  = horarioAbreDia(horStr, ahora.getDay());
+  if (!info?.abre) return false;
+  // Comprobar horas
+  const mH = horStr.split(/\s*[\/|]\s*/).map(p => p.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/)).find(m=>m);
+  if (!mH) return true; // abre ese día pero sin horas especificadas
+  const hAct = ahora.getHours()*60 + ahora.getMinutes();
+  return hAct >= parseInt(mH[1])*60+parseInt(mH[2]) && hAct < parseInt(mH[3])*60+parseInt(mH[4]);
+}
+
+
 let _iramDialogo = null; // { esperando: 'CREAR_TAREA', datos: {} }
 let _iramUltimaAccion = null;
 let _iramOficinaActiva = null; // { cliente, codigo, localidad, direccion } — contexto persistente
@@ -13687,8 +13733,26 @@ function iramFechaISO(t) {
 function iramHoraStr(txt) {
   const m1 = txt.match(/\b(\d{1,2}):(\d{2})\b/);
   if (m1) return `${m1[1].padStart(2,'0')}:${m1[2]}`;
-  const m2 = txt.match(/\ba\s+las?\s+(\d{1,2})\b/i);
-  if (m2) return `${m2[1].padStart(2,'0')}:00`;
+  const m2 = txt.match(/\ba\s+las?\s+(\d{1,2})(?:\s+(?:y\s+)?(?:media|cuarto|menos\s+cuarto))?\b/i);
+  if (m2) {
+    const h = m2[1].padStart(2,'0');
+    const resto = m2[0].toLowerCase();
+    if (resto.includes('media')) return `${h}:30`;
+    if (resto.includes('cuarto') && !resto.includes('menos')) return `${h}:15`;
+    if (resto.includes('menos cuarto')) return `${String(parseInt(m2[1])-1).padStart(2,'0')}:45`;
+    return `${h}:00`;
+  }
+  // Horas en texto: "a las tres", "a las ocho y media"
+  const HORAS = {'una':'1','dos':'2','tres':'3','cuatro':'4','cinco':'5','seis':'6',
+                 'siete':'7','ocho':'8','nueve':'9','diez':'10','once':'11','doce':'12',
+                 'trece':'13','catorce':'14','quince':'15'};
+  const m3 = txt.match(/\ba\s+las?\s+(una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince)(?:\s+(y\s+media|y\s+cuarto|menos\s+cuarto))?\b/i);
+  if (m3) {
+    const h = HORAS[m3[1].toLowerCase()] || '0';
+    if (m3[2]?.includes('media')) return h.padStart(2,'0') + ':30';
+    if (m3[2]?.includes('cuarto')) return h.padStart(2,'0') + ':15';
+    return h.padStart(2,'0') + ':00';
+  }
   return '';
 }
 
@@ -13966,7 +14030,7 @@ function iramClasificar(txt) {
       .replace(/\b(crea[r]?\s+(?:una?\s+)?tarea|a[ñn]ade?\s+(?:una?\s+)?tarea)\b/gi,'')
       .replace(/\bpara\s+(hoy|ma[ñn]ana|el\s+\w+)\b/gi,'')
       .replace(/\s+/g,' ').trim();
-    if (!titulo) return { intento:'CHAT' };
+    // Aunque el título esté vacío devolvemos el intent — el handler pedirá el título
     return { intento:'CREAR_TAREA', titulo, fecha };
   }
 
@@ -14521,28 +14585,29 @@ async function iramEjecutarAccion(cl) {
     if (!horario) return `${nombre}: sin horario guardado.`;
     // Si pregunta por un día específico
     if (cl.dia) {
-      const diaRef = cl.dia === 'mañana' ? new Date(new Date().setDate(new Date().getDate()+1)) : new Date();
-      if (cl.dia !== 'hoy' && cl.dia !== 'mañana') {
-        const idx = _DIAS_IDX[iramNorm(cl.dia)];
-        if (idx !== undefined) { diaRef.setDate(diaRef.getDate() + (idx - diaRef.getDay() + 7) % 7); }
+      const diaRef = new Date();
+      if (cl.dia === 'mañana') {
+        diaRef.setDate(diaRef.getDate()+1);
+      } else if (cl.dia !== 'hoy') {
+        const idx = _HOR_LETRA[iramNorm(cl.dia).slice(0,1).toUpperCase()] ??
+                    Object.entries(_HOR_NOMBRE).find(([,v])=>v===iramNorm(cl.dia))?.[0];
+        if (idx !== undefined) {
+          const hoy = diaRef.getDay();
+          const diff = ((idx - hoy + 7) % 7) || 7;
+          diaRef.setDate(diaRef.getDate() + diff);
+        }
       }
-      const diaNom  = diaRef.toLocaleDateString('es-ES',{weekday:'long'});
-      const mapaDia = {0:'D',1:'L',2:'M',3:'X',4:'J',5:'V',6:'S'};
-      const letraDia= mapaDia[diaRef.getDay()];
-      const abre    = horario.includes(letraDia) || /todo\s+el\s+d[ií]a|24h|L-D|L-S/i.test(horario);
-      return `${nombre} el ${diaNom}: ${abre ? 'sí abre' : 'no abre'}. Horario: ${horario}.`;
+      const info   = horarioAbreDia(horario, diaRef.getDay());
+      const diaNom = diaRef.toLocaleDateString('es-ES',{weekday:'long'});
+      if (!info) return `${nombre}: no tengo datos de horario suficientes.`;
+      if (info.abre) return `${nombre} el ${diaNom} sí abre ${info.horas}.`;
+      return `${nombre} el ${diaNom} no abre. Horario: ${verbalizarHorario(horario)}.`;
     }
-    // Sin día → horario normal con estado actual
-    const ahora = new Date();
-    const hora  = ahora.getHours() * 60 + ahora.getMinutes();
-    const mH    = horario.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
-    let estado  = '';
-    if (mH) {
-      const abre  = parseInt(mH[1])*60+parseInt(mH[2]);
-      const cierra= parseInt(mH[3])*60+parseInt(mH[4]);
-      estado = hora >= abre && hora < cierra ? '— ahora está abierta' : '— ahora está cerrada';
-    }
-    return `${nombre}: ${horario} ${estado}.`;
+    // Sin día → horario verbalizado + estado actual
+    const horVerb = verbalizarHorario(horario);
+    const abierta = horarioAbreAhora(horario);
+    const estado  = abierta ? '— ahora está abierta' : '— ahora está cerrada';
+    return `${nombre}: ${horVerb} ${estado}.`;
   }
 
   /* ── MTO ESTADO ── */
@@ -15345,20 +15410,34 @@ function pycHablar(txt) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
 
-  // Limpiar texto — quitar emojis y caracteres especiales que confunden TTS
+  // Limpiar texto para TTS
   const limpio = txt
-    .replace(/[☀️⛅🌧️🌫️❄️🌦️⛈️🌡️🌬️☂️💦🧥👌🔧📊📍🏢🔍📅📌⚠️🚨🔥✅⏳🗑️📰⛽🍽️💊🛒]/gu, '')
+    // Asteriscos: ***texto*** → texto, *** → nada
+    .replace(/\*+([^*]+)\*+/g, '$1')
+    .replace(/\*+/g, '')
+    // Almohadillas como viñetas (#Etiqueta → nada, ## → nada)
+    .replace(/#\w+/g, '')
+    .replace(/#+/g, '')
+    // Caracteres de puntuación/formato que TTS lee mal
+    .replace(/[·—→←↑↓►▶▸]/g, ', ')
+    .replace(/[_~`|\\]/g, ' ')
+    // Emojis y símbolos especiales
+    .replace(/[\u{1F300}-\u{1FFFF}]/gu, '')
+    .replace(/[☀⛅❄⛈⚠✅❌🔧📊📍🏢🔍📅📌🚨🔥⏳📰⛽✓✗]/g, '')
+    // Números de teléfono/OT muy largos — el TTS los lee cifra a cifra
+    .replace(/\b\d{9,}\b/g, m => m.slice(0,6)+'...')
+    // Espacios múltiples
     .replace(/\s+/g, ' ')
     .trim();
 
   if (!limpio) return;
 
-  // Dividir en trozos por puntuación — máx 180 chars cada uno
+  // Dividir en trozos por puntuación — máx 250 chars para menos cortes en móvil
   const trozos = [];
   const partes = limpio.split(/(?<=[.!?·\n])\s*/);
   let actual = '';
   for (const parte of partes) {
-    if ((actual + parte).length > 180) {
+    if ((actual + parte).length > 250) {
       if (actual) trozos.push(actual.trim());
       actual = parte;
     } else {
@@ -15366,7 +15445,6 @@ function pycHablar(txt) {
     }
   }
   if (actual.trim()) trozos.push(actual.trim());
-
   if (!trozos.length) return;
 
   _pycHablando = true;
@@ -15379,6 +15457,11 @@ function pycHablar(txt) {
     u.onend = hablarTrozo;
     u.onerror = () => { _pycHablando = false; };
     window.speechSynthesis.speak(u);
+    // Fallback por si onend no dispara en móvil (iOS bug conocido)
+    const duracionEstimada = Math.max(2000, (u.text.length / 10) * 1000 / u.rate);
+    setTimeout(() => {
+      if (idx <= trozos.length && !window.speechSynthesis.speaking) hablarTrozo();
+    }, duracionEstimada + 500);
   };
 
   hablarTrozo();
