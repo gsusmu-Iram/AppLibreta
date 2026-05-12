@@ -9898,7 +9898,7 @@ function mostrarContactos() {
   const contactos = loadArr('pyc_contactos');
   document.getElementById('buscar-empty').classList.add('hidden');
   const res = document.getElementById('buscar-results');
-  res.classList.add('vis'); // sin esto el div queda display:none
+  res.classList.add('vis');
 
   const categorias = {};
   contactos.forEach(c => {
@@ -9907,9 +9907,10 @@ function mostrarContactos() {
     categorias[cat].push(c);
   });
 
-  let html = `<div style="padding:12px 0">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div style="font-size:13px;font-weight:700;color:var(--ink)">📞 Contactos (${contactos.length})</div>
+  let html = `<div style="padding:4px 0 12px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <button onclick="clearSearch()" style="background:none;border:none;color:var(--accent);font-size:13px;font-weight:700;cursor:pointer;padding:4px 0;font-family:inherit">← Volver</button>
+      <div style="flex:1;font-size:13px;font-weight:700;color:var(--ink)">📞 Contactos (${contactos.length})</div>
       <button onclick="abrirNuevoContacto()" style="padding:6px 14px;border-radius:20px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">+ Nuevo</button>
     </div>`;
 
@@ -13707,7 +13708,7 @@ NO inventes. NO des resúmenes genéricos. DA datos específicos y reales.`;
       }
       return turns;
     })(),
-    tools: [{ google_search: {} }],
+    tools: [{ googleSearch: {} }],
     generationConfig: { temperature: 1.0, maxOutputTokens: 400 }
   };
 
@@ -13779,7 +13780,8 @@ REGLAS CRÍTICAS:
 - CONSULTA_TRABAJO cuando pregunta qué hacer en una oficina concreta: extraer SIEMPRE cliente Y localidad si aparecen
 - BUSCAR_OFICINA: extraer siempre cliente Y localidad si aparecen los dos
 - ANALIZAR_PARTES cuando pregunta por avisos/partes en análisis (sin cliente/localidad concreto)
-- CHAT para: tiempo, noticias, tráfico, Wikipedia, preguntas generales
+- LUGAR SOLO para encontrar un negocio FÍSICO AHORA: farmacia, restaurante, supermercado. "hay mercado los miércoles", "dónde hay mercado" → CHAT (Gemini sabe)
+- CHAT para: tiempo, noticias, tráfico, Wikipedia, preguntas generales, mercados
 
 EJEMPLOS:
 "finaliza, Q2 hecho, se cambia batería" → {"intento":"COMPLETAR_AVISO","trabajo":"se cambia batería","mto":"Q2"}
@@ -13866,8 +13868,19 @@ function iramFechaISO(t) {
     const d = new Date(hoy); d.setDate(d.getDate()+2);
     return d.toISOString().slice(0,10);
   }
+  if (/\bayer\b/.test(t)) {
+    const d = new Date(hoy); d.setDate(d.getDate()-1);
+    return d.toISOString().slice(0,10);
+  }
+  if (/\bsemana\s+pasada\b/.test(t)) {
+    // Mitad de la semana pasada (miércoles anterior)
+    const d = new Date(hoy);
+    const diaSemana = d.getDay() || 7; // 1=lun…7=dom
+    d.setDate(d.getDate() - diaSemana - 4); // miércoles semana pasada
+    return d.toISOString().slice(0,10);
+  }
 
-  // Fechas con día y mes explícitos: "2 de mayo", "el 15 de junio", "15/05", "15-05"
+  // Fechas con día y mes explícitos: "2 de mayo", "el 15 de junio"
   const MESES = {
     enero:1, febrero:2, marzo:3, abril:4, mayo:5, junio:6,
     julio:7, agosto:8, septiembre:9, octubre:10, noviembre:11, diciembre:12,
@@ -13877,15 +13890,11 @@ function iramFechaISO(t) {
   const mDiaMes = t.match(/\b(\d{1,2})\s+de\s+([a-záéíóú]+)/i);
   if (mDiaMes) {
     const dia = parseInt(mDiaMes[1]);
-    const mesNom = mDiaMes[2].toLowerCase();
-    const mes = MESES[mesNom];
+    const mes = MESES[mDiaMes[2].toLowerCase()];
     if (mes && dia >= 1 && dia <= 31) {
       const anyo = hoy.getFullYear();
       const fecha = new Date(anyo, mes-1, dia);
-      // Si la fecha ya pasó este año, usar el año siguiente
-      if (fecha < hoy && fecha.getMonth() !== hoy.getMonth()) {
-        fecha.setFullYear(anyo+1);
-      }
+      if (fecha < hoy && fecha.getMonth() !== hoy.getMonth()) fecha.setFullYear(anyo+1);
       return fecha.toISOString().slice(0,10);
     }
   }
@@ -13893,23 +13902,27 @@ function iramFechaISO(t) {
   // Formato numérico: "15/05", "15-05"
   const mNum = t.match(/\b(\d{1,2})[\/\-](\d{1,2})\b/);
   if (mNum) {
-    const dia = parseInt(mNum[1]);
-    const mes = parseInt(mNum[2]);
+    const dia = parseInt(mNum[1]), mes = parseInt(mNum[2]);
     if (mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) {
-      const anyo = hoy.getFullYear();
-      const fecha = new Date(anyo, mes-1, dia);
-      if (fecha < hoy) fecha.setFullYear(anyo+1);
+      const fecha = new Date(hoy.getFullYear(), mes-1, dia);
+      if (fecha < hoy) fecha.setFullYear(hoy.getFullYear()+1);
       return fecha.toISOString().slice(0,10);
     }
   }
 
-  // Días de la semana
+  // Días de la semana — detectar "pasado/último/anterior" → ir hacia atrás
+  const esPasado = /\b(pasado|[uú]ltimo|anterior)\b/i.test(t);
   for (const [dia, idx] of Object.entries(_DIAS_IDX)) {
     const re = new RegExp(`(pr[oó]ximo\\s+)?\\b${dia}\\b`);
     if (re.test(t)) {
       const d = new Date(hoy);
       let diff = (idx - d.getDay() + 7) % 7;
-      if (diff === 0) diff = 7;
+      if (esPasado) {
+        // Ir al día de semana anterior
+        diff = diff === 0 ? -7 : diff - 7;
+      } else {
+        if (diff === 0) diff = 7; // Si es hoy, ir al próximo
+      }
       d.setDate(d.getDate() + diff);
       return d.toISOString().slice(0,10);
     }
@@ -13927,29 +13940,30 @@ function iramHoraStr(txt) {
 }
 
 function iramClasificar(txt) {
-  const t   = iramNorm(txt);          // sin acentos, lowercase
-  const raw = txt.toLowerCase().trim(); // lowercase con acentos
+  const t   = iramNorm(txt);
+  const raw = txt.toLowerCase().trim();
 
-  // ── Helpers internos ──
-  // Extrae cliente + localidad de una frase después de quitar un prefijo
-  // Ej: "del BBVA almácera" → {cliente:'BBVA', localidad:'almácera'}
-  const _CLIENTES_RE = /\b(bbva|cajamar|caja\s*rural|repsol|campsa|dia|sprinter|plenergy|ibercaja|sabadell|solvia)\b/i;
+  // ── Helper: extrae cliente + localidad limpiando artículos/preposiciones ──
+  const _CLIENTES_RE = /\b(bbva|cajamar|caja\s*rural|repsol|campsa|dia\b|sprinter|plenergy|ibercaja|sabadell|solvia)\b/i;
   function extraerClienteLoc(str) {
-    // Quitar artículos y preposiciones al inicio: del/de la/de/en el/en la/en/al/a la
-    const s = str.replace(/^(?:de(?:l?\s+la?)?|en\s+e?l?|al?)\s+/i,'').trim();
+    const s = str.replace(/^(?:de(?:l?\s+la?)?|en\s+e?l?a?|al?)\s+/i,'').trim();
     const mCli = s.match(_CLIENTES_RE);
     let cliente = '', localidad = '';
     if (mCli) {
       cliente   = mCli[1].trim();
-      // Localidad es lo que queda después del cliente (quitar preposiciones entre medias)
-      localidad = s.slice(mCli.index + mCli[0].length).replace(/^\s+(?:de(?:l?\s+la?)?|en\s+(?:el?\s+)?|de\s+)\s*/i,'').trim();
+      localidad = s.slice(mCli.index + mCli[0].length)
+                   .replace(/^\s+(?:de(?:l?\s+la?)?|en\s+(?:el?\s+)?)\s*/i,'').trim();
     } else {
-      // Sin cliente conocido: puede ser "localidad" o "cliente localidad"
       const mLoc = s.match(/^(.+?)\s+(?:de|en)\s+(.+)$/i);
       if (mLoc) { cliente = mLoc[1].trim(); localidad = mLoc[2].trim(); }
       else { localidad = s; }
     }
     return { cliente, localidad };
+  }
+
+  // ── Limpiar referencias temporales para extraer cliente/localidad limpios ──
+  function quitarTiempo(s) {
+    return s.replace(/\b(ma[ñn]ana|hoy|ayer|el\s+lunes|el\s+martes|el\s+mi[eé]rcoles|el\s+jueves|el\s+viernes|el\s+s[aá]bado|el\s+domingo|pasado\s+ma[ñn]ana|la\s+semana\s+(?:que\s+viene|pasada))\b/gi,'').replace(/\s+/g,' ').trim();
   }
 
   // ── CONFIRMAR / CANCELAR ──
@@ -13962,7 +13976,10 @@ function iramClasificar(txt) {
   if (/^(hecho|finaliza[dr]?o?|listo|terminado|completado?|done)$/i.test(raw))
     return { intento:'COMPLETAR_AVISO', trabajo:'' };
   if (/\b(finaliz[ao]|completad[ao]|marcar?\s+(?:como\s+)?completad|trabajo\s+hecho|parada\s+hecha)\b/i.test(raw)) {
-    const trabajo = txt.replace(/\b(finaliz[ao]r?|completad[ao]|trabajo\s+hecho|marcar?\s+como\s+completad[ao])\b/gi,'').replace(/\s+/g,' ').trim();
+    const trabajo = txt
+      .replace(/\b(finaliz[ao]r?|completad[ao]|trabajo\s+hecho|marcar?\s+como\s+completad[ao])\b/gi,'')
+      .replace(/\bel\s+aviso\b/gi,'')  // quitar "el aviso" que viene de la frase de activación
+      .replace(/\s+/g,' ').trim();
     return { intento:'COMPLETAR_AVISO', trabajo };
   }
 
@@ -13974,42 +13991,57 @@ function iramClasificar(txt) {
   if (/\b(urgente\s+primero|pon\s+el\s+urgente|sube\s+el\s+urgente|cambio\s+de\s+ruta)\b/i.test(raw))
     return { intento:'URGENTE' };
 
-  // ── NAVEGAR ──
+  // ── NAVEGAR — parsea destino como cliente + localidad ──
   if (/\b(ll[eé]vame|navega|waze|ir\s+al?|vamos|c[oó]mo\s+llego)\b/i.test(raw)) {
     const m = raw.match(/(?:ll[eé]vame|navega|waze|ir|vamos)\s+(?:a\s+|al?\s+|hasta\s+)?(.+)/i);
-    return { intento:'NAVEGAR', destino: m ? m[1].trim() : '' };
+    const destinoRaw = m ? m[1].trim() : '';
+    const { cliente, localidad } = extraerClienteLoc(destinoRaw);
+    return { intento:'NAVEGAR', destino: destinoRaw, cliente, localidad };
   }
 
   // ── BUSCAR OFICINA ──
-  if (/\b(qu[eé]\s+(?:oficina|cliente|n[uú]mero)|dime\s+la\s+oficina|la\s+oficina\s+de|n[uú]mero\s+de\s+oficina|qu[eé]\s+oficina\s+hay|qui[eé]n\s+es\s+el?\s*\d|c[oó]digo\s+de)\b/i.test(raw) ||
+  if (/\b(qu[eé]\s+(?:oficina|cliente|n[uú]mero)|dime\s+la\s+oficina|la\s+oficina\s+de|n[uú]mero\s+de\s+oficina|qu[eé]\s+oficina\s+hay|qui[eé]n\s+es\s+el?\s*\d|c[oó]digo\s+de\s+(?:la\s+)?oficina)\b/i.test(raw) ||
      (/\b\d{4,6}\b/.test(raw) && /\b(qu[eé]\s+es|c[oó]mo\s+se\s+llama|qui[eé]n\s+es)\b/i.test(raw))) {
     const mCod = raw.match(/\b(\d{4,6})\b/);
-    const { cliente, localidad } = extraerClienteLoc(raw.replace(/\b(qu[eé]\s+(?:oficina|cliente|n[uú]mero)\s+(?:es|hay\s+en)?|dime\s+la\s+oficina\s+de|la\s+oficina\s+de|c[oó]digo\s+de)\s*/gi,'').trim());
+    const limpio = raw.replace(/\b(qu[eé]\s+(?:oficina|cliente|n[uú]mero)\s+(?:es|hay\s+en)?|dime\s+la\s+oficina\s+de|la\s+oficina\s+de|c[oó]digo\s+de\s+(?:la\s+)?oficina)\s*/gi,'').trim();
+    const { cliente, localidad } = extraerClienteLoc(limpio);
     return { intento:'BUSCAR_OFICINA', codigo: mCod?.[1]||'', cliente, localidad };
   }
 
-  // ── CONSULTA_TRABAJO — qué hay que hacer en una oficina concreta ──
-  if (/\b(qu[eé]\s+(?:hay\s+que\s+hacer|tengo\s+que\s+hacer|trabajo\s+hay|trabajo\s+tengo)|trabajo\s+de\s+hoy\s+en|qu[eé]\s+(?:hay|tengo)\s+en)\b/i.test(raw)) {
-    const resto = raw.replace(/\b(qu[eé]\s+(?:hay\s+que\s+hacer|tengo\s+que\s+hacer|trabajo\s+hay|trabajo\s+tengo|hay|tengo)|trabajo\s+de\s+hoy\s+en)\s*/gi,'').trim();
-    const { cliente, localidad } = extraerClienteLoc(resto);
-    // Solo disparar si hay datos de localidad o cliente, si no → ANALIZAR_PARTES
-    if (cliente || localidad) return { intento:'CONSULTA_TRABAJO', cliente, localidad };
+  // ── BUSCAR INFO TÉCNICA — spider, IP, contraseñas, códigos ──
+  if (/\b(c[oó]digo\s+(?:spider|acceso|alarma|central|grabador|nvr|dvr|arm|panel)|ip\s+(?:de|del?)|contrase[ñn]a\s+(?:de|del?)|spider\s*(?:pro)?|clave\s+(?:de|del?)|pin\s+(?:de|del?)|usuario\s+(?:de|del?)|info(?:rmaci[oó]n)?\s+t[eé]cnica)\b/i.test(raw)) {
+    const mKw = raw.match(/\b(spider|ip|contrase[ñn]a|clave|pin|usuario|acceso|nvr|dvr|grabador|central|arm|panel|arm)\b/i);
+    const kw  = mKw?.[1]||'';
+    const limpio = raw.replace(/\b(dime|dame|c[oó]digo|ip|contrase[ñn]a|clave|pin|usuario|acceso|info(?:rmaci[oó]n)?\s+t[eé]cnica|el|del?|la|de)\b/gi,'').trim();
+    const { cliente, localidad } = extraerClienteLoc(limpio);
+    return { intento:'BUSCAR_INFO_TECNICA', query: kw, cliente, localidad };
   }
 
-  // ── MTO ESTADO — consulta (NO registro) ──
-  // Requiere estructura interrogativa o de consulta, nunca verbo de acción
-  if (/\b(est[aá]\s+hecho|tiene\s+(?:el\s+)?(?:mto|mantenimiento)|¿?(?:est[aá]|tiene|tienen)\s+(?:el\s+)?(?:mto|mantenimiento|q[1-4])|cu[aá]l\s+es\s+(?:el\s+)?mto)\b/i.test(raw) &&
-      !/\b(registra|marca|anota|pon\b|apunta)\b/i.test(raw)) {
+  // ── CONSULTA_TRABAJO — qué hay que hacer ──
+  if (/\b(qu[eé]\s+(?:hay\s+que\s+hacer|tengo\s+que\s+hacer|trabajo\s+hay|trabajo\s+tengo|avisos?\s+(?:hay|tengo))|trabajo\s+de\s+hoy\s+en|qu[eé]\s+(?:hay|tengo)\s+(?:en|de))\b/i.test(raw)) {
+    const resto = raw.replace(/\b(qu[eé]\s+(?:hay\s+que\s+hacer|tengo\s+que\s+hacer|trabajo\s+hay|trabajo\s+tengo|avisos?\s+(?:hay|tengo))|trabajo\s+de\s+hoy\s+en|qu[eé]\s+(?:hay|tengo)\s+(?:en|de))\s*/gi,'').trim();
+    const { cliente, localidad } = extraerClienteLoc(resto);
+    return { intento:'CONSULTA_TRABAJO', cliente, localidad };
+  }
+
+  // ── MTO ESTADO — consulta (requiere interrogativo o nombre de cliente/localidad, nunca verbo de acción) ──
+  const esMtoEstado = (
+    /\b(est[aá][n]?\s+(?:el\s+|los\s+)?(?:mto|mantenimiento)|est[aá]\s+(?:el\s+)?(?:mto|mantenimiento)\s+hecho|est[aá]\s+mantenimiento|tiene[n]?\s+(?:el\s+)?(?:mto|mantenimiento)|¿?(?:est[aá][n]?|tiene[n]?)\s+(?:el\s+|los\s+)?(?:mto|mantenimiento|q[1-4]))\b/i.test(raw) ||
+    /\b(mto|mantenimiento)\b.*\b(hecho[s]?|pendiente[s]?)\b/i.test(raw) ||
+    /\b(los?\s+mantenimiento[s]?|el\s+mto)\b.*\b(est[aá][n]?|tiene[n]?)\b/i.test(raw)
+  ) && !/\b(registra|marca|anota|pon\b|apunta)\b/i.test(raw);
+
+  if (esMtoEstado) {
     const restoMto = raw
-      .replace(/\b(est[aá]\s+hecho\s+el|tiene[n]?\s+(?:el\s+)?|¿?(?:est[aá]|tiene|tienen)\s+(?:el\s+)?|cu[aá]l\s+es\s+(?:el\s+)?)\s*/gi,'')
-      .replace(/\b(mto|mantenimiento|q[1-4])\b/gi,'').trim();
+      .replace(/\b(est[aá][n]?\s+(?:el\s+|los\s+)?|tiene[n]?\s+(?:el\s+)?|los?\s+|¿?)\s*/gi,'')
+      .replace(/\b(mto|mantenimiento|q[1-4]|hecho[s]?|pendiente[s]?)\b/gi,'').trim();
     const trimM = raw.match(/\b(q[1-4])\b/i);
     const { cliente, localidad } = extraerClienteLoc(restoMto);
     return { intento:'MTO_ESTADO', trim: trimM?.[1]?.toUpperCase()||'', cliente, localidad };
   }
-  // Variante: "mto del Cajamar de almácera" (sin verbo)
-  if (/\b(mto|mantenimiento)\b/i.test(raw) && /\b(del?|de\s+la|del?\s+\w)/i.test(raw) &&
-      !/\b(registra|marca|anota|pon\b|apunta|semana|mes)\b/i.test(raw)) {
+  // Variante: "mto del Cajamar de almácera" sin verbo
+  if (/\b(mto|mantenimiento)\b/i.test(raw) && /\b(del?|de\s+la)\s+\w/i.test(raw) &&
+      !/\b(registra|marca|anota|pon\b|apunta|semana|mes|cu[aá]nto)\b/i.test(raw)) {
     const restoMto2 = raw.replace(/.*?\b(?:mto|mantenimiento)\b\s*/i,'').trim();
     const trimM2 = raw.match(/\b(q[1-4])\b/i);
     const { cliente, localidad } = extraerClienteLoc(restoMto2);
@@ -14019,13 +14051,11 @@ function iramClasificar(txt) {
   // ── REGISTRAR MTO — SOLO con verbo explícito ──
   if (/\b(registra[r]?|marca[r]?|anota[r]?|apunta[r]?)\b/i.test(raw) && /\b(mto|mantenimiento|q[1-4]|int)\b/i.test(raw)) {
     const trimR = raw.match(/\b(q[1-4]|int)\b/i);
-    const restoR = raw
-      .replace(/\b(registra[r]?|marca[r]?|anota[r]?|apunta[r]?)\b/gi,'')
-      .replace(/\b(el\s+)?(mto|mantenimiento|q[1-4]|int)\b/gi,'').trim();
+    const restoR = raw.replace(/\b(registra[r]?|marca[r]?|anota[r]?|apunta[r]?)\b/gi,'')
+                      .replace(/\b(el\s+)?(mto|mantenimiento|q[1-4]|int)\b/gi,'').trim();
     const { cliente, localidad } = extraerClienteLoc(restoR);
     return { intento:'REGISTRAR_MTO', trim: trimR?.[1]?.toUpperCase()||null, cliente, localidad };
   }
-  // Variante: "pon el Q2 de..." (verbo corto)
   if (/\bpon\b/i.test(raw) && /\b(q[1-4]|int|mto|mantenimiento)\b/i.test(raw)) {
     const trimP = raw.match(/\b(q[1-4]|int)\b/i);
     const restoP = raw.replace(/\bpon\b/gi,'').replace(/\b(el\s+)?(q[1-4]|int|mto|mantenimiento)\b/gi,'').trim();
@@ -14033,26 +14063,40 @@ function iramClasificar(txt) {
     return { intento:'REGISTRAR_MTO', trim: trimP?.[1]?.toUpperCase()||null, cliente, localidad };
   }
 
-  // ── MTO SEMANA ──
-  if (/\b(cu[aá]ntos?\s+mto|mto\s+(?:esta\s+)?semana|mantenimientos?\s+(?:esta\s+)?semana)\b/i.test(raw))
-    return { intento:'MTO_SEMANA' };
+  // ── MTO SEMANA / MES — con periodo ──
+  if (/\b(cu[aá]n(?:do|tos?)\s+(?:mto|mantenimientos?)|cu[aá]ntos?\s+(?:mto|mantenimientos?)\s+(?:he?\s+)?(?:hice|hecho|hemos|hacemos)|mto\s+(?:de\s+la\s+)?semana|mantenimientos?\s+(?:de\s+la\s+)?semana|mantenimientos?\s+del?\s+mes|mto\s+del?\s+mes|mto\s+este\s+mes|mantenimientos?\s+este\s+mes|mantenimientos?\s+hice|mto\s+hice)\b/i.test(t)) {
+    const periodo = /semana\s+pasada/i.test(t) ? 'semana_pasada' :
+                    /(?:este|del?)\s+mes/i.test(t) ? 'mes_actual' : 'semana_actual';
+    return { intento:'MTO_SEMANA', periodo };
+  }
 
   // ── AVERÍAS SIN MTO ──
   if (/\b(cu[aá]les?\s+(?:no\s+tienen|sin|les\s+falta)\s+(?:el\s+)?(?:mto|mantenimiento)|partes?\s+sin\s+mto|mantenimientos?\s+pendientes?\s+de\s+hoy)\b/i.test(raw))
     return { intento:'AVERIAS_SIN_MTO' };
 
-  // ── HISTORIAL ──
-  if (/\b(historial|[uú]ltima\s+(?:vez|visita)|qu[eé]\s+(?:hice|trabaj[eé])\s+en|cu[aá]ndo\s+fui)\b/i.test(t)) {
+  // ── HISTORIAL — con soporte de fechas relativas ──
+  if (/\b(historial|[uú]ltima\s+(?:vez|visita)|qu[eé]\s+(?:hice|trabaj[eé])\s+en|cu[aá]ndo\s+fui|d[oó]nde\s+fui|qu[eé]\s+hice)\b/i.test(t)) {
+    const tieneFecha = /\b(lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo|ayer|anteayer|semana\s+pasada|el\s+\d{1,2})\b/i.test(t);
+    const tieneCliente = _CLIENTES_RE.test(raw);
+    if (tieneFecha && !tieneCliente) {
+      // Consulta por fecha, no por cliente
+      const fechaH = iramFechaISO(t);
+      return { intento:'HISTORIAL_CLIENTE', cliente:'', localidad:'', fecha: fechaH };
+    }
     const afterTrigger = raw.replace(/.*?(?:historial|[uú]ltima\s+(?:vez|visita)|ultima\s+(?:vez|visita)|qu[eé]\s+(?:hice|trabaj[eé])\s+en|fui)\s*/i,'').trim();
     const { cliente, localidad } = extraerClienteLoc(afterTrigger);
     return { intento:'HISTORIAL_CLIENTE', cliente, localidad };
   }
 
-  // ── HORARIO ──
-  if (/\b(horario|a\s+qu[eé]\s+hora\s+(?:abre|cierra)|cu[aá]ndo\s+(?:abre|cierra))\b/i.test(raw)) {
-    const restoHor = raw.replace(/\b(horario\s+(?:de(?:l?\s+la?)?)?|a\s+qu[eé]\s+hora\s+(?:abre|cierra)|cu[aá]ndo\s+(?:abre|cierra))\s*/gi,'').trim();
+  // ── HORARIO — con día específico ──
+  if (/\b(horario|a\s+qu[eé]\s+hora\s+(?:abre|cierra)|cu[aá]ndo\s+(?:abre|cierra)|est[aá]\s+abierta?|est[aá]\s+cerrada?)\b/i.test(raw)) {
+    // Detectar día específico ("mañana", "el lunes"...)
+    const mDia = raw.match(/\b(ma[ñn]ana|hoy|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i);
+    const dia  = mDia?.[1]?.toLowerCase() || '';
+    const restoHor = quitarTiempo(raw)
+      .replace(/\b(horario\s+(?:de(?:l?\s+la?)?)?|a\s+qu[eé]\s+hora\s+(?:abre|cierra)|cu[aá]ndo\s+(?:abre|cierra)|est[aá]\s+abierta?\s+(?:la\s+)?(?:oficina\s+de)?|est[aá]\s+cerrada?\s+(?:la\s+)?(?:oficina\s+de)?)\s*/gi,'').trim();
     const { cliente, localidad } = extraerClienteLoc(restoHor);
-    return { intento:'HORARIO', cliente, localidad };
+    return { intento:'HORARIO', cliente, localidad, dia };
   }
 
   // ── RUTA SIN MTO ──
@@ -14061,12 +14105,19 @@ function iramClasificar(txt) {
     return { intento:'RUTA_SIN_MTO', trim: trimRS?.[1]?.toUpperCase()||'' };
   }
 
-  // ── ANALIZAR PARTES (sin localidad/cliente concreto, o con ellos) ──
-  if (/\b(qu[eé]\s+(?:partes?|avisos?|aver[ií]as?)|dime\s+(?:los\s+)?(?:partes?|avisos?)|hay\s+(?:algún\s+)?aviso|partes?\s+de\s+hoy|qu[eé]\s+(?:hay|tengo)\s+en\s+(?:el\s+)?an[aá]lisis|todo\s+lo\s+de\s+hoy)\b/i.test(raw) ||
-     (/\b(hay\s+algo|tengo\s+algo|qu[eé]\s+hay)\b/i.test(raw) && /\b(en|de)\s+[a-z]/i.test(raw))) {
-    const mLoc = raw.match(/\b(?:en|de)\s+([a-záéíóúüñ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
-    const mCli = raw.match(_CLIENTES_RE);
-    return { intento:'ANALIZAR_PARTES', localidad: mLoc?.[1]?.trim()||'', cliente: mCli?.[1]||'' };
+  // ── ANALIZAR PARTES ──
+  if (/\b(qu[eé]\s+(?:partes?|avisos?|aver[ií]as?)|dime\s+(?:los\s+)?(?:partes?|avisos?)|hay\s+(?:algún\s+)?aviso|partes?\s+de\s+hoy|qu[eé]\s+(?:hay|tengo)\s+en\s+(?:el\s+)?an[aá]lisis|todo\s+lo\s+de\s+hoy|qu[eé]\s+avisos?\s+puedo\s+hacer)\b/i.test(raw) ||
+     (/\b(hay\s+algo|tengo\s+algo|qu[eé]\s+hay)\b/i.test(raw) && /\b(m[aá]s?\s+cerca\s+de|en|de)\s+[a-z]/i.test(raw))) {
+    // "más cerca de X" → excluir localidad buscada, mostrar otros
+    const mCerca = raw.match(/m[aá]s?\s+cerca\s+de\s+([a-záéíóúüñ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
+    const mLoc   = mCerca ? null : raw.match(/\b(?:en|de)\s+([a-záéíóúüñ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
+    const mCli   = raw.match(_CLIENTES_RE);
+    return {
+      intento:'ANALIZAR_PARTES',
+      localidad: mLoc?.[1]?.trim()||'',
+      cliente: mCli?.[1]||'',
+      cercaDe: mCerca?.[1]?.trim()||''
+    };
   }
 
   // ── CREAR RUTA ──
@@ -14081,7 +14132,7 @@ function iramClasificar(txt) {
     return { intento:'ANADIR_AVISO', destino: m?.[1]?.trim()||'' };
   }
 
-  // ── CONSULTA AVISOS / CUÁNTO QUEDA ──
+  // ── CUANTO QUEDA / CONSULTA AVISOS ──
   if (/\b(cu[aá]nto\s+me\s+queda|cu[aá]ntos?\s+(?:avisos?|paradas?)\s+(?:me\s+)?queda[n]?|qu[eé]\s+(?:avisos?|paradas?)\s+(?:me\s+)?queda[n]?)\b/i.test(raw))
     return { intento:'CUANTO_QUEDA' };
   if (/\b(qu[eé]\s+avisos?\s+tengo|dime\s+(?:los\s+)?avisos?|paradas?\s+(?:de\s+hoy|pendientes?|que\s+tengo)|dime\s+(?:la\s+)?ruta|qu[eé]\s+(?:tengo|hay)\s+en\s+(?:la\s+)?ruta)\b/i.test(raw))
@@ -14091,7 +14142,7 @@ function iramClasificar(txt) {
   if (/\b(d[oó]nde\s+son\s+los\s+avisos|en\s+qu[eé]\s+pueblos?|en\s+qu[eé]\s+localidades?)\b/i.test(raw))
     return { intento:'CONSULTA_LOCALIDADES' };
 
-  // ── CLIENTES LOCALIDAD (base de datos Excel) ──
+  // ── CLIENTES LOCALIDAD ──
   if (/\b(qu[eé]\s+(?:clientes?|oficinas?)\s+hay\s+en|cu[aá]ntas?\s+(?:oficinas?|clientes?)\s+(?:hay\s+)?en)\b/i.test(raw)) {
     const mL = raw.match(/(?:hay\s+en|en)\s+([a-záéíóúüñ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
     const mC = raw.match(_CLIENTES_RE);
@@ -14101,6 +14152,23 @@ function iramClasificar(txt) {
   // ── RESUMEN DÍA ──
   if (/\b(c[oó]mo\s+va\s+el\s+d[ií]a|resumen\s+del?\s+d[ií]a|qu[eé]\s+tal\s+va|balance\s+del?\s+d[ií]a)\b/i.test(raw))
     return { intento:'RESUMEN_DIA' };
+
+  // ── CONSULTA NOTAS — ANTES de CREAR_NOTA para capturar "tengo alguna nota" ──
+  if (/\b(qu[eé]\s+notas?\s+tengo|dime\s+(?:las?\s+)?notas?|tengo\s+alguna?\s+nota|tengo\s+algo\s+(?:anotado|apuntado)|qu[eé]\s+tengo\s+anotado|qu[eé]\s+hay\s+en\s+(?:las?\s+)?notas?|hay\s+alguna?\s+nota)\b/i.test(raw)) {
+    const restoN = raw
+      .replace(/\b(qu[eé]\s+notas?\s+tengo|dime\s+(?:las?\s+)?notas?|tengo\s+alguna?\s+nota\s+(?:(?:de|sobre)\s+)?|tengo\s+algo\s+(?:anotado|apuntado)\s+(?:(?:de|sobre)\s+)?|qu[eé]\s+tengo\s+anotado\s+(?:(?:de|sobre)\s+)?|qu[eé]\s+hay\s+en\s+(?:las?\s+)?notas?\s+(?:(?:de|sobre)\s+)?|hay\s+alguna?\s+nota\s+(?:(?:de|sobre)\s+)?)\s*/gi,'')
+      .trim();
+    return { intento:'CONSULTA_NOTAS', query: restoN };
+  }
+
+  // ── CREAR NOTA — solo con verbo explícito ──
+  if (/\b(crea[r]?\s+(?:una?\s+)?nota|guarda[r]?\s+(?:una?\s+)?nota|anota[r]?\s+(?:que\s+)?|apunta[r]?\s+(?:que\s+)?)\b/i.test(raw)) {
+    const texto = txt
+      .replace(/\b(crea[r]?\s+(?:una?\s+)?nota|guarda[r]?\s+(?:una?\s+)?nota|anota[r]?\s+(?:que\s+)?|apunta[r]?\s+(?:que\s+)?)\b/gi,'')
+      .replace(/\s+/g,' ').trim();
+    if (!texto) return { intento:'CHAT' };
+    return { intento:'CREAR_NOTA', texto };
+  }
 
   // ── CONSULTA TAREAS ──
   if (/\b(dime\s+(?:las\s+)?tareas?|tareas?\s+(?:que\s+tengo|pendientes?|de\s+hoy)|qu[eé]\s+tareas?\s+tengo)\b/i.test(raw))
@@ -14113,7 +14181,7 @@ function iramClasificar(txt) {
   }
 
   // ── CONSULTA EVENTOS ──
-  if (/\b(dime\s+(?:los\s+)?eventos?|eventos?\s+de\s+(?:este\s+)?mes|qu[eé]\s+eventos?\s+tengo|agenda\s+(?:de\s+)?(?:hoy|semana|mes))\b/i.test(raw))
+  if (/\b(dime\s+(?:si\s+hay\s+)?(?:los\s+)?eventos?|eventos?\s+de\s+(?:este\s+)?mes|qu[eé]\s+eventos?\s+tengo|agenda\s+(?:de\s+)?(?:hoy|semana|mes)|hay\s+(?:algún\s+)?evento)\b/i.test(raw))
     return { intento:'CONSULTA_EVENTOS' };
 
   // ── CANCELAR EVENTO ──
@@ -14122,32 +14190,28 @@ function iramClasificar(txt) {
     return { intento:'CANCELAR_EVENTO', titulo: mT?.[1]?.trim()||'' };
   }
 
-  // ── CREAR EVENTO ──
+  // ── CREAR EVENTO — titulo limpio y fecha correcta ──
   if (/\bcrea[r]?\s+(?:un[ao]?\s+)?evento\b/i.test(raw)) {
     const fecha = iramFechaISO(t);
     const hora  = iramHoraStr(raw);
-    const titulo= txt.replace(/\bcrea[r]?\s+(?:un[ao]?\s+)?evento\b/gi,'')
-                     .replace(/\bpara\s+(ma[ñn]ana|hoy|el\s+\w+)\b/gi,'')
-                     .replace(/\ba\s+las?\s+\d{1,2}(:\d{2})?\b/gi,'')
-                     .replace(/\s+/g,' ').trim();
+    const titulo= txt
+      .replace(/\bcrea[r]?\s+(?:un[ao]?\s+)?evento\b/gi,'')
+      .replace(/\bpara\s+(?:el\s+)?(?:ma[ñn]ana|hoy|lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo)(?:\s+\d{1,2})?\b/gi,'')
+      .replace(/\bpara\s+(?:el\s+)?\d{1,2}\s+de\s+\w+\b/gi,'')
+      .replace(/\bel\s+\d{1,2}\s+de\s+\w+\b/gi,'')
+      .replace(/\ba\s+las?\s+\d{1,2}(?::\d{2})?\b/gi,'')
+      .replace(/\s+/g,' ').trim();
     return { intento:'CREAR_EVENTO', titulo, fecha, hora };
-  }
-
-  // ── CREAR NOTA ──
-  if (/\bcrea[r]?\s+(?:una?\s+)?nota\b/i.test(raw)) {
-    const texto = txt.replace(/\bcrea[r]?\s+(?:una?\s+)?nota\b/gi,'').replace(/\s+/g,' ').trim();
-    if (!texto) return { intento:'CHAT' };
-    return { intento:'CREAR_NOTA', texto };
   }
 
   // ── CREAR TAREA ──
   if (/\b(crea[r]?\s+(?:una?\s+)?tarea|a[ñn]ade?\s+(?:una?\s+)?tarea)\b/i.test(raw)) {
     const tieneFecha = /\b(hoy|ma[ñn]ana|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+\w+)\b/i.test(raw);
-    const fecha      = tieneFecha ? iramFechaISO(t) : '';
-    const titulo     = txt.replace(/\bcrea[r]?\s+(?:una?\s+)?tarea\b/gi,'')
-                          .replace(/\ba[ñn]ade?\s+(?:una?\s+)?tarea\b/gi,'')
-                          .replace(/\bpara\s+(hoy|ma[ñn]ana|el\s+\w+)\b/gi,'')
-                          .replace(/\s+/g,' ').trim();
+    const fecha = tieneFecha ? iramFechaISO(t) : '';
+    const titulo= txt
+      .replace(/\b(crea[r]?\s+(?:una?\s+)?tarea|a[ñn]ade?\s+(?:una?\s+)?tarea)\b/gi,'')
+      .replace(/\bpara\s+(hoy|ma[ñn]ana|el\s+\w+)\b/gi,'')
+      .replace(/\s+/g,' ').trim();
     if (!titulo) return { intento:'CHAT' };
     return { intento:'CREAR_TAREA', titulo, fecha };
   }
@@ -14174,6 +14238,7 @@ function iramClasificar(txt) {
 
   return { intento:'CHAT' };
 }
+
 
 
 /* ══════════════════════════════════════════════════════
@@ -14420,18 +14485,38 @@ async function iramEjecutarAccion(cl) {
 
   /* ── MTO SEMANA ── */
   if (cl.intento === 'MTO_SEMANA') {
-    const hist = loadArr(K_HIST);
-    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1); lunes.setHours(0,0,0,0);
-    const mtoKw = /mto|mantenimiento|trimestral|rev|mant/i;
+    const hist    = loadArr(K_HIST);
+    const ahora   = new Date();
+    const mtoKw   = /mto|mantenimiento|trimestral|rev|mant/i;
+    const periodo  = cl.periodo || 'semana_actual';
+    let desdeDate, hastaDate, label;
+    if (periodo === 'mes_actual') {
+      desdeDate = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+      hastaDate = new Date(ahora.getFullYear(), ahora.getMonth()+1, 0);
+      label = 'Este mes';
+    } else if (periodo === 'semana_pasada') {
+      const lunes = new Date(ahora);
+      lunes.setDate(ahora.getDate() - ahora.getDay() - 6);
+      lunes.setHours(0,0,0,0);
+      const domingo = new Date(lunes); domingo.setDate(lunes.getDate()+6);
+      desdeDate = lunes; hastaDate = domingo;
+      label = 'La semana pasada';
+    } else {
+      const lunes = new Date(ahora);
+      lunes.setDate(ahora.getDate() - (ahora.getDay()||7) + 1);
+      lunes.setHours(0,0,0,0);
+      desdeDate = lunes; hastaDate = new Date();
+      label = 'Esta semana';
+    }
     const hechos = hist.filter(v => {
       const f = (v.FECHA||v.fecha||'').split('/');
       if (f.length < 3) return false;
       const d = new Date(`${f[2]}-${f[1]}-${f[0]}`);
-      return d >= lunes && mtoKw.test(v.TRABAJO||v.trabajo||'');
+      return d >= desdeDate && d <= hastaDate && mtoKw.test(v.TRABAJO||v.trabajo||'');
     });
-    if (!hechos.length) return 'Esta semana no hay MTO registrados en el historial.';
-    const lista = hechos.slice(0,5).map(v => `${v.CLIENTE||v.cliente} · ${v.LOCALIDAD||v.localidad||''}`).join(', ');
-    return `${hechos.length} MTO esta semana: ${lista}.`;
+    if (!hechos.length) return `${label} no hay MTO registrados en el historial.`;
+    const lista = hechos.slice(0,6).map(v=>`${v.CLIENTE||v.cliente} · ${v.LOCALIDAD||v.localidad||''}`).join(', ');
+    return `${label}: ${hechos.length} MTO — ${lista}.`;
   }
 
   /* ── AVERÍAS SIN MTO ── */
@@ -14556,50 +14641,68 @@ async function iramEjecutarAccion(cl) {
     return `En ${zona} tienes ${cuantos}:\n${lista}`;
   }
 
-  /* ── CONSULTA TRABAJO — qué hay que hacer en una oficina concreta ── */
+  /* ── CONSULTA TRABAJO — qué hay que hacer en los avisos ── */
   if (cl.intento === 'CONSULTA_TRABAJO') {
     const nC = iramNorm(cl.cliente||'');
     const nL = normTopo(cl.localidad||'');
-    // Buscar en análisis y ruta
     const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
     const ruta     = loadArr(K_RUTA);
-    const fuentes  = [
-      ...analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado'),
-      ...ruta.filter(r => r.estado==='pendiente')
-    ];
-    const coinciden = fuentes.filter(p => {
-      const pC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
-      const pL = normTopo(p.localidad||'');
-      const matchC = !nC || pC.includes(nC) || nC.includes(pC.slice(0,4));
-      const matchL = !nL || pL.includes(nL) || nL.includes(pL.slice(0,4));
-      return matchC && matchL;
+    // Deduplicar: preferir la versión de ruta si existe en ambos
+    const vistas   = new Map();
+    [...analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado'),
+     ...ruta.filter(r=>r.estado==='pendiente')].forEach(p => {
+      const k = iramNorm((p.clienteReal||p.clienteNorm||p.cliente||'')+(p.codigo||'')+(p.localidad||''));
+      if (!vistas.has(k) || ruta.includes(p)) vistas.set(k, p);
     });
-    if (!coinciden.length) {
-      const quien = cl.cliente||cl.localidad||'esa oficina';
-      return `No hay partes de ${quien} cargados hoy.`;
+    let todos = Array.from(vistas.values());
+    // Filtrar si se especificó cliente o localidad
+    if (nC || nL) {
+      todos = todos.filter(p => {
+        const pC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
+        const pL = normTopo(p.localidad||'');
+        const matchC = !nC || pC.includes(nC) || nC.includes(pC.slice(0,4));
+        const matchL = !nL || pL.includes(nL) || nL.includes(pL.slice(0,4));
+        return matchC && matchL;
+      });
     }
-    // Activar oficina si hay una sola
-    if (coinciden.length === 1) {
-      const p = coinciden[0];
-      _iramOficinaActiva = { cliente:p.clienteReal||p.clienteNorm||p.cliente||'', codigo:p.codigo||'', localidad:p.localidad||'', direccion:p.direccion||'', horario:p.horarioTxt||'' };
+    if (!todos.length) return `No hay partes de ${cl.cliente||cl.localidad||'hoy'} cargados.`;
+    if (todos.length === 1) {
+      const p = todos[0];
+      _iramOficinaActiva = { cliente:p.clienteReal||p.clienteNorm||p.cliente||'', codigo:p.codigo||'', localidad:p.localidad||'', direccion:p.direccion||'' };
+      return `🔧 ${_iramOficinaActiva.cliente} · ${p.localidad||''}:\n${p.trabajo||p.descripcion||'Sin descripción'}`;
     }
-    return coinciden.map((p,i) => {
+    return todos.map((p,i) => {
       const cli  = p.clienteReal||p.clienteNorm||p.cliente||'?';
-      const loc  = p.localidad||'';
-      const trab = (p.trabajo||p.descripcion||'Sin descripción').slice(0,120);
-      return coinciden.length > 1 ? `${i+1}. ${cli} · ${loc}: ${trab}` : `🔧 ${cli} · ${loc}:\n${trab}`;
+      const trab = p.trabajo||p.descripcion||'Sin descripción';
+      return `${i+1}. ${cli} · ${p.localidad||''}: ${trab}`;
     }).join('\n');
   }
 
   /* ── HISTORIAL CLIENTE ── */
   if (cl.intento === 'HISTORIAL_CLIENTE') {
     const hist = loadArr(K_HIST);
-    // Usar oficina activa si no hay cliente/localidad explícitos
+    // Búsqueda por fecha (cuando viene cl.fecha)
+    if (cl.fecha && !cl.cliente && !cl.localidad) {
+      const target = new Date(cl.fecha+'T12:00:00');
+      const d1 = new Date(target); d1.setDate(target.getDate()-1);
+      const d2 = new Date(target); d2.setDate(target.getDate()+1);
+      const isos = [d1,target,d2].map(d=>d.toISOString().slice(0,10));
+      const visitas = hist.filter(v => {
+        const f = (v.FECHA||'').split('/');
+        if (f.length<3) return false;
+        return isos.includes(`${f[2]}-${f[1]}-${f[0]}`);
+      });
+      const dStr = target.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+      if (!visitas.length) return `No hay visitas registradas el ${dStr}.`;
+      const lista = visitas.slice(0,5).map(v=>`${v.CLIENTE||v.cliente} · ${v.LOCALIDAD||v.localidad||''} — ${(v.TRABAJO||v.trabajo||'sin descripción').slice(0,60)}`).join('\n');
+      return `${visitas.length>1?visitas.length+' visitas ese día':' El '+dStr}:\n${lista}`;
+    }
+    // Búsqueda por cliente/localidad
     const ofi  = (!cl.cliente && !cl.localidad && !cl.codigo) ? _iramOficinaActiva : null;
     const nC   = iramNorm(cl.cliente||ofi?.cliente||'');
     const nL   = normTopo(cl.localidad||ofi?.localidad||'');
     const nCod = (cl.codigo||ofi?.codigo||'').replace(/^0+/,'').toLowerCase();
-    if (!nC && !nCod) return 'Dime el cliente para buscar en el historial.';
+    if (!nC && !nCod && !nL) return 'Dime el cliente para buscar en el historial.';
     const visitas = hist.filter(v => {
       if (nCod) {
         const vKey = String(v.KEY||'').replace(/^sis_/,'').replace(/^0+/,'').toLowerCase();
@@ -14607,7 +14710,7 @@ async function iramEjecutarAccion(cl) {
       }
       const vc = iramNorm(v.CLIENTE||v.cliente||'');
       const vl = normTopo(v.LOCALIDAD||v.localidad||v.MUNICIPIO||'');
-      return vc.includes(nC) && (!nL || vl.includes(nL));
+      return (!nC || vc.includes(nC)) && (!nL || vl.includes(nL));
     }).sort((a,b) => (b.FECHA||'').localeCompare(a.FECHA||''));
     const nombre = cl.cliente||ofi?.cliente||'ese cliente';
     const loc    = cl.localidad||ofi?.localidad||'';
@@ -14645,31 +14748,42 @@ async function iramEjecutarAccion(cl) {
 
   /* ── HORARIO ── */
   if (cl.intento === 'HORARIO') {
-    // Usar oficina activa si no hay cliente/localidad
-    const cliente  = cl.cliente  || _iramOficinaActiva?.cliente  || '';
-    const localidad= cl.localidad|| _iramOficinaActiva?.localidad || '';
-    if (!cliente && !localidad) return 'Dime de qué oficina quieres el horario.';
-    const cli = iramBuscarCliente(cliente, localidad);
-    if (!cli) {
-      // Si hay oficina activa con horario directo
+    // Usar oficina activa si no se especifica cliente/localidad
+    const clienteQ   = cl.cliente   || _iramOficinaActiva?.cliente  || '';
+    const localidadQ = cl.localidad || _iramOficinaActiva?.localidad || '';
+    if (!clienteQ && !localidadQ) return 'Dime de qué oficina quieres el horario.';
+    const exRow = iramBuscarCliente(clienteQ, localidadQ);
+    if (!exRow) {
       if (_iramOficinaActiva?.horario) return `${_iramOficinaActiva.cliente} · ${_iramOficinaActiva.localidad}: ${_iramOficinaActiva.horario}`;
-      return `No encuentro a ${cliente||localidad} en la base de datos.`;
+      return `No encuentro "${clienteQ||localidadQ}" en el Excel.`;
     }
-    const h = cli.HORARIO || cli.horario || '';
-    const n = cli.CLIENTE || cli.cliente || cliente;
-    const m = cli.MUNICIPIO || cli.municipio || localidad;
-    if (!h) return `${n} en ${m} — no tengo el horario registrado.`;
-    const ahoraH = new Date().getHours();
-    const ahoraM = new Date().getMinutes();
-    const horaActual = ahoraH * 60 + ahoraM;
-    const mHorario = h.match(/(\d{1,2})[:.h](\d{2})\s*[-–]\s*(\d{1,2})[:.h](\d{2})/);
-    let estadoStr = '';
-    if (mHorario) {
-      const abre  = parseInt(mHorario[1])*60 + parseInt(mHorario[2]);
-      const cierra= parseInt(mHorario[3])*60 + parseInt(mHorario[4]);
-      estadoStr   = horaActual >= abre && horaActual < cierra ? ' — ahora está abierta.' : ' — ahora está cerrada.';
+    const horario = exRow.HORARIO || exRow.horario || exRow.HORARIOS || '';
+    const nombre  = `${exRow.CLIENTE||exRow.cliente} de ${exRow.MUNICIPIO||exRow.municipio||''}`;
+    if (!horario) return `${nombre}: sin horario guardado.`;
+    // Si pregunta por un día específico
+    if (cl.dia) {
+      const diaRef = cl.dia === 'mañana' ? new Date(new Date().setDate(new Date().getDate()+1)) : new Date();
+      if (cl.dia !== 'hoy' && cl.dia !== 'mañana') {
+        const idx = _DIAS_IDX[iramNorm(cl.dia)];
+        if (idx !== undefined) { diaRef.setDate(diaRef.getDate() + (idx - diaRef.getDay() + 7) % 7); }
+      }
+      const diaNom  = diaRef.toLocaleDateString('es-ES',{weekday:'long'});
+      const mapaDia = {0:'D',1:'L',2:'M',3:'X',4:'J',5:'V',6:'S'};
+      const letraDia= mapaDia[diaRef.getDay()];
+      const abre    = horario.includes(letraDia) || /todo\s+el\s+d[ií]a|24h|L-D|L-S/i.test(horario);
+      return `${nombre} el ${diaNom}: ${abre ? 'sí abre' : 'no abre'}. Horario: ${horario}.`;
     }
-    return `${n} de ${m}: ${h}${estadoStr}`;
+    // Sin día → horario normal con estado actual
+    const ahora = new Date();
+    const hora  = ahora.getHours() * 60 + ahora.getMinutes();
+    const mH    = horario.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+    let estado  = '';
+    if (mH) {
+      const abre  = parseInt(mH[1])*60+parseInt(mH[2]);
+      const cierra= parseInt(mH[3])*60+parseInt(mH[4]);
+      estado = hora >= abre && hora < cierra ? '— ahora está abierta' : '— ahora está cerrada';
+    }
+    return `${nombre}: ${horario} ${estado}.`;
   }
 
   /* ── MTO ESTADO ── */
@@ -14761,46 +14875,59 @@ async function iramEjecutarAccion(cl) {
 
   /* ── NAVEGAR ── */
   if (cl.intento === 'NAVEGAR') {
-    const ruta  = loadArr(K_RUTA);
-    const ubics = loadArr(K_UBICS);
-    const nD    = iramNorm(cl.destino||'');
+    const ruta    = loadArr(K_RUTA);
+    const ubics   = loadArr(K_UBICS);
+    const analisis= (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
+    const nD  = iramNorm(cl.destino||'');
+    const nC  = iramNorm(cl.cliente||'');
+    const nL  = normTopo(cl.localidad||'');
 
-    // 1. Buscar en ruta
-    const parada = nD ? ruta.find(p => {
-      const nC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
-      const nL = normTopo(p.localidad||'');
-      const nK = iramNorm(p.codigo||'');
-      return nC.includes(nD.slice(0,5)) || nD.includes(nC.slice(0,5)) ||
-             nL.includes(nD.slice(0,4)) || nD.includes(nL.slice(0,4)) ||
-             (nK && nD.includes(nK));
-    }) : null;
-
-    if (parada) {
-      _iramUltimaAccion = { tipo:'waze', datos: parada };
-      iramConfirmarWaze(parada);
-      return `${parada.clienteReal||parada.cliente} · ${parada.localidad||''} — pulsa para abrir Waze.`;
+    // Función de búsqueda por client+localidad en una lista de paradas
+    function buscarParada(lista) {
+      return lista.find(p => {
+        const pC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
+        const pL = normTopo(p.localidad||'');
+        const pK = iramNorm(p.codigo||'');
+        if (nC && nL) return pC.includes(nC.slice(0,4)) && (pL.includes(nL.slice(0,4)) || nL.includes(pL.slice(0,4)));
+        if (nL) return pL.includes(nL.slice(0,4)) || nL.includes(pL.slice(0,4));
+        if (nC) return pC.includes(nC.slice(0,4));
+        if (nD) return pC.includes(nD.slice(0,5)) || nD.includes(pC.slice(0,5)) ||
+                       pL.includes(nD.slice(0,4)) || nD.includes(pL.slice(0,4)) ||
+                       (pK && nD.includes(pK));
+        return false;
+      });
     }
 
-    // 2. Buscar en ubicaciones guardadas
+    // 1. Buscar en ruta primero
+    const paradaRuta = buscarParada(ruta.filter(r=>r.estado==='pendiente'));
+    if (paradaRuta) {
+      _iramUltimaAccion = { tipo:'waze', datos: paradaRuta };
+      iramConfirmarWaze(paradaRuta);
+      return `${paradaRuta.clienteReal||paradaRuta.cliente} · ${paradaRuta.localidad||''} — pulsa para abrir Waze.`;
+    }
+
+    // 2. Buscar en análisis
+    const paradaAn = buscarParada(analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado'));
+    if (paradaAn) {
+      _iramUltimaAccion = { tipo:'waze', datos: paradaAn };
+      iramConfirmarWaze(paradaAn);
+      return `${paradaAn.clienteReal||paradaAn.clienteNorm||paradaAn.cliente} · ${paradaAn.localidad||''} — pulsa para abrir Waze.`;
+    }
+
+    // 3. Buscar en ubicaciones guardadas
     const ubic = nD ? ubics.find(u => {
       const nN = iramNorm(u.nombre||'');
       const nA = iramNorm(u.addr||u.direccion||'');
       return nN.includes(nD.slice(0,4)) || nD.includes(nN.slice(0,4)) || nA.includes(nD.slice(0,4));
     }) : null;
-
     if (ubic) {
-      const paradaUbic = {
-        clienteReal: ubic.nombre,
-        direccion:   ubic.addr || ubic.direccion || '',
-        localidad:   '',
-        codigo:      ''
-      };
+      const paradaUbic = { clienteReal:ubic.nombre, direccion:ubic.addr||ubic.direccion||'', localidad:'', codigo:'' };
       _iramUltimaAccion = { tipo:'waze', datos: paradaUbic };
       iramConfirmarWaze(paradaUbic);
       return `${ubic.nombre} — pulsa para abrir Waze.`;
     }
 
-    return `No tengo "${cl.destino}" en la ruta ni en ubicaciones guardadas.`;
+    return `No tengo "${cl.destino||cl.localidad||cl.cliente}" en la ruta ni en análisis.`;
   }
 
   /* ── URGENTE ── */
@@ -14866,6 +14993,61 @@ async function iramEjecutarAccion(cl) {
     return `✅ Evento "${cl.titulo}" el ${fStr}${cl.hora?' a las '+cl.hora:''}.`;
   }
 
+  /* ── CONSULTA NOTAS ── */
+  if (cl.intento === 'CONSULTA_NOTAS') {
+    const notas = loadArr(K_NOTAS);
+    if (!notas.length) return 'No tienes notas guardadas.';
+    const q = iramNorm(cl.query||'');
+    const filtradas = q
+      ? notas.filter(n => iramNorm(n.titulo||'').includes(q) || iramNorm(n.texto||'').includes(q) || (n.etiquetas||[]).some(e=>iramNorm(e).includes(q)))
+      : notas;
+    if (!filtradas.length) return `No hay notas sobre "${cl.query}".`;
+    if (!q) {
+      const lista = notas.slice(0,5).map(n => n.titulo||n.texto?.slice(0,30)||'sin título').join(', ');
+      return `${notas.length} nota${notas.length>1?'s':''}: ${lista}.`;
+    }
+    // Mostrar la primera coincidencia completa
+    const n   = filtradas[0];
+    const txt2= (n.texto||'').slice(0,200);
+    const mas = filtradas.length > 1 ? ` Hay ${filtradas.length} coincidencias.` : '';
+    return `📝 ${n.titulo||'Nota'}: ${txt2}.${mas}`;
+  }
+
+  /* ── BUSCAR INFO TÉCNICA ── */
+  if (cl.intento === 'BUSCAR_INFO_TECNICA') {
+    const infoTec = loadArr(K_INFO_TEC);
+    if (!infoTec.length) return 'No hay información técnica cargada. Importa el Excel.';
+    const nE  = iramNorm(cl.cliente||'');  // entidad
+    const nL  = normTopo(cl.localidad||'');
+    const nQ  = iramNorm(cl.query||'');
+    // Filtrar por entidad/localidad
+    let cands = infoTec.filter(r => {
+      const rE = iramNorm(r.entidad||r.ENTIDAD||r.CLIENTE||'');
+      const rL = normTopo(r.poblacion||r.POBLACION||r.MUNICIPIO||'');
+      const matchE = !nE || rE.includes(nE) || nE.includes(rE.slice(0,4));
+      const matchL = !nL || rL.includes(nL) || nL.includes(rL.slice(0,4));
+      return matchE && matchL;
+    });
+    // Sub-filtrar por keyword
+    if (nQ && cands.length > 1) {
+      const sub = cands.filter(r => {
+        const rT = iramNorm(r.tipoDato||r.TIPO_DATO||r.TIPO||'');
+        const rD = iramNorm(r.detalle||r.INFORMACION||r.INFO||r.DETALLE||'');
+        const rS = iramNorm(r.sistema||r.SISTEMA||'');
+        return rT.includes(nQ) || rD.includes(nQ) || rS.includes(nQ);
+      });
+      if (sub.length) cands = sub;
+    }
+    if (!cands.length) return `No hay información técnica de ${cl.cliente||cl.localidad||'ese cliente'}.`;
+    return cands.slice(0,3).map(r => {
+      const ent  = r.entidad||r.ENTIDAD||r.CLIENTE||'';
+      const loc  = r.poblacion||r.POBLACION||r.MUNICIPIO||'';
+      const tipo = r.tipoDato||r.TIPO_DATO||'';
+      const val  = r.detalle||r.INFORMACION||r.INFO||'';
+      return `${ent}${loc?' · '+loc:''} — ${tipo}: ${val}`;
+    }).join('\n');
+  }
+
   /* ── CREAR NOTA ── */
   if (cl.intento === 'CREAR_NOTA') {
     if (!cl.texto || cl.texto.trim().length < 3) {
@@ -14890,6 +15072,7 @@ async function iramEjecutarAccion(cl) {
     const trabajo = (cl.trabajo||'')
       .replace(/\biram\b/gi,'')
       .replace(/\b(finaliza[dr]?o?|completad[ao]|trabajo\s+finalizado|trabajo\s+hecho|aviso\s+hecho|listo|hecho)\b/gi,'')
+      .replace(/\bel\s+aviso\b/gi,'')
       .replace(/\s+/g,' ').trim() || sig.trabajo || '';
     const idx = ruta.findIndex(r => r.id === sig.id);
     if (idx !== -1) { ruta[idx].estado='completada'; ruta[idx].trabajoRealizado=trabajo; save(K_RUTA, ruta); }
@@ -15068,6 +15251,20 @@ async function iramEjecutarAccion(cl) {
     const hoyD     = new Date();
     let pend = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado');
 
+    // "más cerca de X" → mostrar todos EXCEPTO los de X
+    if (cl.cercaDe) {
+      const nRef = normTopo(cl.cercaDe);
+      const otros = pend.filter(a => {
+        const aL = normTopo(a.localidad||'');
+        return !aL.includes(nRef.slice(0,4)) && !nRef.includes(aL.slice(0,4));
+      });
+      if (!otros.length) return `No hay más avisos disponibles fuera de ${cl.cercaDe}.`;
+      const porLoc = {};
+      otros.forEach(a => { const l=a.localidad||'?'; if(!porLoc[l])porLoc[l]=[]; porLoc[l].push(a.clienteReal||a.clienteNorm||a.cliente||'?'); });
+      const lista = Object.entries(porLoc).map(([l,cs])=>`${l}: ${cs.join(', ')}`).join(' · ');
+      return `${otros.length} aviso${otros.length>1?'s':''} disponibles: ${lista}.`;
+    }
+
     if (cl.localidad || cl.cliente) {
       const nL = normTopo(cl.localidad||'');
       const nC = iramNorm(cl.cliente||'');
@@ -15085,9 +15282,7 @@ async function iramEjecutarAccion(cl) {
           _iramOficinaActiva = { cliente:f.clienteReal||f.clienteNorm||f.cliente||'', codigo:f.codigo||'', localidad:f.localidad||'', direccion:f.direccion||'', horario:f.horarioTxt||'' };
         }
         const lista = filtrados.map((a,i)=>`${i+1}. ${a.clienteReal||a.clienteNorm||a.cliente} · ${a.localidad||'?'}: ${(a.trabajo||a.descripcion||'').slice(0,60)}`).join('\n');
-        const n   = filtrados.length;
-        const hay = n===1 ? 'hay uno' : `hay ${n}`;
-        return `En ${por} ${hay}:\n${lista}`;
+        return `En ${por} hay ${filtrados.length}:\n${lista}`;
       }
       return `En "${por}" no hay partes pendientes.`;
     }
@@ -15098,7 +15293,7 @@ async function iramEjecutarAccion(cl) {
     const urgentes = pend.filter(a=>a.urgente);
     const pci      = pend.filter(a=>a.tipo==='PCI'||a.esPCI);
     const antiguos = pend.filter(a => { if(!a.fecha)return false; const p=a.fecha.split('/'); if(p.length<3)return false; return (hoyD-new Date(p[2]+"-"+p[1]+"-"+p[0]))/86400000>14; });
-    const resumen = Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c}${n>1?' ('+n+')':''}`).join(', ');
+    const resumen  = Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c}${n>1?' ('+n+')':''}`).join(', ');
     let r = `Hoy ${pend.length} aviso${pend.length!==1?'s':''}: ${resumen}.`;
     if (urgentes.length) r+=`\n🚨 Urgente${urgentes.length>1?'s':''}: ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}.`;
     if (pci.length) r+=`\n🔥 ${pci.length} de PCI.`;
@@ -15160,18 +15355,6 @@ async function iramEjecutarAccion(cl) {
     if (sig.trabajo) resp += `\n🔧 ${sig.trabajo.slice(0,60)}`;
     resp += `\n¿Abro Waze?`;
     return resp;
-  }
-
-  /* ── NAVEGAR ── */
-  if (cl.intento === 'NAVEGAR') {
-    const ruta  = loadArr(K_RUTA);
-    const ubics = loadArr(K_UBICS);
-    const nD    = iramNorm(cl.destino||'');
-    const parada = nD ? ruta.find(p => { const nC=iramNorm(p.clienteReal||p.clienteNorm||p.cliente||''); const nL=normTopo(p.localidad||''); return nC.includes(nD.slice(0,5))||nD.includes(nC.slice(0,5))||nL.includes(nD.slice(0,4))||nD.includes(nL.slice(0,4)); }) : null;
-    if (parada) { _iramUltimaAccion={tipo:'waze',datos:parada}; iramConfirmarWaze(parada); return `${parada.clienteReal||parada.cliente} · ${parada.localidad||''} — pulsa para abrir Waze.`; }
-    const ubic = nD ? ubics.find(u => { const nN=iramNorm(u.nombre||''); return nN.includes(nD.slice(0,4))||nD.includes(nN.slice(0,4)); }) : null;
-    if (ubic) { const p={clienteReal:ubic.nombre,direccion:ubic.addr||ubic.direccion||'',localidad:'',codigo:''}; _iramUltimaAccion={tipo:'waze',datos:p}; iramConfirmarWaze(p); return `${ubic.nombre} — pulsa para abrir Waze.`; }
-    return `No encuentro "${cl.destino}" en la ruta ni en ubicaciones.`;
   }
 
 
@@ -15297,16 +15480,17 @@ function iramGetMtoData(cliente, codigo, localidad, trimActual) {
 
 /* ── Buscar cliente en Excel por nombre y/o localidad ── */
 function iramBuscarCliente(nombre, localidad) {
-  const excel = loadArr(K_EXCEL);
   const nN = iramNorm(nombre);
   const nL = normTopo(localidad);
+  if (!nN && !nL) return null; // sin filtros → no devolver resultado aleatorio
+  const excel = loadArr(K_EXCEL);
   return excel.find(c => {
     const cN = iramNorm(c.CLIENTE||c.cliente||'');
     const cL = normTopo(c.MUNICIPIO||c.municipio||'');
     const matchN = !nN || cN.includes(nN) || nN.includes(cN);
     const matchL = !nL || cL.includes(nL) || nL.includes(cL);
     return matchN && matchL;
-  });
+  }) || null;
 }
 
 
