@@ -12691,7 +12691,81 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="iram-hdr-name">IRAM</div>
           <div class="iram-hdr-sub">MODO CONDUCCIÓN</div>
         </div>
-        <div class="iram-status-ico">🚗</div>
+        <div class="iram-status-ico" onclick="iramMostrarAyuda()" style="cursor:pointer" title="Frases disponibles">🚗</div>
+      </div>
+    </div>
+
+    <!-- ── MODAL AYUDA DE VOZ ── -->
+    <div id="iram-ayuda-overlay" onclick="iramCerrarAyuda()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;overflow-y:auto;-webkit-overflow-scrolling:touch">
+      <div onclick="event.stopPropagation()" style="background:#fff;border-radius:20px 20px 0 0;position:absolute;bottom:0;left:0;right:0;max-height:85vh;overflow-y:auto;padding:20px 18px 40px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="font-size:16px;font-weight:800;color:#1a2744">🎤 Frases que entiendo</div>
+          <button onclick="iramCerrarAyuda()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">✕</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;font-size:13px">
+
+          <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">📍 Ruta y navegación</div>
+          <div style="color:#374151;line-height:1.9">
+            "siguiente parada"<br>
+            "llévame al Cajamar de Vinalesa"<br>
+            "cuántos me quedan"<br>
+            "añade Siete Aguas a la ruta"<br>
+            "crea una ruta"
+          </div></div>
+
+          <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">🔧 Trabajo y avisos</div>
+          <div style="color:#374151;line-height:1.9">
+            "qué hay que hacer en el Cajamar de Almácera"<br>
+            "qué avisos puedo hacer hoy"<br>
+            "hay algún aviso más cerca de Siete Aguas"<br>
+            "finaliza, se sustituye batería central"<br>
+            "hecho"
+          </div></div>
+
+          <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">🛠️ Mantenimiento</div>
+          <div style="color:#374151;line-height:1.9">
+            "está hecho el MTO del Cajamar de almácera"<br>
+            "está hecho el mantenimiento de Utiel"<br>
+            "registra el Q2 del BBVA de Burjasot"<br>
+            "cuántos mantenimientos hice este mes"<br>
+            "mantenimientos de la semana pasada"
+          </div></div>
+
+          <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">🕐 Horarios y oficinas</div>
+          <div style="color:#374151;line-height:1.9">
+            "qué horario tiene Cajamar Camporrobles"<br>
+            "está abierta la oficina de Cajamar mañana"<br>
+            "dime las oficinas de Almácera"<br>
+            "historial del BBVA de almácera"<br>
+            "dónde fui el viernes pasado"
+          </div></div>
+
+          <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">📝 Notas e info técnica</div>
+          <div style="color:#374151;line-height:1.9">
+            "tengo algo anotado de Spider"<br>
+            "tengo algo anotado de Morley"<br>
+            "tengo alguna nota de cámaras"<br>
+            "dime el código Spider del Cajamar"<br>
+            "qué notas tengo"
+          </div></div>
+
+          <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">📅 Agenda</div>
+          <div style="color:#374151;line-height:1.9">
+            "tengo alguna tarea"<br>
+            "dime las tareas"<br>
+            "tengo algún evento"<br>
+            "dime si hay algún evento"
+          </div></div>
+
+          <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">🌐 General (Gemini)</div>
+          <div style="color:#374151;line-height:1.9">
+            "qué tiempo hace en Valencia"<br>
+            "gasolinera más cercana"<br>
+            "dónde puedo comer cerca"<br>
+            "noticias de hoy"
+          </div></div>
+
+        </div>
       </div>
     </div>
 
@@ -13196,6 +13270,15 @@ function pycCerrarChat() {
   pycPararVoz();
 }
 
+function iramMostrarAyuda() {
+  const el = document.getElementById('iram-ayuda-overlay');
+  if (el) { el.style.display = 'block'; el.scrollTop = 0; }
+}
+function iramCerrarAyuda() {
+  const el = document.getElementById('iram-ayuda-overlay');
+  if (el) el.style.display = 'none';
+}
+
 // Guardar historial cuando el usuario sale de la app o cambia de pestaña
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && _pycHist.length) iramGuardarHistorial();
@@ -13215,8 +13298,38 @@ window.addEventListener('pagehide', () => {
 async function pycGemini(fraseOriginal) {
   const key = pycGetKey('gemini');
   if (!key) throw new Error('Sin API key de Gemini');
-  const modelo = 'gemini-2.0-flash';
-  const url    = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
+
+  // Auto-descubrir el mejor modelo flash disponible para esta API key
+  async function descubrirModelo() {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+      if (!r.ok) return null;
+      const data = await r.json();
+      const modelos = (data?.models || [])
+        .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+        .map(m => m.name?.replace('models/',''))
+        .filter(Boolean);
+      // Preferir flash sobre pro, y versiones más recientes
+      const flash = modelos.filter(m => m.includes('flash'));
+      const pro   = modelos.filter(m => m.includes('pro') && !m.includes('vision'));
+      return flash[0] || pro[0] || modelos[0] || null;
+    } catch(e) { return null; }
+  }
+
+  // Lista de fallback confirmada (visible en Google AI Studio)
+  const MODELOS_FALLBACK = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-flash-preview-04-17',
+    'gemini-1.5-flash-002',
+  ];
+
+  const modeloAuto = await descubrirModelo();
+  const MODELOS = modeloAuto
+    ? [modeloAuto, ...MODELOS_FALLBACK.filter(m => m !== modeloAuto)]
+    : MODELOS_FALLBACK;
 
   const system = `Eres IRAM, asistente de campo de Gsus, técnico de seguridad electrónica en Valencia (España).
 Responde en español, de forma breve y directa. Máximo 3-4 frases.
@@ -13227,53 +13340,60 @@ No expliques quién eres ni saludos innecesarios. Ve al grano.`;
     parts: [{ text: m.text }]
   }));
 
-  const body = {
+  const baseBody = {
     system_instruction: { parts: [{ text: system }] },
     contents: [
       ...contexto,
       { role: 'user', parts: [{ text: fraseOriginal }] }
     ],
-    tools: [{ google_search: {} }],
     generationConfig: { temperature: 1.0, maxOutputTokens: 400 }
   };
 
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  // Si falla con el tool de búsqueda → reintentar sin él
-  if (!resp.ok && (resp.status === 400 || resp.status === 404)) {
-    delete body.tools;
-    const resp2 = await fetch(url, {
+  async function intentar(modelo, conTool) {
+    const url  = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
+    const body = conTool
+      ? { ...baseBody, tools: [{ google_search: {} }] }
+      : { ...baseBody };
+    const resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (!resp2.ok) {
-      const err2 = await resp2.json().catch(()=>({}));
-      const msg2 = err2?.error?.message || '';
-      if (resp2.status === 429 || msg2.includes('quota')) throw new Error('saturado');
-      throw new Error(`Gemini ${resp2.status}${msg2?' — '+msg2.slice(0,80):''}`);
+    return { resp, modelo };
+  }
+
+  for (const modelo of MODELOS) {
+    // 1. Intentar con búsqueda web
+    let { resp } = await intentar(modelo, true);
+
+    // 2. Si el tool falla → reintentar sin él con el mismo modelo
+    if (!resp.ok && (resp.status === 400 || resp.status === 404)) {
+      const r2 = await intentar(modelo, false);
+      resp = r2.resp;
     }
-    const data2 = await resp2.json();
-    const text2 = data2?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('').trim();
-    if (!text2) throw new Error('Gemini sin respuesta');
-    return text2;
+
+    // Modelo no encontrado → probar el siguiente
+    if (resp.status === 404) continue;
+
+    // Cuota agotada → parar ya
+    if (resp.status === 429) throw new Error('cuota de Gemini agotada. Espera un momento.');
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({}));
+      const msg = (err?.error?.message||'').slice(0,120);
+      // Si el modelo está deprecado para este usuario → probar siguiente
+      if (msg.toLowerCase().includes('no longer available') || msg.toLowerCase().includes('deprecated')) continue;
+      throw new Error(`Gemini ${resp.status}: ${msg}`);
+    }
+
+    // Respuesta válida
+    const data = await resp.json();
+    const text = data?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('').trim();
+    if (!text) throw new Error('Gemini respondió vacío');
+    return text;
   }
 
-  if (!resp.ok) {
-    const err = await resp.json().catch(()=>({}));
-    const msg = err?.error?.message || '';
-    if (resp.status === 429 || msg.includes('quota')) throw new Error('saturado');
-    throw new Error(`Gemini ${resp.status}${msg?' — '+msg.slice(0,80):''}`);
-  }
-
-  const data = await resp.json();
-  const text = data?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('').trim();
-  if (!text) throw new Error('Gemini sin respuesta');
-  return text;
+  throw new Error('ningún modelo Gemini está disponible con tu API key');
 }
 
 /* ══════════════════════════════════════════════════════
@@ -13805,7 +13925,7 @@ function iramClasificar(txt) {
   }
 
   // ── CONSULTA TAREAS ──
-  if (/\b(dime\s+(?:las\s+)?tareas?|tareas?\s+(?:que\s+tengo|pendientes?|de\s+hoy)|qu[eé]\s+tareas?\s+tengo)\b/i.test(raw))
+  if (/\b(dime\s+(?:las\s+)?tareas?|tareas?\s+(?:que\s+tengo|pendientes?|de\s+hoy)|qu[eé]\s+tareas?\s+tengo|tengo\s+alguna?\s+tarea|hay\s+alguna?\s+tarea|mis\s+tareas?|qu[eé]\s+tengo\s+pendiente)\b/i.test(raw))
     return { intento:'CONSULTA_TAREAS' };
 
   // ── MARCAR TAREA HECHA ──
@@ -13815,7 +13935,7 @@ function iramClasificar(txt) {
   }
 
   // ── CONSULTA EVENTOS ──
-  if (/\b(dime\s+(?:si\s+hay\s+)?(?:los\s+)?eventos?|eventos?\s+de\s+(?:este\s+)?mes|qu[eé]\s+eventos?\s+tengo|agenda\s+(?:de\s+)?(?:hoy|semana|mes)|hay\s+(?:algún\s+)?evento)\b/i.test(raw))
+  if (/\b(dime\s+(?:si\s+hay\s+)?(?:los\s+)?eventos?|eventos?\s+de\s+(?:este\s+)?mes|qu[eé]\s+eventos?\s+tengo|agenda\s+(?:de\s+)?(?:hoy|semana|mes)|hay\s+(?:algún\s+)?evento|tengo\s+algún\s+evento|mis\s+eventos?)\b/i.test(raw))
     return { intento:'CONSULTA_EVENTOS' };
 
   // ── CANCELAR EVENTO ──
@@ -14284,12 +14404,14 @@ async function iramEjecutarAccion(cl) {
     const nL = normTopo(cl.localidad||'');
     const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
     const ruta     = loadArr(K_RUTA);
-    // Deduplicar: preferir la versión de ruta si existe en ambos
+    // Deduplicar: usar OT si existe, sino cliente+localidad (sin código — puede diferir entre análisis y ruta)
     const vistas   = new Map();
     [...analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado'),
      ...ruta.filter(r=>r.estado==='pendiente')].forEach(p => {
-      const k = iramNorm((p.clienteReal||p.clienteNorm||p.cliente||'')+(p.codigo||'')+(p.localidad||''));
-      if (!vistas.has(k) || ruta.includes(p)) vistas.set(k, p);
+      const k = p.ot
+        ? 'ot:'+iramNorm(p.ot)
+        : iramNorm((p.clienteReal||p.clienteNorm||p.cliente||'')+(p.localidad||''));
+      if (!vistas.has(k) || ruta.find(r=>r===p)) vistas.set(k, p);
     });
     let todos = Array.from(vistas.values());
     // Filtrar si se especificó cliente o localidad
@@ -14664,22 +14786,56 @@ async function iramEjecutarAccion(cl) {
 
   /* ── CONSULTA NOTAS ── */
   if (cl.intento === 'CONSULTA_NOTAS') {
-    const notas = loadArr(K_NOTAS);
-    if (!notas.length) return 'No tienes notas guardadas.';
-    const q = iramNorm(cl.query||'');
-    const filtradas = q
-      ? notas.filter(n => iramNorm(n.titulo||'').includes(q) || iramNorm(n.texto||'').includes(q) || iramNorm(typeof n.etiquetas==='string'?n.etiquetas:(n.etiquetas||[]).join(' ')).includes(q))
+    const q       = iramNorm(cl.query||'');
+    const notas   = loadArr(K_NOTAS);
+    const infoTec = loadArr(K_INFO_TEC);
+
+    // ── Buscar en notas de usuario ──
+    const notasMatch = q
+      ? notas.filter(n =>
+          iramNorm(n.titulo||'').includes(q) ||
+          iramNorm(n.texto||'').includes(q) ||
+          iramNorm(typeof n.etiquetas==='string'?n.etiquetas:(n.etiquetas||[]).join(' ')).includes(q))
       : notas;
-    if (!filtradas.length) return `No hay notas sobre "${cl.query}".`;
+
+    // ── Buscar en info técnica (Información del Excel) ──
+    const infoMatch = q
+      ? infoTec.filter(r =>
+          iramNorm(r.entidad||'').includes(q) ||
+          iramNorm(r.detalle||r.INFORMACION||'').includes(q) ||
+          iramNorm(r.tipoDato||r.TIPO_DATO||'').includes(q) ||
+          iramNorm(r.sistema||r.SISTEMA||'').includes(q) ||
+          iramNorm(typeof r.etiquetas==='string'?r.etiquetas:(r.etiquetas||[]).join(' ')).includes(q))
+      : [];
+
+    const totalResultados = notasMatch.length + infoMatch.length;
+
     if (!q) {
+      // Sin query → listar todas las notas
+      if (!notas.length) return 'No tienes notas guardadas.';
       const lista = notas.slice(0,5).map(n => n.titulo||n.texto?.slice(0,30)||'sin título').join(', ');
       return `${notas.length} nota${notas.length>1?'s':''}: ${lista}.`;
     }
-    // Mostrar la primera coincidencia completa
-    const n   = filtradas[0];
-    const txt2= (n.texto||'').slice(0,200);
-    const mas = filtradas.length > 1 ? ` Hay ${filtradas.length} coincidencias.` : '';
-    return `📝 ${n.titulo||'Nota'}: ${txt2}.${mas}`;
+
+    if (!totalResultados) return `No tengo nada anotado sobre "${cl.query}".`;
+
+    const lineas = [];
+
+    // Resultados de notas de usuario
+    notasMatch.slice(0,2).forEach(n => {
+      const txt2 = (n.texto||'').slice(0,120);
+      lineas.push(`📝 ${n.titulo||'Nota'}: ${txt2}`);
+    });
+
+    // Resultados de info técnica
+    infoMatch.slice(0,3).forEach(r => {
+      const quien = r.entidad || r.sistema || r.tipoDato || 'Info';
+      const info  = (r.detalle||r.INFORMACION||'').slice(0,200);
+      lineas.push(`🔧 ${quien}: ${info}`);
+    });
+
+    const mas = totalResultados > lineas.length ? ` (${totalResultados} coincidencias total)` : '';
+    return lineas.join('\n') + mas;
   }
 
   /* ── BUSCAR INFO TÉCNICA ── */
