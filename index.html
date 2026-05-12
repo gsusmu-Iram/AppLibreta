@@ -13205,42 +13205,6 @@ window.addEventListener('pagehide', () => {
    IRAM — Resumen vivo del día
    Se actualiza con cada acción importante
    ══════════════════════════════════════════════════════ */
-const K_IRAM_DIARIO = 'pyc_iram_diario';
-
-function iramDiario() {
-  try {
-    const hoy = new Date().toISOString().slice(0,10);
-    const d = JSON.parse(localStorage.getItem(K_IRAM_DIARIO)||'{}');
-    if (d.fecha !== hoy) return null;
-    return d;
-  } catch(e) { return null; }
-}
-
-function iramDiarioAccion(txt) {
-  try {
-    const hoy = new Date().toISOString().slice(0,10);
-    const d = iramDiario() || { fecha: hoy, acciones: [] };
-    if (!d.acciones) d.acciones = [];
-    const hora = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
-    d.acciones.push({ hora, txt });
-    if (d.acciones.length > 20) d.acciones.shift();
-    localStorage.setItem(K_IRAM_DIARIO, JSON.stringify(d));
-  } catch(e) {}
-}
-
-/* Construye el resumen del día para el system prompt */
-function iramResumenDia() {
-  const d = iramDiario();
-  if (!d) return '';
-  const lines = [];
-  if (d.ultimaLlamada) lines.push(`Última llamada: ${d.ultimaLlamada}`);
-  if (d.ultimaWaze)   lines.push(`Último Waze: ${d.ultimaWaze}`);
-  if (d.acciones && d.acciones.length) {
-    lines.push('Acciones de hoy:');
-    d.acciones.slice(-5).forEach(a => lines.push(`  ${a.hora} — ${a.txt}`));
-  }
-  return lines.length ? '\nRESUMEN DEL DÍA:\n' + lines.join('\n') : '';
-}
 
 /* ══════════════════════════════════════════════════════
    IRAM — Última acción propuesta (para resolver "sí"/"va")
@@ -13315,539 +13279,6 @@ function iramSaludoProactivo() {
 
     return lineas.join('\n');
   } catch(e) { return '¿En qué te ayudo?'; }
-}
-
-/* ══════════════════════════════════════════════════════
-   IRAM — Contexto por módulos (lo que ve la IA)
-   ══════════════════════════════════════════════════════ */
-function pycContexto() {
-  try {
-    const hoy      = new Date().toISOString().slice(0,10);
-    const hoyD     = new Date();
-    const mesActual = hoyD.getMonth();
-    const trimActual = mesActual<3?'Q1':mesActual<6?'Q2':mesActual<9?'Q3':'Q4';
-
-    const ruta    = loadArr(K_RUTA);
-    const tareas  = loadArr(K_TAREAS);
-    const eventos = loadArr(K_EVENTOS);
-    const hist    = loadArr(K_HIST);
-    const excel   = loadArr(K_EXCEL);
-    const ubics   = loadArr(K_UBICS);
-
-    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
-
-    const rutaPend = ruta.filter(r => r.estado === 'pendiente');
-    const rutaHecha= ruta.filter(r => r.estado === 'completada');
-    const tPend    = tareas.filter(t => t.estado === 'pendiente');
-    const tHoy     = tPend.filter(t => t.fecha === hoy);
-    const anPend   = analisis.filter(a => a.estado !== 'completado' && a.estado !== 'cerrado');
-
-    // ─── Función auxiliar: última visita por código ───
-    function ultimaVisita(codigo, clienteNorm, localidad) {
-      const codN = String(codigo||'').replace(/^0+/,'').toLowerCase();
-      const cliN = iramNorm(clienteNorm||'').slice(0,6);
-      const locN = iramNorm(localidad||'').slice(0,4);
-      const visitas = hist.filter(v => {
-        const vKey = String(v.KEY||'').replace(/^sis_/,'').replace(/^0+/,'').toLowerCase();
-        if (codN && vKey && vKey.length >= 3) {
-          return vKey.includes(codN) || codN.includes(vKey);
-        }
-        const vc = iramNorm(v.CLIENTE||v.cliente||'');
-        const vl = normTopo(v.LOCALIDAD||v.localidad||'');
-        return vc.includes(cliN) && (!locN || vl.includes(locN));
-      }).sort((a,b) => (b.FECHA||'').localeCompare(a.FECHA||''));
-      if (!visitas.length) return '';
-      const u = visitas[0];
-      return `${u.FECHA||'?'}: ${(u.TRABAJO||u.trabajo||'').slice(0,50)}`;
-    }
-
-    // ─── MÓDULO 1: ANÁLISIS — todos los partes del día ───
-    let analisisCtx = '';
-    if (anPend.length) {
-      analisisCtx = anPend.slice(0,20).map((a,i) => {
-        const cliente = a.clienteReal || a.clienteNorm || a.cliente || '?';
-        const codigo  = a.codigo || '';
-        const loc     = a.localidad || '';
-        const dir     = a.direccion || '';
-        const tipo    = a.tipo || (a.esPCI ? 'PCI' : 'SEG');
-        const urgente = a.urgente ? `🚨URGENTE${a.horasUrgencia?' '+a.horasUrgencia+'H':''}` : '';
-        const fijado  = a.horaFijada ? `FIJADO ${a.horaFijada}` : '';
-        // Días pendiente
-        let dias = '';
-        if (a.fecha) {
-          const p = a.fecha.split('/');
-          if (p.length >= 3) {
-            const dDias = Math.floor((hoyD - new Date(p[2]+"-"+p[1]+"-"+p[0])) / 86400000);
-            if (dDias > 7) dias = `${dDias}d`;
-          }
-        }
-        // MTO
-        const mtoData = iramGetMtoData(cliente, codigo, loc, trimActual);
-        const mtoHecho = mtoData && mtoData[trimActual] && mtoData[trimActual].trim() !== '' && mtoData[trimActual] !== '0';
-        // Última visita
-        const uv = ultimaVisita(codigo, cliente, loc);
-        // Estado en ruta
-        const enRuta = ruta.some(r => r.codigo === codigo || iramNorm(r.clienteReal||r.cliente||'').includes(iramNorm(cliente).slice(0,5)));
-
-        return [
-          `${i+1}. ${cliente}${codigo?' ('+codigo+')':''} · ${loc}${dir?' · '+dir:''}`,
-          `   Aviso: ${(a.trabajo||a.descripcion||'').slice(0,80)}`,
-          `   Tipo:${tipo} ${urgente} ${fijado} ${dias} ${enRuta?'EN RUTA':''} MTO ${trimActual}:${mtoHecho?'✅':'⏳'}`,
-          uv ? `   Última visita: ${uv}` : ''
-        ].filter(Boolean).join('\n');
-      }).join('\n');
-    }
-
-    // ─── MÓDULO 2: RUTA — paradas activas ───
-    let rutaCtx = '';
-    if (ruta.length) {
-      rutaCtx = ruta.map((p,i) => {
-        const cliente = p.clienteReal || p.clienteNorm || p.cliente || '?';
-        const estado  = p.estado === 'completada' ? '✅' : '⏳';
-        const codigo  = p.codigo || '';
-        const loc     = p.localidad || '';
-        const dir     = p.direccion || '';
-        const trabajo = p.trabajo || '';
-        // Excel horario
-        const exRow = excel.find(c => {
-          const ec = String(c.CODIGO||c.codigo||'').replace(/^0+/,'').toLowerCase();
-          const codN = codigo.replace(/^0+/,'').toLowerCase();
-          return codN && ec === codN;
-        });
-        const horario = p.horarioTxt || exRow?.HORARIO || '';
-        // MTO
-        const mtoData = iramGetMtoData(cliente, codigo, loc, trimActual);
-        const mtoHecho = mtoData && mtoData[trimActual] && mtoData[trimActual].trim() !== '' && mtoData[trimActual] !== '0';
-        // Última visita
-        const uv = ultimaVisita(codigo, cliente, loc);
-
-        return [
-          `${estado} ${i+1}. ${cliente}${codigo?' ('+codigo+')':''} · ${loc}${dir?' · '+dir:''}`,
-          `   ${trabajo}${horario?' · '+horario:''}`,
-          `   MTO ${trimActual}: ${mtoHecho?'✅ hecho':'⏳ pendiente'}`,
-          uv ? `   Última: ${uv}` : ''
-        ].filter(Boolean).join('\n');
-      }).join('\n');
-    }
-
-    // ─── MÓDULO 2b: UBICACIONES GUARDADAS ───
-    let ubicCtx = '';
-    if (ubics.length) {
-      ubicCtx = ubics.map(u => `- ${u.nombre}: ${u.addr||u.direccion||''} (${u.tipo||''})`).join('\n');
-    }
-
-    // ─── MÓDULO 3: MTO — solo paradas de la ruta ───
-    let mtoCtx = '';
-    if (ruta.length) {
-      mtoCtx = ruta.map(p => {
-        const cliente = p.clienteReal || p.clienteNorm || p.cliente || '?';
-        const codigo  = p.codigo || '';
-        const loc     = p.localidad || '';
-        const mtoData = iramGetMtoData(cliente, codigo, loc, trimActual);
-        const hecho   = mtoData && mtoData[trimActual] && mtoData[trimActual].trim() !== '' && mtoData[trimActual] !== '0';
-        return `- ${cliente}${codigo?' ('+codigo+')':''}: MTO ${trimActual} ${hecho?'✅ hecho ('+mtoData[trimActual]+')':'⏳ pendiente'}`;
-      }).join('\n');
-    }
-
-    // ─── MÓDULO 5: TAREAS — hoy + próximos 7 días ───
-    const finSemana = new Date(hoyD); finSemana.setDate(finSemana.getDate()+7);
-    const finISO    = finSemana.toISOString().slice(0,10);
-    const tSemana   = tPend.filter(t => !t.fecha || (t.fecha >= hoy && t.fecha <= finISO));
-    const matKw     = /batería|cámara|cable|herramienta|repuesto|recambio/i;
-    const material  = tPend.filter(t => matKw.test(t.titulo)).map(t => t.titulo);
-    const tareasCtx = tSemana.length
-      ? tSemana.slice(0,8).map(t => `- ${t.titulo}${t.fecha?' ('+t.fecha+')':''}`).join('\n')
-      : 'Ninguna esta semana.';
-
-    // ─── EVENTOS mes completo (pasados + futuros) ───
-    const mesInicio = hoy.slice(0,7) + '-01';
-    const mesFin    = new Date(hoyD.getFullYear(), hoyD.getMonth()+2, 0).toISOString().slice(0,10);
-    const evMes     = eventos.filter(ev => ev.fecha >= mesInicio && ev.fecha <= mesFin)
-                             .sort((a,b) => a.fecha.localeCompare(b.fecha));
-    const eventosCtx = evMes.length
-      ? evMes.map(ev => `- ${ev.fecha}${ev.hora?' '+ev.hora:''}: ${ev.titulo}${ev.fecha < hoy?' (pasado)':ev.fecha===hoy?' (hoy)':''}`).join('\n')
-      : 'Ninguno este mes.';
-
-    // ─── RESUMEN VIVO DEL DÍA ───
-    const resumenDia = iramResumenDia();
-
-    // ─── CONSTRUIR CONTEXTO FINAL ───
-    const partes = [
-      `📅 ${hoy} · Trimestre ${trimActual} · ${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}h`,
-      `Ruta: ${rutaPend.length} pendientes, ${rutaHecha.length} completados`,
-      rutaPend[0] ? `Siguiente parada: ${rutaPend[0].clienteReal||rutaPend[0].cliente} · ${rutaPend[0].localidad||''}` : '',
-      `Partes análisis: ${anPend.length} pendientes`,
-      material.length ? `Material pendiente: ${material.slice(0,3).join(', ')}` : '',
-      resumenDia,
-    ].filter(Boolean).join('\n');
-
-    const detalles = [
-      anPend.length  ? `\nPARTES DE HOY (${anPend.length}):\n${analisisCtx}` : '',
-      ruta.length    ? `\nRUTA (${rutaPend.length} pendientes, ${rutaHecha.length} completados):\n${rutaCtx}` : '',
-      ubicCtx        ? `\nUBICACIONES GUARDADAS:\n${ubicCtx}` : '',
-      mtoCtx         ? `\nMTO ${trimActual} DE LA RUTA:\n${mtoCtx}` : '',
-      `\nTAREAS ESTA SEMANA:\n${tareasCtx}`,
-      evSemana.length ? `\nEVENTOS:\n${eventosCtx}` : '',
-    ].filter(Boolean).join('');
-
-    return partes + detalles;
-  } catch(e) {
-    return `Error construyendo contexto: ${e.message}`;
-  }
-}
-
-/* ══════════════════════════════════════════════════════
-   IRAM — System prompt compartido
-   ══════════════════════════════════════════════════════ */
-function iramSystemPrompt() {
-  const modo = document.getElementById('iram-drive')?.classList.contains('active') ? 'CONDUCCIÓN' : 'TEXTO';
-  return `Eres Iram, compañero de campo de Gsus — técnico de seguridad en Valencia.
-
-CÓMO HABLAS:
-Habla como un humano, no como un sistema. Informal, directo, sin rodeos.
-Máximo 2-3 frases salvo que te pidan más. Sin markdown, sin asteriscos. Solo texto plano.
-
-EJEMPLOS DE CÓMO HABLAR:
-- "¿Lo hago?" (no "¿Deseas que proceda?")
-- "Déjame que miro" (no "Procederé a verificar")
-- "Eso no lo tengo" (no "No dispongo de esa información")
-- "Llevas 3 de 7, buen ritmo" (no "Has completado el 42% de las tareas")
-- "¿Abro Waze?" (no "¿Deseas que abra la aplicación de navegación?")
-
-HILO DE CONVERSACIÓN:
-Si el usuario dice "sí", "va", "dale", "venga" → ejecuta la última acción que propusiste.
-Si te corrigen → reconócelo: "Tienes razón, me equivoqué."
-Si preguntan algo del historial → búscalo en la conversación anterior.
-Nunca digas "no sé a qué te refieres" si hay contexto en el historial.
-
-PROACTIVIDAD:
-Si ves algo importante en los datos (urgente sin resolver, MTO pendiente en la ruta, cierre próximo) → dilo sin que te pregunten.
-Una advertencia por respuesta máximo.
-
-LÍMITES:
-"Búscalo en Info técnica" → SOLO para contraseñas, IPs, códigos de acceso a sistemas de clientes. NUNCA para preguntas sobre la propia app.
-Si preguntan "¿dónde guardaste el trabajo?" → "En el historial de la app. Lo ves en la tarjeta de la parada en Ruta."
-Si preguntan "¿se guardó?" → "Sí, está en el historial."
-Nunca inventes datos que no estén en el contexto.
-Si no tienes el dato: di "Eso no lo tengo" y para. NO ofrezcas alternativas ni desvíes a otro tema.
-
-
-MODO: ${modo}${modo === 'CONDUCCIÓN' ? ' — respuestas muy cortas, fáciles de escuchar al volante.' : ''}`;
-}
-
-/* ══════════════════════════════════════════════════════
-   IRAM — Llamada a Gemini (modo WEB)
-   ══════════════════════════════════════════════════════ */
-async function pycEnviar() {
-  if (_pycThinking) return;
-  const ta  = document.getElementById('pyc-ta');
-  const txt = (ta.value || '').trim();
-  if (!txt) return;
-
-  ta.value = '';
-  pycAutoResize(ta);
-  pycMsgUser(txt);
-  _pycThinking = true;
-
-  // ── Diálogo pendiente ──
-  if (_iramDialogo) {
-    const dialogo = _iramDialogo;
-    _iramDialogo  = null;
-    const mapa = {
-      CREAR_TAREA:        cl => ({ ...cl, titulo: txt }),
-      CREAR_EVENTO:       cl => ({ ...cl, titulo: txt }),
-      CREAR_EVENTO_FECHA: cl => ({ ...cl, fecha: iramFechaISO(iramNorm(txt)) }),
-      CREAR_NOTA:         cl => ({ ...cl, texto: txt }),
-    };
-    const fn = mapa[dialogo.esperando];
-    if (fn) {
-      const res = await iramEjecutarAccion(fn(dialogo.datos));
-      if (res) pycMsgIA(res, false, 'local');
-      _pycThinking = false; return;
-    }
-  }
-
-  // ── Confirmación de acción pendiente ──
-  if (/^(s[íi]|va|dale|venga|ok|claro|hazlo|llama|abre|sí|si|perfecto|adelante)$/i.test(txt.trim()) && _iramUltimaAccion) {
-    const acc = _iramUltimaAccion;
-    _iramUltimaAccion = null;
-    if (acc.tipo === 'waze' && acc.datos) {
-      iramAbrirWazeParada(acc.datos);
-      pycMsgIA('Abriendo Waze.', false, 'local');
-      _pycThinking = false; return;
-    }
-    if (acc.tipo === 'llamar' && acc.datos) {
-      iramConfirmarLlamar(acc.datos);
-      pycMsgIA(`${acc.datos.NOMBRE} · ${acc.datos.TELEFONO} — pulsa para llamar.`, false, 'local');
-      _pycThinking = false; return;
-    }
-    if (acc.tipo === 'registrar_mto' && acc.datos) {
-      const { paradas, trim } = acc.datos;
-      const mtoMan  = (() => { try { return JSON.parse(localStorage.getItem('pyc_mto_manual')||'{}'); } catch{return {};} })();
-      const fechaStr= new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
-      paradas.forEach(p => {
-        const clave = iramMtoKey(p.cliente||p.clienteReal||'', p.codigo||'', p.loc||p.localidad||'');
-        if (!mtoMan[clave]) mtoMan[clave] = {};
-        mtoMan[clave][trim] = fechaStr;
-      });
-      localStorage.setItem('pyc_mto_manual', JSON.stringify(mtoMan));
-      if (typeof renderMTO === 'function') renderMTO();
-      pycMsgIA(`✅ MTO ${trim} registrado — ${paradas.map(p=>`${p.cliente||p.clienteReal} · ${p.loc||p.localidad||''}`).join(', ')}.`, false, 'local');
-      _pycThinking = false; return;
-    }
-    if (acc.tipo === 'anadir_aviso' && acc.datos) {
-      const { partes } = acc.datos;
-      const rutaAct  = loadArr(K_RUTA);
-      const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
-      partes.forEach(a => { a.enRuta = true; });
-      localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
-      partes.forEach(a => {
-        rutaAct.push({ id:'R_'+Date.now()+'_'+Math.random().toString(36).slice(2), clienteReal:a.clienteReal||a.clienteNorm||a.cliente, clienteNorm:a.clienteNorm||a.cliente, cliente:a.cliente, codigo:a.codigo||'', localidad:a.localidad||'', direccion:a.direccion||'', trabajo:a.trabajo||a.descripcion||'', horarioTxt:a.horarioTxt||'', urgente:a.urgente||false, estado:'pendiente' });
-      });
-      save(K_RUTA, rutaAct);
-      if (typeof renderRuta === 'function') renderRuta();
-      pycMsgIA(`✅ ${partes.length} aviso${partes.length>1?'s':''} añadidos a la ruta.`, false, 'local');
-      _pycThinking = false; return;
-    }
-  }
-
-  try {
-    // 1. Clasificador local (regex puro, sin red)
-    let cl = iramClasificar(txt);
-    cl._txt = txt;
-
-    // 2. Si local reconoció un intent pero faltan datos clave → Groq rellena campos
-    //    (ej: "registra el Q2 de Cajamar almácera" → local extrae REGISTRAR_MTO pero sin cliente/localidad)
-    const necesitaGroq = cl.intento !== 'CHAT' && !cl.cliente && !cl.localidad && !cl.codigo && !cl.trim &&
-      ['REGISTRAR_MTO','HISTORIAL_CLIENTE','MTO_ESTADO','CONSULTA_TRABAJO','HORARIO','BUSCAR_OFICINA'].includes(cl.intento);
-    if (necesitaGroq || cl.intento === 'CHAT') {
-      const clIA = await iramClasificarIA(txt).catch(() => null);
-      if (clIA && clIA.intento && clIA.intento !== 'CHAT') {
-        // Limpiar títulos que Groq incluye con verbos
-        const limpiar = s => (s||'').replace(/\bcrea[r]?\s+un[ao]?\s+(tarea|evento|nota)\b/gi,'').replace(/\s+/g,' ').trim();
-        if (clIA.intento === 'CREAR_TAREA')  { if (clIA.titulo) clIA.titulo = limpiar(clIA.titulo); if (clIA.fecha) clIA.fecha = iramFechaISO(iramNorm(clIA.fecha)); }
-        if (clIA.intento === 'CREAR_EVENTO') { if (clIA.titulo) clIA.titulo = limpiar(clIA.titulo); if (clIA.fecha) clIA.fecha = iramFechaISO(iramNorm(clIA.fecha)); }
-        if (clIA.intento === 'CREAR_NOTA' && clIA.texto) clIA.texto = clIA.texto.replace(/\bcrea[r]?\s+una?\s+nota\b/gi,'').replace(/\s+/g,' ').trim();
-        cl = { ...cl, ...clIA, _txt: txt };
-      }
-    }
-
-    // 3. Ejecutar intent local si lo hay
-    if (cl.intento !== 'CHAT') {
-      const resultado = await iramEjecutarAccion(cl);
-      if (resultado === '') { _pycThinking = false; return; }
-      if (resultado) {
-        pycMsgIA(resultado, false, 'local');
-        _pycThinking = false; return;
-      }
-    }
-
-    // 4. Todo lo que no es local → Gemini recibe la frase ORIGINAL sin tocar
-    if (pycGetKey('gemini')) {
-      pycMsgIA('✦ …', true, 'local');
-      try {
-        const respGem = await pycGemini(txt);
-        _pycHist = _pycHist.filter(m => !m.thinking);
-        pycMsgIA(respGem, false, 'gemini');
-      } catch(eGem) {
-        _pycHist = _pycHist.filter(m => !m.thinking);
-        pycMsgIA(`⚠️ Gemini: ${eGem?.message || 'error desconocido'}`, false, 'gemini');
-      }
-      _pycThinking = false; return;
-    }
-
-    pycMsgIA('🤔 No he entendido. Sin conexión a Gemini para preguntas generales.', false, 'local');
-
-  } catch(e) {
-    console.error('IRAM error:', e?.message, e?.stack);
-    pycMsgIA(`⚠️ Error: ${e?.message || 'desconocido'}`, false, 'local');
-  } finally {
-    _pycThinking = false;
-  }
-}
-
-/* ══════════════════════════════════════════════════════
-   GEMINI — búsqueda web con google_search grounding
-   ══════════════════════════════════════════════════════ */
-async function pycGemini(fraseOriginal) {
-  const key = pycGetKey('gemini');
-  if (!key) throw new Error('Sin key Gemini');
-
-  const modelo = 'gemini-2.0-flash';
-  const url    = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${key}`;
-
-  const hoy = new Date().toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
-  const system = `Eres IRAM, asistente de Jesús, técnico de seguridad en Valencia, España. Hoy es ${hoy}.
-Responde en español, de forma breve y directa. Máximo 5 líneas. Usa emojis cuando aporten claridad.
-Si te preguntan por resultados deportivos, noticias o tiempo — busca la información real y dala concreta.
-NO inventes. NO des resúmenes genéricos. DA datos específicos y reales.`;
-
-  const body = {
-    system_instruction: { parts: [{ text: system }] },
-    contents: (() => {
-      // Construir historial conversacional: últimos 10 mensajes reales (sin thinking ni status)
-      const hist = _pycHist
-        .filter(m => !m.thinking && m.text && !m.text.startsWith('✦'))
-        .slice(-10);
-      // Convertir al formato Gemini (user/model alternados)
-      const turns = [];
-      for (const m of hist) {
-        const gemRole = m.role === 'user' ? 'user' : 'model';
-        // Fusionar mensajes consecutivos del mismo rol
-        if (turns.length && turns[turns.length-1].role === gemRole) {
-          turns[turns.length-1].parts[0].text += '\n' + m.text;
-        } else {
-          turns.push({ role: gemRole, parts: [{ text: m.text }] });
-        }
-      }
-      // Garantizar que el último turno sea del usuario con el mensaje actual
-      if (!turns.length || turns[turns.length-1].role !== 'user') {
-        turns.push({ role: 'user', parts: [{ text: fraseOriginal }] });
-      } else {
-        turns[turns.length-1].parts[0].text = fraseOriginal;
-      }
-      return turns;
-    })(),
-    tools: [{ googleSearch: {} }],
-    generationConfig: { temperature: 1.0, maxOutputTokens: 400 }
-  };
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(()=>({}));
-    const msg = err?.error?.message || '';
-    if (resp.status === 429 || msg.includes('quota')) throw new Error('saturado');
-    throw new Error(`Gemini ${resp.status}`);
-  }
-
-  const data = await resp.json();
-  const text = data?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('').trim();
-  if (!text) throw new Error('Gemini sin respuesta');
-  return text;
-}
-
-/* ══════════════════════════════════════════════════════
-   IRAM CLASSIFIER — IA traduce lenguaje natural a JSON
-   Fallback local por regex
-   ══════════════════════════════════════════════════════ */
-
-const IRAM_INTENTOS_SCHEMA = `Eres un clasificador de intenciones para Gsus, técnico de seguridad en campo. Convierte su frase en JSON.
-Responde SOLO JSON válido, sin explicaciones.
-
-VOCABULARIO: "aviso" = parte de trabajo. "análisis" = todos los partes cargados. "ruta" = paradas activas del día.
-
-INTENTOS:
-COMPLETAR_AVISO(trabajo?,mto?,buscarCerca?) — finalizar aviso activo
-SIGUIENTE_AVISO — siguiente aviso de la ruta
-NAVEGAR(destino) — navegar a un lugar o aviso
-CONSULTA_AVISOS — avisos de la ruta activa
-CONSULTA_LOCALIDADES — en qué localidades hay avisos
-ANADIR_AVISO(destino,localidad?) — añadir aviso(s) a la ruta
-CREAR_RUTA(n?) — crear ruta con N avisos
-ANALIZAR_PARTES(localidad?,cliente?) — consultar partes/avisos en análisis
-CLIENTES_LOCALIDAD(localidad?,cliente?) — qué clientes hay en un pueblo (del Excel)
-RUTA_SIN_MTO(trim?) — qué avisos de la ruta no tienen MTO
-REGISTRAR_MTO(trim,localidad?,cliente?) — SOLO con verbo explícito: "registra","marca","anota","pon","apunta"
-MTO_ESTADO(cliente?,localidad?,trim?) — consultar si el MTO está hecho. Usar cuando dice "está hecho","tiene el mto","¿está hecho?"
-MTO_SEMANA — cuántos MTO ha hecho esta semana
-AVERIAS_SIN_MTO — partes sin MTO hecho
-CONSULTA_TRABAJO(cliente,localidad?) — qué trabajo hay que hacer en un aviso concreto. Usar cuando dice "qué hay que hacer","qué tengo que hacer","qué trabajo hay"
-CREAR_TAREA(titulo,fecha?) — fecha SOLO si la dice
-CONSULTA_TAREAS — ver tareas pendientes
-MARCAR_TAREA_HECHA(titulo) — marcar tarea como hecha
-CREAR_NOTA(texto) — nota de texto libre
-CREAR_EVENTO(titulo,fecha?,hora?) — evento en calendario
-CONSULTA_EVENTOS — eventos del mes
-LLAMAR(quien) — llamar a contacto
-HORARIO(cliente,localidad?) — horario de una oficina
-BUSCAR_OFICINA(codigo?,cliente?,localidad?) — identificar una oficina
-HISTORIAL_CLIENTE(cliente?,localidad?) — historial de visitas
-MATERIAL_PENDIENTE — material pendiente
-URGENTE — urgente al inicio de la ruta
-GASOLINERA — buscar gasolineras cercanas
-LUGAR(tipo?) — buscar restaurantes, farmacias, supermercados cerca
-RESUMEN_DIA — resumen del día
-CUANTO_QUEDA — cuántos avisos quedan en la ruta
-CHAT — pregunta web, tiempo, noticias, tráfico, o no reconocido
-
-REGLAS CRÍTICAS:
-- REGISTRAR_MTO SOLO con verbos explícitos: "registra","marca","anota","pon","apunta". "tienen el Q2 hecho" → MTO_ESTADO
-- CONSULTA_TRABAJO cuando pregunta qué hacer en una oficina concreta: extraer SIEMPRE cliente Y localidad si aparecen
-- BUSCAR_OFICINA: extraer siempre cliente Y localidad si aparecen los dos
-- ANALIZAR_PARTES cuando pregunta por avisos/partes en análisis (sin cliente/localidad concreto)
-- LUGAR SOLO para encontrar un negocio FÍSICO AHORA: farmacia, restaurante, supermercado. "hay mercado los miércoles", "dónde hay mercado" → CHAT (Gemini sabe)
-- CHAT para: tiempo, noticias, tráfico, Wikipedia, preguntas generales, mercados
-
-EJEMPLOS:
-"finaliza, Q2 hecho, se cambia batería" → {"intento":"COMPLETAR_AVISO","trabajo":"se cambia batería","mto":"Q2"}
-"siguiente parada" → {"intento":"SIGUIENTE_AVISO"}
-"qué hay que hacer en el Cajamar de almácera" → {"intento":"CONSULTA_TRABAJO","cliente":"Cajamar","localidad":"almácera"}
-"qué trabajo tengo en el BBVA Xirivella" → {"intento":"CONSULTA_TRABAJO","cliente":"BBVA","localidad":"Xirivella"}
-"está hecho el MTO del Cajamar de almácera" → {"intento":"MTO_ESTADO","cliente":"Cajamar","localidad":"almácera"}
-"está hecho el mantenimiento del Cajamar de almácera" → {"intento":"MTO_ESTADO","cliente":"Cajamar","localidad":"almácera"}
-"tiene el Q2 hecho el BBVA Xirivella" → {"intento":"MTO_ESTADO","cliente":"BBVA","localidad":"Xirivella","trim":"Q2"}
-"registra el Q2 de Cajamar almácera" → {"intento":"REGISTRAR_MTO","trim":"Q2","cliente":"Cajamar","localidad":"almácera"}
-"marca el Q2 del BBVA Loriguilla" → {"intento":"REGISTRAR_MTO","trim":"Q2","cliente":"BBVA","localidad":"Loriguilla"}
-"historial del BBVA almácera" → {"intento":"HISTORIAL_CLIENTE","cliente":"BBVA","localidad":"almácera"}
-"cuándo fui al Cajamar de Xirivella" → {"intento":"HISTORIAL_CLIENTE","cliente":"Cajamar","localidad":"Xirivella"}
-"horario del BBVA almácera" → {"intento":"HORARIO","cliente":"BBVA","localidad":"almácera"}
-"añade los de Siete Aguas" → {"intento":"ANADIR_AVISO","localidad":"Siete Aguas"}
-"qué clientes hay en Almassera" → {"intento":"CLIENTES_LOCALIDAD","localidad":"Almassera"}
-"cuántos me quedan" → {"intento":"CUANTO_QUEDA"}
-"cómo va el día" → {"intento":"RESUMEN_DIA"}
-"gasolinera más cercana" → {"intento":"GASOLINERA"}
-"dónde puedo comer cerca" → {"intento":"LUGAR","tipo":"restaurant"}
-"qué tiempo hace" → {"intento":"CHAT"}
-"noticias de hoy" → {"intento":"CHAT"}
-"cómo está el tráfico" → {"intento":"CHAT"}
-`;
-
-
-/* ══════════════════════════════════════════════════════
-   IRAM CLASSIFIER — IA traduce lenguaje natural a JSON
-   ══════════════════════════════════════════════════════ */
-async function iramClasificarIA(txt) {
-  // Contexto: últimas 2 frases del historial para que entienda referencias
-  const contexto = _pycHist
-    .filter(m => !m.thinking && m.text && m.text.trim())
-    .slice(-4)
-    .map(m => (m.role === 'user' ? 'Gsus: ' : 'Iram: ') + m.text.replace(/<[^>]+>/g,' ').slice(0,80))
-    .join('\n');
-
-  const msgConContexto = contexto
-    ? `Contexto reciente:\n${contexto}\n\nFrase actual: ${txt}`
-    : txt;
-
-  const keyGroq = pycGetKey('groq');
-  if (keyGroq) {
-    try {
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${keyGroq}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: IRAM_INTENTOS_SCHEMA },
-            { role: 'user', content: msgConContexto }
-          ],
-          max_tokens: 80, temperature: 0,
-          response_format: { type: 'json_object' }
-        })
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const json = JSON.parse(data?.choices?.[0]?.message?.content || '{}');
-        if (json.intento) return json;
-      }
-    } catch(e) {}
-  }
-
-  return null;
 }
 
 const _DIAS_IDX = {
@@ -13944,7 +13375,7 @@ function iramClasificar(txt) {
   const raw = txt.toLowerCase().trim();
 
   // ── Helper: extrae cliente + localidad limpiando artículos/preposiciones ──
-  const _CLIENTES_RE = /\b(bbva|cajamar|caja\s*rural|repsol|campsa|dia\b|sprinter|plenergy|ibercaja|sabadell|solvia)\b/i;
+  const _CLIENTES_RE = /\b(bbva|cajamar|caja\s*rural|caixa\s+rural|repsol|campsa|dia\b|sprinter|plenergy|ibercaja|sabadell|solvia|abanca|banca\s+march|jd\b|aquae)\b/i;
   function extraerClienteLoc(str) {
     const s = str.replace(/^(?:de(?:l?\s+la?)?|en\s+e?l?a?|al?)\s+/i,'').trim();
     const mCli = s.match(_CLIENTES_RE);
@@ -14009,10 +13440,11 @@ function iramClasificar(txt) {
   }
 
   // ── BUSCAR INFO TÉCNICA — spider, IP, contraseñas, códigos ──
-  if (/\b(c[oó]digo\s+(?:spider|acceso|alarma|central|grabador|nvr|dvr|arm|panel)|ip\s+(?:de|del?)|contrase[ñn]a\s+(?:de|del?)|spider\s*(?:pro)?|clave\s+(?:de|del?)|pin\s+(?:de|del?)|usuario\s+(?:de|del?)|info(?:rmaci[oó]n)?\s+t[eé]cnica)\b/i.test(raw)) {
-    const mKw = raw.match(/\b(spider|ip|contrase[ñn]a|clave|pin|usuario|acceso|nvr|dvr|grabador|central|arm|panel|arm)\b/i);
-    const kw  = mKw?.[1]||'';
-    const limpio = raw.replace(/\b(dime|dame|c[oó]digo|ip|contrase[ñn]a|clave|pin|usuario|acceso|info(?:rmaci[oó]n)?\s+t[eé]cnica|el|del?|la|de)\b/gi,'').trim();
+  if (/\b(c[oó]digo\s+(?:spider|morley|ajax|hikvision|dahua|acceso|alarma|central|grabador|nvr|dvr|arm|panel)|ip\s+(?:de|del?)|contrase[ñn]a\s+(?:de|del?)|spider\s*(?:pro)?|clave\s+(?:de|del?)|pin\s+(?:de|del?)|usuario\s+(?:de|del?)|info(?:rmaci[oó]n)?\s+t[eé]cnica|c[oó]digo\s+de\s+(?:la\s+|el\s+)?[a-záéíóúñ])\b/i.test(raw)) {
+    const mBrand = raw.match(/\b(spider|morley|ajax|hikvision|dahua|nvr|dvr|grabador|central|arm|panel)\b/i);
+    const mKw    = raw.match(/(?:c[oó]digo|ip|contrase[ñn]a|clave|pin|usuario)\s+(?:de\s+)?(?:la\s+|el\s+)?(\w+)/i);
+    const kw     = mBrand?.[1] || mKw?.[2] || '';
+    const limpio = raw.replace(/\b(dime|dame|cu[aá]l\s+es|c[oó]digo|ip|contrase[ñn]a|clave|pin|usuario|acceso|info(?:rmaci[oó]n)?\s+t[eé]cnica|el|del?|la|de)\b/gi,'').trim();
     const { cliente, localidad } = extraerClienteLoc(limpio);
     return { intento:'BUSCAR_INFO_TECNICA', query: kw, cliente, localidad };
   }
@@ -14623,9 +14055,10 @@ async function iramEjecutarAccion(cl) {
     const nC = iramNorm(cl.cliente || '');
     if (!nL && !nC) return 'Dime el pueblo o cliente que quieres buscar.';
     const matches = excel.filter(c => {
-      const eLoc = iramNorm(c.MUNICIPIO || c.municipio || '');
+      const eLoc = normTopo(c.MUNICIPIO || c.municipio || '');
       const eCli = iramNorm(c.CLIENTE   || c.cliente   || '');
-      const matchL = !nL || eLoc.includes(nL) || nL.includes(eLoc);
+      // Municipio vacío → no coincide con ninguna localidad buscada
+      const matchL = !nL || (eLoc.length >= 2 && (eLoc.includes(nL) || (eLoc.length >= 3 && nL.includes(eLoc))));
       const matchC = !nC || eCli.includes(nC);
       return matchL && matchC;
     });
@@ -14633,8 +14066,10 @@ async function iramEjecutarAccion(cl) {
     const lista = matches.map(c => {
       const nom = c.CLIENTE || c.cliente || '?';
       const cod = c.CODIGO  || c.codigo  || '';
+      const dir = c.DIRECCION || c.direccion || '';
       const mun = c.MUNICIPIO || c.municipio || '';
-      return `• ${nom}${cod ? ' ('+cod+')' : ''}${mun && !nL ? ' · '+mun : ''}`;
+      const id  = cod || (dir ? dir.slice(0,25) : '');
+      return `• ${nom}${id?' ('+id+')':''}${mun && !nL?' · '+mun:''}`;
     }).join('\n');
     const zona    = cl.localidad || cl.cliente || '';
     const cuantos = matches.length === 1 ? 'uno solo' : `${matches.length}`;
@@ -14812,14 +14247,30 @@ async function iramEjecutarAccion(cl) {
       ? todasParadas.filter(p => {
           const pL = normTopo(p.localidad||'');
           const pC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
-          return (nL && pL.includes(nL)) || (nC && pC.includes(nC));
+          return (!nC || pC.includes(nC)) && (!nL || pL.includes(nL));
         })
       : ruta.filter(r => r.estado === 'pendiente');
 
-    // Sin partes del día → buscar directamente en el Excel
+    // Sin partes del día → buscar en el Excel
     if (!candidatas.length) {
+      // Solo localidad sin cliente → mostrar todos los clientes de esa localidad con su MTO
+      if (nL && !nC) {
+        const todos = loadArr(K_EXCEL).filter(c => {
+          const cL = normTopo(c.MUNICIPIO||c.municipio||'');
+          return cL.length >= 2 && cL.includes(nL);
+        });
+        if (!todos.length) return `No tengo clientes en ${cl.localidad||'esa localidad'} en el Excel.`;
+        const lista = todos.map(c => {
+          const d     = iramGetMtoData(c.CLIENTE||'', c.CODIGO||'', c.MUNICIPIO||'', trim);
+          const v     = d?.[trim]||'';
+          const hecho = v && v.trim()!=='' && v!=='0';
+          return `${hecho?'✅':'❌'} ${c.CLIENTE}${c.CODIGO?' ('+c.CODIGO+')':''} — ${trim} ${hecho?'hecho ('+v+')':'pendiente'}`;
+        }).join('\n');
+        return `En ${cl.localidad}:\n${lista}`;
+      }
+      // Cliente (con o sin localidad)
       const exRow = iramBuscarCliente(cl.cliente||'', cl.localidad||'');
-      if (!exRow) return `No hay avisos de ${cl.localidad||cl.cliente||'esa oficina'} ni está en la base de datos.`;
+      if (!exRow) return `No encuentro ${cl.cliente||cl.localidad||'esa oficina'} en la base de datos.`;
       const d = iramGetMtoData(exRow.CLIENTE||'', exRow.CODIGO||'', exRow.MUNICIPIO||'', trim);
       const nombre = `${exRow.CLIENTE} · ${exRow.MUNICIPIO}`;
       if (!d) return `${nombre} — sin datos de MTO registrados.`;
@@ -14927,7 +14378,23 @@ async function iramEjecutarAccion(cl) {
       return `${ubic.nombre} — pulsa para abrir Waze.`;
     }
 
-    return `No tengo "${cl.destino||cl.localidad||cl.cliente}" en la ruta ni en análisis.`;
+    // 4. Fallback: buscar en Excel de Clientes
+    if (nC || nL) {
+      const exRow = iramBuscarCliente(cl.cliente||'', cl.localidad||'');
+      if (exRow) {
+        const paradaEx = {
+          clienteReal: exRow.CLIENTE||exRow.cliente||cl.cliente||'',
+          codigo:      exRow.CODIGO||exRow.codigo||'',
+          localidad:   exRow.MUNICIPIO||exRow.municipio||'',
+          direccion:   exRow.DIRECCION||exRow.direccion||'',
+        };
+        _iramUltimaAccion = { tipo:'waze', datos: paradaEx };
+        iramConfirmarWaze(paradaEx);
+        return `${paradaEx.clienteReal} · ${paradaEx.localidad} — pulsa para abrir Waze.`;
+      }
+    }
+
+    return `No tengo "${cl.destino||cl.localidad||cl.cliente}" en la ruta ni en el Excel.`;
   }
 
   /* ── URGENTE ── */
@@ -14999,7 +14466,7 @@ async function iramEjecutarAccion(cl) {
     if (!notas.length) return 'No tienes notas guardadas.';
     const q = iramNorm(cl.query||'');
     const filtradas = q
-      ? notas.filter(n => iramNorm(n.titulo||'').includes(q) || iramNorm(n.texto||'').includes(q) || (n.etiquetas||[]).some(e=>iramNorm(e).includes(q)))
+      ? notas.filter(n => iramNorm(n.titulo||'').includes(q) || iramNorm(n.texto||'').includes(q) || iramNorm(typeof n.etiquetas==='string'?n.etiquetas:(n.etiquetas||[]).join(' ')).includes(q))
       : notas;
     if (!filtradas.length) return `No hay notas sobre "${cl.query}".`;
     if (!q) {
@@ -15022,19 +14489,22 @@ async function iramEjecutarAccion(cl) {
     const nQ  = iramNorm(cl.query||'');
     // Filtrar por entidad/localidad
     let cands = infoTec.filter(r => {
-      const rE = iramNorm(r.entidad||r.ENTIDAD||r.CLIENTE||'');
-      const rL = normTopo(r.poblacion||r.POBLACION||r.MUNICIPIO||'');
-      const matchE = !nE || rE.includes(nE) || nE.includes(rE.slice(0,4));
-      const matchL = !nL || rL.includes(nL) || nL.includes(rL.slice(0,4));
+      const rE  = iramNorm(r.entidad||r.ENTIDAD||r.CLIENTE||'');
+      const rL  = normTopo(r.poblacion||r.POBLACION||r.MUNICIPIO||'');
+      const rInfo = iramNorm(r.detalle||r.INFORMACION||r.INFO||'');
+      const rEt = iramNorm(typeof r.etiquetas==='string'?r.etiquetas:(r.ETIQUETAS||''));
+      const matchE = !nE || rE.includes(nE) || (nE.length >= 3 && rE.length===0 && (rInfo.includes(nE) || rEt.includes(nE)));
+      const matchL = !nL || rL.includes(nL) || (rL.length >= 3 && nL.includes(rL.slice(0,4)));
       return matchE && matchL;
     });
-    // Sub-filtrar por keyword
-    if (nQ && cands.length > 1) {
+    // Sub-filtrar por keyword (siempre, no solo cuando hay más de 1 resultado)
+    if (nQ) {
       const sub = cands.filter(r => {
-        const rT = iramNorm(r.tipoDato||r.TIPO_DATO||r.TIPO||'');
-        const rD = iramNorm(r.detalle||r.INFORMACION||r.INFO||r.DETALLE||'');
-        const rS = iramNorm(r.sistema||r.SISTEMA||'');
-        return rT.includes(nQ) || rD.includes(nQ) || rS.includes(nQ);
+        const rT  = iramNorm(r.tipoDato||r.TIPO_DATO||r.TIPO||'');
+        const rD  = iramNorm(r.detalle||r.INFORMACION||r.INFO||r.DETALLE||'');
+        const rS  = iramNorm(r.sistema||r.SISTEMA||'');
+        const rEt = iramNorm(typeof r.etiquetas==='string' ? r.etiquetas : (r.ETIQUETAS||''));
+        return rT.includes(nQ) || rD.includes(nQ) || rS.includes(nQ) || rEt.includes(nQ);
       });
       if (sub.length) cands = sub;
     }
@@ -15078,7 +14548,12 @@ async function iramEjecutarAccion(cl) {
     if (idx !== -1) { ruta[idx].estado='completada'; ruta[idx].trabajoRealizado=trabajo; save(K_RUTA, ruta); }
     const hist = loadArr(K_HIST);
     const fechaHoy = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
-    hist.unshift({ KEY: sig.codigo?'sis_'+sig.codigo:sig.id, FECHA:fechaHoy, CLIENTE:sig.clienteReal||sig.clienteNorm||sig.cliente||'', LOCALIDAD:sig.localidad||'', TRABAJO:trabajo, OT:sig.ot||'', ESTADO:'Finalizado' });
+    const keyH = sig.codigo ? 'sis_'+sig.codigo : sig.id;
+    const entrada = { KEY:keyH, FECHA:fechaHoy, CLIENTE:sig.clienteReal||sig.clienteNorm||sig.cliente||'', LOCALIDAD:sig.localidad||'', TRABAJO:trabajo, OT:sig.ot||'', ESTADO:'Finalizado' };
+    // Si ya existe una entrada hoy para este parte → actualizar en vez de duplicar
+    const existIdx = hist.findIndex(h => h.KEY === keyH && h.FECHA === fechaHoy);
+    if (existIdx !== -1) hist[existIdx] = entrada;
+    else hist.unshift(entrada);
     save(K_HIST, hist);
     let mtoMsg = '';
     if (cl.mto) {
@@ -15092,6 +14567,7 @@ async function iramEjecutarAccion(cl) {
       mtoMsg = ` MTO ${trim} registrado.`;
     }
     if (typeof renderRuta === 'function') renderRuta();
+    _iramOficinaActiva = null; // limpiar contexto al completar el aviso
     const rutaAct = loadArr(K_RUTA);
     const sig2 = rutaAct.find(r => r.estado==='pendiente');
     let resp = `✅ ${sig.clienteReal||sig.cliente} · ${sig.localidad||''} completado.${mtoMsg}`;
@@ -15135,7 +14611,7 @@ async function iramEjecutarAccion(cl) {
       const filtradas = paradas.filter(p => {
         const pL = normTopo(p.localidad||'');
         const pC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
-        return (nL && pL.includes(nL)) || (nC && pC.includes(nC));
+        return (!nC || pC.includes(nC)) && (!nL || pL.includes(nL));
       });
       if (filtradas.length) paradas = filtradas;
     }
@@ -15482,13 +14958,22 @@ function iramGetMtoData(cliente, codigo, localidad, trimActual) {
 function iramBuscarCliente(nombre, localidad) {
   const nN = iramNorm(nombre);
   const nL = normTopo(localidad);
-  if (!nN && !nL) return null; // sin filtros → no devolver resultado aleatorio
+  if (!nN && !nL) return null;
   const excel = loadArr(K_EXCEL);
+  // Con los dos parámetros: matching estricto en una dirección
+  if (nN && nL) {
+    return excel.find(c => {
+      const cN = iramNorm(c.CLIENTE||c.cliente||'');
+      const cL = normTopo(c.MUNICIPIO||c.municipio||'');
+      return cN.includes(nN) && cL.includes(nL);
+    }) || null;
+  }
+  // Solo uno: admitir reverse includes con mínimo 3 chars (evita false positives con MUNICIPIO vacío)
   return excel.find(c => {
     const cN = iramNorm(c.CLIENTE||c.cliente||'');
     const cL = normTopo(c.MUNICIPIO||c.municipio||'');
-    const matchN = !nN || cN.includes(nN) || nN.includes(cN);
-    const matchL = !nL || cL.includes(nL) || nL.includes(cL);
+    const matchN = !nN || cN.includes(nN) || (cN.length >= 3 && nN.includes(cN));
+    const matchL = !nL || cL.includes(nL) || (cL.length >= 3 && nL.includes(cL));
     return matchN && matchL;
   }) || null;
 }
@@ -15602,6 +15087,84 @@ function pycPararVoz() {
   if (vs) vs.textContent = 'Pulsa para hablar';
   const st = document.getElementById('pyc-status');
   if (st) st.textContent = 'Listo · ' + (_iramIA||'local').charAt(0).toUpperCase() + (_iramIA||'local').slice(1);
+}
+
+/* ══════════════════════════════════════════════════════
+   GROQ — Clasificador IA de intenciones
+   ══════════════════════════════════════════════════════ */
+const IRAM_INTENTOS_SCHEMA = `Eres un clasificador de intenciones para Gsus, técnico de seguridad en campo. Convierte su frase en JSON.
+Responde SOLO JSON válido, sin explicaciones.
+
+VOCABULARIO: "aviso" = parte de trabajo. "análisis" = todos los partes cargados. "ruta" = paradas activas del día.
+
+INTENTOS:
+COMPLETAR_AVISO(trabajo?,mto?,buscarCerca?) — finalizar aviso activo
+SIGUIENTE_AVISO — siguiente aviso de la ruta
+NAVEGAR(destino,cliente?,localidad?) — navegar a un lugar o aviso
+CONSULTA_AVISOS — avisos de la ruta activa
+CONSULTA_LOCALIDADES — en qué localidades hay avisos
+ANADIR_AVISO(destino,localidad?) — añadir aviso(s) a la ruta
+CREAR_RUTA(n?) — crear ruta con N avisos
+ANALIZAR_PARTES(localidad?,cliente?) — consultar partes/avisos en análisis
+CLIENTES_LOCALIDAD(localidad?,cliente?) — qué clientes hay en un pueblo (del Excel)
+RUTA_SIN_MTO(trim?) — qué avisos de la ruta no tienen MTO
+REGISTRAR_MTO(trim,localidad?,cliente?) — SOLO con verbo explícito: "registra","marca","anota","pon","apunta"
+MTO_ESTADO(cliente?,localidad?,trim?) — consultar si el MTO está hecho
+MTO_SEMANA(periodo?) — MTO hechos. periodo: semana_actual|semana_pasada|mes_actual
+AVERIAS_SIN_MTO — partes sin MTO hecho
+CONSULTA_TRABAJO(cliente,localidad?) — qué trabajo hay que hacer en un aviso concreto
+CREAR_TAREA(titulo,fecha?) — fecha SOLO si la dice
+CONSULTA_TAREAS — ver tareas pendientes
+MARCAR_TAREA_HECHA(titulo) — marcar tarea como hecha
+CREAR_NOTA(texto) — SOLO con verbo explícito: "crea","guarda","anota","apunta una nota"
+CONSULTA_NOTAS(query?) — buscar o listar notas. USAR cuando dice "tengo alguna nota","qué notas tengo","hay algo anotado"
+CREAR_EVENTO(titulo,fecha?,hora?) — evento en calendario
+CONSULTA_EVENTOS — eventos próximos
+CANCELAR_EVENTO(titulo) — cancelar evento
+LLAMAR(quien) — llamar a contacto
+HORARIO(cliente,localidad?,dia?) — horario de una oficina. dia si pregunta por día concreto
+BUSCAR_OFICINA(codigo?,cliente?,localidad?) — identificar una oficina
+BUSCAR_INFO_TECNICA(query,cliente?,localidad?) — códigos spider, morley, contraseñas, IPs, info técnica
+HISTORIAL_CLIENTE(cliente?,localidad?,fecha?) — historial de visitas
+MATERIAL_PENDIENTE — material pendiente
+URGENTE — urgente al inicio de la ruta
+GASOLINERA — buscar gasolineras cercanas
+LUGAR(tipo?) — buscar restaurantes, farmacias, supermercados cerca
+RESUMEN_DIA — resumen del día
+CUANTO_QUEDA — cuántos avisos quedan en la ruta
+CHAT — pregunta web, tiempo, noticias, tráfico, mercados, o no reconocido
+
+REGLAS CRÍTICAS:
+- REGISTRAR_MTO SOLO con verbos: "registra","marca","anota","pon","apunta". "tienen el Q2 hecho" → MTO_ESTADO
+- CREAR_NOTA SOLO con verbos explícitos. "tengo alguna nota sobre X" → CONSULTA_NOTAS con query="X"
+- LUGAR SOLO para negocio físico ahora. "hay mercado los miércoles" → CHAT
+- CHAT para: tiempo, noticias, tráfico, Wikipedia, preguntas generales, mercados ambulantes
+`;
+
+async function iramClasificarIA(txt) {
+  const key = pycGetKey('groq');
+  if (!key) return { intento: 'CHAT' };
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: IRAM_INTENTOS_SCHEMA },
+          { role: 'user',   content: txt }
+        ],
+        temperature: 0.1,
+        max_tokens: 150,
+        response_format: { type: 'json_object' }
+      })
+    });
+    if (!resp.ok) return { intento: 'CHAT' };
+    const data = await resp.json();
+    const raw  = data?.choices?.[0]?.message?.content || '{}';
+    const cl   = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    return cl?.intento ? cl : { intento: 'CHAT' };
+  } catch(e) { return { intento: 'CHAT' }; }
 }
 
 function pycAutoResize(el) {
