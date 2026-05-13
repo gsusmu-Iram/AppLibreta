@@ -9877,7 +9877,15 @@ function mostrarContactos() {
       });
     });
   }
-  html += `<button onclick="abrirNuevoContacto()" style="width:100%;margin-top:14px;padding:13px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">＋ Añadir contacto</button>`;
+  html += `<div style="padding:16px 0 8px">
+    <button onclick="abrirNuevoContacto()" 
+      style="width:100%;padding:14px;border-radius:12px;border:2px solid #7c3aed;
+             background:#7c3aed;color:#ffffff;font-size:15px;font-weight:800;
+             cursor:pointer;-webkit-tap-highlight-color:transparent;
+             box-shadow:0 2px 8px rgba(124,58,237,.3)">
+      ＋ Añadir contacto
+    </button>
+  </div>`;
   html += `</div>`;
   res.innerHTML = html;
 }
@@ -9920,7 +9928,7 @@ function abrirNuevoContacto(idx) {
       </div>
     </div>
     <div style="padding:16px;background:var(--card);border-top:1px solid rgba(26,39,68,.1)">
-      <button onclick="guardarContacto(${esEdicion?idx:'undefined'})" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer">✓ Guardar</button>
+      <button onclick="guardarContacto(${esEdicion?idx:'undefined'})" style="width:100%;padding:14px;border-radius:12px;border:none;background:#7c3aed;color:#fff;font-size:15px;font-weight:700;cursor:pointer">✓ Guardar</button>
     </div>`;
   document.body.appendChild(panel);
 }
@@ -13488,7 +13496,14 @@ async function pycEnviar() {
       try {
         const respGem = await pycGemini(txt);
         _pycHist = _pycHist.filter(m => !m.thinking);
-        pycMsgIA(respGem, false, 'gemini');
+        // Limpiar markdown de Gemini para chat y TTS
+        const gemLimpio = respGem
+          .replace(/\*\*([^*]+)\*\*/g, '$1')   // **negrita** → texto
+          .replace(/\*([^*]+)\*/g, '$1')         // *cursiva* → texto
+          .replace(/^#{1,3}\s+/gm, '')           // ### encabezados → nada
+          .replace(/^[-*]\s+/gm, '• ')           // bullet points → •
+          .replace(/`([^`]+)`/g, '$1');          // `código` → texto
+        pycMsgIA(gemLimpio, false, 'gemini');
       } catch(eGem) {
         _pycHist = _pycHist.filter(m => !m.thinking);
         pycMsgIA(`⚠️ Gemini: ${eGem?.message || 'error desconocido'}`, false, 'gemini');
@@ -13835,7 +13850,8 @@ function iramClasificar(txt) {
     return { intento:'CANCELAR', _txt: raw };
 
   // ── COMPLETAR AVISO ──
-  if (/^(hecho|finaliza[dr]?o?|listo|terminado|completado?|done)$/i.test(raw))
+  if (/^(hecho|finaliza[dr]?o?|listo|terminado|completado?|done)$/i.test(raw) ||
+      /\b(finaliz[ao]?\s+(?:el\s+)?(?:aviso|parte|tarea|trabajo)\s*(?:activ[ao])?|finaliz[ao]?\s+(?:la\s+)?parada\s*(?:activ[ao])?)\b/i.test(raw))
     return { intento:'COMPLETAR_AVISO', trabajo:'' };
   if (/\b(finaliz[ao]|completad[ao]|marcar?\s+(?:como\s+)?completad|trabajo\s+hecho|parada\s+hecha)\b/i.test(raw)) {
     const trabajo = txt
@@ -13878,6 +13894,18 @@ function iramClasificar(txt) {
     const limpio = raw.replace(/\b(qu[eé]\s+(?:oficina|cliente|n[uú]mero)\s+(?:es|hay\s+en)?|dime\s+la\s+oficina\s+de|la\s+oficina\s+de|c[oó]digo\s+de\s+(?:la\s+)?oficina)\s*/gi,'').trim();
     const { cliente, localidad } = extraerClienteLoc(limpio);
     return { intento:'BUSCAR_OFICINA', codigo: mCod?.[1]||'', cliente, localidad };
+  }
+
+  // ── BUSCAR INFO TÉCNICA — triggers explícitos "busca en información X" ──
+  if (/\b(busca\s+en\s+informaci[oó]n|busca\s+informaci[oó]n|qu[eé]\s+(?:tengo\s+en\s+)?informaci[oó]n\s+(?:de|sobre)|info(?:rmaci[oó]n)?\s+(?:de|sobre)\s+\w)\b/i.test(raw)) {
+    const kw = raw.replace(/\b(busca\s+en\s+informaci[oó]n|busca\s+informaci[oó]n|qu[eé]\s+(?:tengo\s+en\s+)?informaci[oó]n|informaci[oó]n|de|sobre|en|tengo|que|hay)\b/gi,'').replace(/\s+/g,' ').trim();
+    return { intento:'BUSCAR_INFO_TECNICA', query: kw, cliente:'', localidad:'' };
+  }
+
+  // ── CONSULTA NOTAS — trigger explícito "busca en notas X" ──
+  if (/\b(busca\s+en\s+notas?|busca\s+notas?\s+(?:de|sobre|con)|qu[eé]\s+notas?\s+(?:hay|tengo)\s+(?:de|sobre))\b/i.test(raw)) {
+    const kw = raw.replace(/\b(busca\s+(?:en\s+)?notas?|qu[eé]\s+notas?\s+(?:hay|tengo)|de|sobre|en|con|hay|que|tengo)\b/gi,'').replace(/\s+/g,' ').trim();
+    return { intento:'CONSULTA_NOTAS', query: kw };
   }
 
   // ── BUSCAR INFO TÉCNICA — spider, IP, contraseñas, códigos ──
@@ -14049,6 +14077,24 @@ function iramClasificar(txt) {
   // ── RESUMEN DÍA ──
   if (/\b(c[oó]mo\s+va\s+el\s+d[ií]a|resumen\s+del?\s+d[ií]a|qu[eé]\s+tal\s+va|balance\s+del?\s+d[ií]a)\b/i.test(raw))
     return { intento:'RESUMEN_DIA' };
+
+  // ── BUSCAR EN INFORMACIÓN TÉCNICA (explícito, 100% local) ──
+  if (/\b(busca\s+en\s+informaci[oó]n|qu[eé]\s+tengo\s+(?:en\s+)?(?:la\s+)?informaci[oó]n\s+(?:de|sobre)|informaci[oó]n\s+que\s+tengo\s+(?:de|sobre))\b/i.test(raw)) {
+    const kw = raw
+      .replace(/\b(busca\s+en\s+(?:la\s+)?informaci[oó]n|qu[eé]\s+tengo\s+(?:en\s+)?(?:la\s+)?informaci[oó]n|informaci[oó]n\s+que\s+tengo)\b/gi,'')
+      .replace(/\b(de|sobre|que|hay)\b/gi,'').replace(/\s+/g,' ').trim();
+    const { cliente, localidad } = extraerClienteLoc(kw);
+    const query = kw.replace(new RegExp(cliente,'i'),'').replace(new RegExp(localidad,'i'),'').trim() || kw;
+    return { intento:'BUSCAR_INFO_TECNICA', query, cliente, localidad };
+  }
+
+  // ── BUSCAR EN NOTAS (explícito, 100% local) ──
+  if (/\b(busca\s+en\s+(?:mis\s+)?notas?|qu[eé]\s+tengo\s+en\s+(?:mis\s+)?notas?)\b/i.test(raw)) {
+    const query = raw
+      .replace(/\b(busca\s+en\s+(?:mis\s+)?notas?|qu[eé]\s+tengo\s+en\s+(?:mis\s+)?notas?)\b/gi,'')
+      .replace(/\b(de|sobre|que|hay)\b/gi,'').replace(/\s+/g,' ').trim();
+    return { intento:'CONSULTA_NOTAS', query };
+  }
 
   // ── CONSULTA NOTAS — ANTES de CREAR_NOTA para capturar "tengo alguna nota" ──
   if (/\b(qu[eé]\s+notas?\s+tengo|dime\s+(?:las?\s+)?notas?|tengo\s+alguna?\s+nota|tengo\s+algo\s+(?:anotado|apuntado)|qu[eé]\s+tengo\s+anotado|qu[eé]\s+hay\s+en\s+(?:las?\s+)?notas?|hay\s+alguna?\s+nota)\b/i.test(raw)) {
@@ -14339,8 +14385,13 @@ async function iramEjecutarAccion(cl) {
 
   /* ── CONTEXTO_OFICINA ── */
   if (cl.intento === 'CONTEXTO_OFICINA') {
-    const of = _iramOficinaActiva;
-    if (!of) return 'No hay ninguna oficina activa. Di "llévame a..." o abre un aviso primero.';
+    // Usar oficina activa, o el primer aviso pendiente de la ruta como fallback
+    let of = _iramOficinaActiva;
+    if (!of) {
+      const pend = loadArr(K_RUTA).filter(r=>r.estado==='pendiente');
+      if (pend.length) of = { cliente: pend[0].clienteReal||pend[0].cliente||'', codigo: pend[0].codigo||'', localidad: pend[0].localidad||'' };
+    }
+    if (!of) return 'No hay ninguna oficina activa ni parada cargada en la ruta.';
     const exRow = iramBuscarCliente(of.cliente||'', of.localidad||'');
     const hist  = loadArr(K_HIST).filter(h => {
       return iramNorm(h.CLIENTE||h.cliente||'').includes(iramNorm(of.cliente||'').slice(0,4)) &&
@@ -15091,7 +15142,7 @@ async function iramEjecutarAccion(cl) {
     // Resultados de info técnica
     infoMatch.slice(0,3).forEach(r => {
       const quien = r.entidad || r.sistema || r.tipoDato || 'Info';
-      const info  = (r.detalle||r.INFORMACION||'').slice(0,350);
+      const info  = (r.detalle||r.INFORMACION||r.INFO||'');
       lineas.push(`🔧 ${quien}: ${info}`);
     });
 
@@ -15664,14 +15715,27 @@ function pycHablar(txt) {
     // Almohadillas como viñetas (#Etiqueta → nada, ## → nada)
     .replace(/#\w+/g, '')
     .replace(/#+/g, '')
+    // Códigos técnicos con guión bajo (AL_M0004232, CGA_SF)
+    .replace(/\b[A-Z]{2,}[_][A-Z0-9_]+\b/g, '')
+    // Siglas+números mezclados (FLEX4G, INC000123, L9110, Z-1012)
+    .replace(/\b[A-Z]{2,}\d+[A-Z0-9]*\b/g, '')
+    .replace(/\b[A-Z]-\d{3,}\b/g, '')
+    // Siglas técnicas de partes conocidas
+    .replace(/\b(NODEF|SCATI|ALWON|GEMI|FLEX|GSM|GEMI|MBC|ALWON|CGA|PCISEG)\b/g, '')
     // Caracteres de puntuación/formato que TTS lee mal
     .replace(/[·—→←↑↓►▶▸]/g, ', ')
     .replace(/[_~`|\\]/g, ' ')
     // Emojis y símbolos especiales
     .replace(/[\u{1F300}-\u{1FFFF}]/gu, '')
     .replace(/[☀⛅❄⛈⚠✅❌🔧📊📍🏢🔍📅📌🚨🔥⏳📰⛽✓✗]/g, '')
-    // Números de teléfono/OT muy largos — el TTS los lee cifra a cifra
-    .replace(/\b\d{9,}\b/g, m => m.slice(0,6)+'...')
+    // Números largos (5+ dígitos) → grupos de 3 para que TTS los lea natural
+    // 10093058 → "10 093 058", 1654420 → "1 654 420"
+    .replace(/\b(\d{5,})\b/g, m => {
+      const rev = m.split('').reverse().join('');
+      return (rev.match(/.{1,3}/g)||[])
+        .map(g => g.split('').reverse().join(''))
+        .reverse().join(' ');
+    })
     // Espacios múltiples
     .replace(/\s+/g, ' ')
     .trim();
