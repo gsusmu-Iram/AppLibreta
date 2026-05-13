@@ -9854,8 +9854,7 @@ function mostrarContactos() {
   let html = `<div style="padding:4px 0 12px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
       <button onclick="clearSearch()" style="background:none;border:none;color:var(--accent);font-size:13px;font-weight:700;cursor:pointer;padding:4px 0;font-family:inherit">← Volver</button>
-      <div style="flex:1;font-size:13px;font-weight:700;color:var(--ink)">📞 Contactos (${contactos.length})</div>
-      <button onclick="abrirNuevoContacto()" style="padding:6px 14px;border-radius:20px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">+ Nuevo</button>
+      <div style="font-size:13px;font-weight:700;color:var(--ink)">📞 Contactos (${contactos.length})</div>
     </div>`;
 
   if (!contactos.length) {
@@ -9878,6 +9877,7 @@ function mostrarContactos() {
       });
     });
   }
+  html += `<button onclick="abrirNuevoContacto()" style="width:100%;margin-top:14px;padding:13px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">＋ Añadir contacto</button>`;
   html += `</div>`;
   res.innerHTML = html;
 }
@@ -12645,12 +12645,23 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div style="display:flex;flex-direction:column;gap:14px;font-size:13px">
 
+          <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">💬 Conversacional</div>
+          <div style="color:#374151;line-height:1.9">
+            "hola" / "buenos días" — resumen del día<br>
+            "cómo voy" / "cómo va el día" — progreso<br>
+            "qué me queda" / "resumen rápido" — paradas pendientes<br>
+            "por dónde empiezo" — sugerencia de orden<br>
+            "dime de esta oficina" — contexto de la activa<br>
+            "en las urgentes qué hay que hacer"
+          </div></div>
+
           <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">📍 Ruta y navegación</div>
           <div style="color:#374151;line-height:1.9">
             "siguiente parada"<br>
             "llévame al Cajamar de Vinalesa"<br>
             "cuántos me quedan"<br>
             "añade Siete Aguas a la ruta"<br>
+            "quita Siete Aguas de la ruta" / "quita Siete Aguas"<br>
             "crea una ruta"
           </div></div>
 
@@ -12667,6 +12678,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div style="color:#374151;line-height:1.9">
             "está hecho el MTO del Cajamar de almácera"<br>
             "está hecho el mantenimiento de Utiel"<br>
+            "en Cajamar de Utiel está el mantenimiento hecho"<br>
             "registra el Q2 del BBVA de Burjasot"<br>
             "cuántos mantenimientos hice este mes"<br>
             "mantenimientos de la semana pasada"
@@ -12676,6 +12688,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div style="color:#374151;line-height:1.9">
             "qué horario tiene Cajamar Camporrobles"<br>
             "está abierta la oficina de Cajamar mañana"<br>
+            "está abierta el lunes"<br>
             "dime las oficinas de Almácera"<br>
             "historial del BBVA de almácera"<br>
             "dónde fui el viernes pasado"
@@ -12683,19 +12696,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
           <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">📝 Notas e info técnica</div>
           <div style="color:#374151;line-height:1.9">
+            "tengo alguna nota" — lista todas<br>
             "tengo algo anotado de Spider"<br>
             "tengo algo anotado de Morley"<br>
             "tengo alguna nota de cámaras"<br>
-            "dime el código Spider del Cajamar"<br>
-            "qué notas tengo"
+            "dime el código Spider del Cajamar"
           </div></div>
 
-          <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">📅 Agenda</div>
+          <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">📅 Tareas y eventos</div>
           <div style="color:#374151;line-height:1.9">
-            "tengo alguna tarea"<br>
-            "dime las tareas"<br>
-            "tengo algún evento"<br>
-            "dime si hay algún evento"
+            "tengo alguna tarea" / "dime las tareas"<br>
+            "crea una tarea" — pregunta el nombre<br>
+            "tengo algún evento" / "dime si hay algún evento"<br>
+            "añade un evento para mañana" — pregunta el título
           </div></div>
 
           <div><div style="font-weight:700;color:#7c3aed;margin-bottom:6px">🌐 General (Gemini)</div>
@@ -12705,6 +12718,12 @@ document.addEventListener('DOMContentLoaded', () => {
             "dónde puedo comer cerca"<br>
             "noticias de hoy"
           </div></div>
+
+          <div style="background:#f3f4f6;border-radius:10px;padding:10px;font-size:11px;color:#6b7280">
+            🟢 Verde = App (local, sin internet)<br>
+            🔵 Azul = Gemini (necesita conexión)<br>
+            🟠 Naranja = Groq (clasificador)
+          </div>
 
         </div>
       </div>
@@ -12808,7 +12827,6 @@ const K_IRAM_LOG      = 'pyc_iram_log';  // Aprendizaje pasivo
 const MAX_IRAM_LOG    = 200;             // Máximo registros
 const K_IRAM_CLOUD    = 'pyc_iramcloud'; // Handle carpeta IramCloud
 
-/* ══════════════════════════════════════════════════════
 /* ══════════════════════════════════════════════════════
    IRAM — Waze y Llamar
    ══════════════════════════════════════════════════════ */
@@ -13078,7 +13096,7 @@ function pycRenderMsgs() {
     let av = m.role === 'user' ? '👤' : '✦';
     let avStyle = '';
     if (m.role !== 'user') {
-      const iaColors = { groq:'#fb923c', gemini:'#818cf8', local:'#7c3aed' };
+      const iaColors = { groq:'#f97316', gemini:'#3b82f6', local:'#22c55e' };
       const col = iaColors[m.ia] || '#7c3aed';
       avStyle = ` style="background:${col}"`;
     }
@@ -13163,11 +13181,12 @@ function iramRellenarDrive() {
       listaEl.style.display = 'block';
       listaEl.innerHTML = `<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:.08em;margin-bottom:6px">RUTA (${resto.length} más)</div>` +
         resto.map(p => {
-          const cli = p.clienteReal || p.cliente || '?';
-          const loc = p.localidad || '';
-          const urg = p.urgente ? '🚨 ' : '';
+          const cli  = p.clienteReal || p.cliente || '?';
+          const loc  = p.localidad || '';
+          const cod  = p.codigo ? ` (${p.codigo})` : '';
+          const urg  = p.urgente ? '🚨 ' : '';
           return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-top:1px solid rgba(255,255,255,.07);font-size:12px;color:rgba(255,255,255,.75)">
-            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${urg}${cli} · ${loc}</span>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${urg}${cli}${cod} · ${loc}</span>
           </div>`;
         }).join('');
     }
@@ -13489,9 +13508,35 @@ async function pycEnviar() {
 
 
 
-/* ══════════════════════════════════════════════════════
-   HORARIO — Parser real (L-V = rango, L-X-V = días concretos)
-   ══════════════════════════════════════════════════════ */
+/* ── Distancia haversine en km ── */
+function distanciaKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, rad = Math.PI/180;
+  const dLat = (lat2-lat1)*rad, dLng = (lng2-lng1)*rad;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+/* ── Comprobar si una fecha es festivo (nacional/autonómico) ── */
+function esFestivo(fecha, municipio) {
+  try {
+    const festivos = JSON.parse(localStorage.getItem('pyc_festivos')||'[]');
+    const d = fecha.getDate(), m = fecha.getMonth()+1, y = fecha.getFullYear();
+    return festivos.some(f => {
+      const fStr = String(f.FECHA||f.Fecha||f.fecha||'');
+      const tipo  = String(f.Tipo||f.tipo||'');
+      const muni  = iramNorm(String(f.Municipio||f.municipio||''));
+      // Comprobar que la fecha coincide (formato DD/MM/YYYY o YYYY-MM-DD)
+      const matchFecha = fStr.includes(`${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`) ||
+                         fStr.includes(`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+      if (!matchFecha) return false;
+      // Festivos nacionales/autonómicos aplican a todos
+      if (tipo==='Nacional'||tipo==='Autonómico'||!muni) return true;
+      // Festivos locales: comprobar municipio
+      return muni && iramNorm(municipio||'').includes(muni.slice(0,4));
+    });
+  } catch(e) { return false; }
+}
+
 const _HOR_LETRA = { 'L':1,'M':2,'X':3,'J':4,'V':5,'S':6,'D':0 };
 const _HOR_NOMBRE = { 'L':'lunes','M':'martes','X':'miércoles','J':'jueves','V':'viernes','S':'sábado','D':'domingo' };
 
@@ -13800,6 +13845,16 @@ function iramClasificar(txt) {
     return { intento:'COMPLETAR_AVISO', trabajo };
   }
 
+  // ── QUITAR AVISO DE RUTA ──
+  if (/\b(quita[r]?\s+(?:.+\s+)?(?:de\s+la\s+ruta)?|elimina[r]?\s+(?:.+\s+)?de\s+la\s+ruta|saca[r]?\s+(?:.+\s+)?de\s+la\s+ruta|borra[r]?\s+(?:.+\s+)?de\s+la\s+ruta)\b/i.test(raw) &&
+      /\b(quita[r]?|elimina[r]?\s+de\s+la\s+ruta|saca[r]?\s+de\s+la\s+ruta|borra[r]?\s+de\s+la\s+ruta)\b/i.test(raw)) {
+    const resto = raw
+      .replace(/\b(quita[r]?|elimina[r]?|saca[r]?|borra[r]?)\b/gi,'')
+      .replace(/\bde\s+la\s+ruta\b/gi,'').trim();
+    const { cliente, localidad } = extraerClienteLoc(resto);
+    return { intento:'QUITAR_AVISO', cliente, localidad };
+  }
+
   // ── SIGUIENTE PARADA ──
   if (/\b(siguiente\s+(?:parada|aviso|stop)|pr[oó]xim[ao]\s+(?:parada|aviso)|siguiente)$/.test(t))
     return { intento:'SIGUIENTE_AVISO' };
@@ -13925,7 +13980,7 @@ function iramClasificar(txt) {
 
   // ── ANALIZAR PARTES ──
   if (/\b(qu[eé]\s+(?:partes?|avisos?|aver[ií]as?)|dime\s+(?:los\s+)?(?:partes?|avisos?)|hay\s+(?:algún\s+)?aviso|partes?\s+de\s+hoy|qu[eé]\s+(?:hay|tengo)\s+en\s+(?:el\s+)?an[aá]lisis|todo\s+lo\s+de\s+hoy|qu[eé]\s+avisos?\s+puedo\s+hacer)\b/i.test(raw) ||
-     (/\b(hay\s+algo|tengo\s+algo|qu[eé]\s+hay)\b/i.test(raw) && /\b(m[aá]s?\s+cerca\s+de|en|de)\s+[a-z]/i.test(raw))) {
+     (/\b(hay\s+algo|tengo\s+algo(?!\s+(?:anotado|apuntado))|qu[eé]\s+hay)\b/i.test(raw) && /\b(m[aá]s?\s+cerca\s+de|en|de)\s+[a-z]/i.test(raw))) {
     // "más cerca de X" → excluir localidad buscada, mostrar otros
     const mCerca = raw.match(/m[aá]s?\s+cerca\s+de\s+([a-záéíóúüñ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
     const mLoc   = mCerca ? null : raw.match(/\b(?:en|de)\s+([a-záéíóúüñ][a-záéíóúüñ\s]{2,20}?)(?:\s|$)/i);
@@ -13967,6 +14022,30 @@ function iramClasificar(txt) {
     return { intento:'CLIENTES_LOCALIDAD', localidad: mL?.[1]?.trim()||'', cliente: mC?.[1]||'' };
   }
 
+  // ── SALUDO ──
+  if (/^(hola\b|buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|hola\s+iram|iram\s+hola)/i.test(t))
+    return { intento:'SALUDO' };
+
+  // ── COMO_VOY ──
+  if (/\b(c[oó]mo\s+(?:voy|va\s+el\s+d[ií]a)|qu[eé]\s+tal\s+(?:voy|va|estamos?))\b/i.test(raw))
+    return { intento:'COMO_VOY' };
+
+  // ── QUE_ME_QUEDA ──
+  if (/\b(qu[eé]\s+me\s+queda|resumen\s+r[aá]pido|qu[eé]\s+queda\s+por\s+hacer|qu[eé]\s+tengo\s+a[uú]n)\b/i.test(raw))
+    return { intento:'QUE_ME_QUEDA' };
+
+  // ── POR_DONDE_EMPIEZO ──
+  if (/\b(por\s+d[oó]nde\s+empiezo|qu[eé]\s+hago\s+primero|c[oó]mo\s+me\s+organizo|cu[aá]l\s+es\s+(?:la\s+)?prioridad)\b/i.test(raw))
+    return { intento:'POR_DONDE_EMPIEZO' };
+
+  // ── CONTEXTO_OFICINA ──
+  if (/\b(dime\s+de\s+esta\s+oficina|qu[eé]\s+s[eé]\s+de\s+aqu[ií]|info\s+de\s+(?:esta\s+)?oficina|datos\s+de\s+(?:esta\s+)?oficina)\b/i.test(raw))
+    return { intento:'CONTEXTO_OFICINA' };
+
+  // ── URGENTES_TRABAJO ──
+  if (/\b(?:en\s+)?las?\s+urgentes?\s+qu[eé]\s+hay\s+que\s+hacer|qu[eé]\s+(?:hay|trabajo)\s+(?:en|de)\s+(?:las?\s+)?urgentes?|urgentes?\s+qu[eé]\s+(?:hay|trabajo)\b/i.test(raw))
+    return { intento:'URGENTES_TRABAJO' };
+
   // ── RESUMEN DÍA ──
   if (/\b(c[oó]mo\s+va\s+el\s+d[ií]a|resumen\s+del?\s+d[ií]a|qu[eé]\s+tal\s+va|balance\s+del?\s+d[ií]a)\b/i.test(raw))
     return { intento:'RESUMEN_DIA' };
@@ -13974,7 +14053,7 @@ function iramClasificar(txt) {
   // ── CONSULTA NOTAS — ANTES de CREAR_NOTA para capturar "tengo alguna nota" ──
   if (/\b(qu[eé]\s+notas?\s+tengo|dime\s+(?:las?\s+)?notas?|tengo\s+alguna?\s+nota|tengo\s+algo\s+(?:anotado|apuntado)|qu[eé]\s+tengo\s+anotado|qu[eé]\s+hay\s+en\s+(?:las?\s+)?notas?|hay\s+alguna?\s+nota)\b/i.test(raw)) {
     const restoN = raw
-      .replace(/\b(qu[eé]\s+notas?\s+tengo|dime\s+(?:las?\s+)?notas?|tengo\s+alguna?\s+nota\s+(?:(?:de|sobre)\s+)?|tengo\s+algo\s+(?:anotado|apuntado)\s+(?:(?:de|sobre)\s+)?|qu[eé]\s+tengo\s+anotado\s+(?:(?:de|sobre)\s+)?|qu[eé]\s+hay\s+en\s+(?:las?\s+)?notas?\s+(?:(?:de|sobre)\s+)?|hay\s+alguna?\s+nota\s+(?:(?:de|sobre)\s+)?)\s*/gi,'')
+      .replace(/\b(qu[eé]\s+notas?\s+tengo|dime\s+(?:las?\s+)?notas?|tengo\s+alguna?\s+nota(?:\s+(?:de|sobre)\s+)?|tengo\s+algo\s+(?:anotado|apuntado)(?:\s+(?:de|sobre)\s+)?|qu[eé]\s+tengo\s+anotado\s+(?:(?:de|sobre)\s+)?|qu[eé]\s+hay\s+en\s+(?:las?\s+)?notas?\s+(?:(?:de|sobre)\s+)?|hay\s+alguna?\s+nota\s+(?:(?:de|sobre)\s+)?)\s*/gi,'')
       .trim();
     return { intento:'CONSULTA_NOTAS', query: restoN };
   }
@@ -14178,8 +14257,120 @@ async function iramEjecutarAccion(cl) {
   }
 
   /* ── RESUMEN DÍA ── */
+  /* ── SALUDO ── */
+  if (cl.intento === 'SALUDO') {
+    const hora   = new Date().getHours();
+    const saludo = hora < 12 ? 'Buenos días' : hora < 20 ? 'Buenas tardes' : 'Buenas noches';
+    const diaNom = new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+    const analisis = (() => { try { return JSON.parse(localStorage.getItem(K_ANALISIS)||'[]'); } catch{return[];} })();
+    const ruta   = loadArr(K_RUTA);
+    const tareas = loadArr(K_TAREAS);
+    const eventos= loadArr(K_EVENTOS);
+    const hoyISO = new Date().toISOString().slice(0,10);
+    const pend   = ruta.filter(r=>r.estado==='pendiente');
+    const complet= ruta.filter(r=>r.estado==='completada');
+    const anPend = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado');
+    const urgentes= anPend.filter(a=>a.urgente);
+    const tPend  = tareas.filter(t=>t.estado==='pendiente'&&!t.completada).length;
+    const evHoy  = eventos.filter(e=>e.fecha===hoyISO);
+    const lineas = [`${saludo}. ${diaNom.charAt(0).toUpperCase()+diaNom.slice(1)}.`];
+    if (urgentes.length) lineas.push(`🚨 ${urgentes.length} aviso${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''}.`);
+    if (pend.length||complet.length) lineas.push(`Ruta: ${complet.length} de ${pend.length+complet.length} hecho${complet.length!==1?'s':''}.`);
+    else if (anPend.length) lineas.push(`${anPend.length} aviso${anPend.length>1?'s':''} disponible${anPend.length>1?'s':''} en análisis.`);
+    if (evHoy.length) lineas.push(`📅 Hoy: ${evHoy.map(e=>e.titulo+(e.hora?' a las '+e.hora:'')).join(', ')}.`);
+    lineas.push(tPend ? `📋 ${tPend} tarea${tPend>1?'s':''} pendiente${tPend>1?'s':''}.` : '✅ Sin tareas pendientes.');
+    return lineas.join('\n');
+  }
+
+  /* ── COMO_VOY ── */
+  if (cl.intento === 'COMO_VOY') {
+    const ruta   = loadArr(K_RUTA);
+    const analisis= (() => { try { return JSON.parse(localStorage.getItem(K_ANALISIS)||'[]'); } catch{return[];} })();
+    const pend   = ruta.filter(r=>r.estado==='pendiente');
+    const complet= ruta.filter(r=>r.estado==='completada');
+    const total  = pend.length + complet.length;
+    if (!total) {
+      const anPend = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado').length;
+      return `No tienes ruta cargada.${anPend?` Hay ${anPend} aviso${anPend>1?'s':''} en análisis.`:''}`;
+    }
+    const pct  = Math.round(complet.length/total*100);
+    const urgP = pend.filter(p=>p.urgente);
+    let resp = `Llevas ${complet.length} de ${total} (${pct}%).`;
+    if (!pend.length) resp += ' ¡Ruta completada!';
+    else if (urgP.length) resp += ` 🚨 ${urgP.length} urgente${urgP.length>1?'s':''} sin hacer.`;
+    else resp += ` ${pend.length} por hacer.`;
+    return resp;
+  }
+
+  /* ── QUE_ME_QUEDA ── */
+  if (cl.intento === 'QUE_ME_QUEDA') {
+    const pend = loadArr(K_RUTA).filter(r=>r.estado==='pendiente');
+    if (!pend.length) return 'Ruta terminada. ¡Buen trabajo!';
+    const lista = pend.map(p => {
+      const cli  = p.clienteReal||p.cliente||'?';
+      const loc  = p.localidad||'';
+      const cod  = p.codigo ? ` (${p.codigo})` : '';
+      const urg  = p.urgente ? '🚨 ' : '';
+      const dias = p.diasEspera && parseInt(p.diasEspera)>7 ? ` ${p.diasEspera}d` : '';
+      return `${urg}${cli}${cod} · ${loc}${dias}`;
+    }).join('\n');
+    return `Te quedan ${pend.length}:\n${lista}`;
+  }
+
+  /* ── POR_DONDE_EMPIEZO ── */
+  if (cl.intento === 'POR_DONDE_EMPIEZO') {
+    const analisis = (() => { try { return JSON.parse(localStorage.getItem(K_ANALISIS)||'[]'); } catch{return[];} })();
+    const pend = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado');
+    if (!pend.length) return 'No hay avisos pendientes en análisis.';
+    const sorted = [...pend].sort((a,b) => {
+      if (a.urgente && !b.urgente) return -1;
+      if (!a.urgente && b.urgente) return  1;
+      return parseInt(b.diasEspera||0) - parseInt(a.diasEspera||0);
+    });
+    const top = sorted.slice(0,3).map((a,i) => {
+      const cli  = a.clienteReal||a.clienteNorm||a.cliente||'?';
+      const loc  = a.localidad||'';
+      const urg  = a.urgente ? '🚨 ' : '';
+      const dias = a.diasEspera ? ` — ${a.diasEspera}d esperando` : '';
+      return `${i+1}. ${urg}${cli} · ${loc}${dias}`;
+    }).join('\n');
+    return `Empieza por:\n${top}`;
+  }
+
+  /* ── CONTEXTO_OFICINA ── */
+  if (cl.intento === 'CONTEXTO_OFICINA') {
+    const of = _iramOficinaActiva;
+    if (!of) return 'No hay ninguna oficina activa. Di "llévame a..." o abre un aviso primero.';
+    const exRow = iramBuscarCliente(of.cliente||'', of.localidad||'');
+    const hist  = loadArr(K_HIST).filter(h => {
+      return iramNorm(h.CLIENTE||h.cliente||'').includes(iramNorm(of.cliente||'').slice(0,4)) &&
+             normTopo(h.LOCALIDAD||h.localidad||'').includes(normTopo(of.localidad||'').slice(0,4));
+    }).sort((a,b)=>(b.FECHA||'').localeCompare(a.FECHA||''));
+    let resp = `${of.cliente||'?'} · ${of.localidad||''} (${of.codigo||'sin código'}).`;
+    if (hist.length) resp += `\nÚltima visita: ${hist[0].FECHA} — ${(hist[0].TRABAJO||'').slice(0,50)}.`;
+    if (exRow?.HORARIO) resp += `\nHorario: ${verbalizarHorario(exRow.HORARIO)}.`;
+    const trimAct = (()=>{ const m=new Date().getMonth(); return m<3?'Q1':m<6?'Q2':m<9?'Q3':'Q4'; })();
+    const mto = iramGetMtoData(of.cliente||'', of.codigo||'', of.localidad||'', trimAct);
+    if (mto) { const v=mto[trimAct]; resp += `\n${trimAct}: ${v&&v!=='0'?'✅ hecho':'❌ pendiente'}.`; }
+    return resp;
+  }
+
+  /* ── URGENTES_TRABAJO ── */
+  if (cl.intento === 'URGENTES_TRABAJO') {
+    const analisis = (() => { try { return JSON.parse(localStorage.getItem(K_ANALISIS)||'[]'); } catch{return[];} })();
+    const urg = analisis.filter(a=>a.urgente&&a.estado!=='completado'&&a.estado!=='cerrado');
+    if (!urg.length) return 'No hay avisos urgentes en análisis.';
+    const lista = urg.map(a => {
+      const cli  = a.clienteReal||a.clienteNorm||a.cliente||'?';
+      const loc  = a.localidad||'';
+      const trab = (a.trabajo||a.descripcion||a.aviso||'').slice(0,90);
+      return `🚨 ${cli} · ${loc}: ${trab}`;
+    }).join('\n');
+    return `${urg.length} urgente${urg.length>1?'s':''}:\n${lista}`;
+  }
+
+  /* ── RESUMEN DÍA ── */
   if (cl.intento === 'RESUMEN_DIA') {
-    const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
     const ruta     = loadArr(K_RUTA);
     const tareas   = loadArr(K_TAREAS);
     const eventos  = loadArr(K_EVENTOS);
@@ -14599,7 +14790,12 @@ async function iramEjecutarAccion(cl) {
       }
       const info   = horarioAbreDia(horario, diaRef.getDay());
       const diaNom = diaRef.toLocaleDateString('es-ES',{weekday:'long'});
+      const municipio = exRow.MUNICIPIO||exRow.municipio||'';
       if (!info) return `${nombre}: no tengo datos de horario suficientes.`;
+      // Comprobar si es festivo ese día
+      if (esFestivo(diaRef, municipio)) {
+        return `${nombre} el ${diaNom} es festivo — probablemente cerrada. Horario habitual: ${verbalizarHorario(horario)}.`;
+      }
       if (info.abre) return `${nombre} el ${diaNom} sí abre ${info.horas}.`;
       return `${nombre} el ${diaNom} no abre. Horario: ${verbalizarHorario(horario)}.`;
     }
@@ -14895,7 +15091,7 @@ async function iramEjecutarAccion(cl) {
     // Resultados de info técnica
     infoMatch.slice(0,3).forEach(r => {
       const quien = r.entidad || r.sistema || r.tipoDato || 'Info';
-      const info  = (r.detalle||r.INFORMACION||'').slice(0,200);
+      const info  = (r.detalle||r.INFORMACION||'').slice(0,350);
       lineas.push(`🔧 ${quien}: ${info}`);
     });
 
@@ -14955,6 +15151,31 @@ async function iramEjecutarAccion(cl) {
     save(K_NOTAS, notas);
     if (typeof renderNotas === 'function') renderNotas();
     return `✅ Nota guardada.`;
+  }
+
+  /* ── QUITAR AVISO DE RUTA ── */
+  if (cl.intento === 'QUITAR_AVISO') {
+    const ruta = loadArr(K_RUTA);
+    const nL = normTopo(cl.localidad||'');
+    const nC = iramNorm(cl.cliente||'');
+    if (!nL && !nC) return 'Dime qué aviso quiero quitar. Por ejemplo: "quita Siete Aguas de la ruta".';
+    const aquitar = ruta.filter(p => {
+      const pL = normTopo(p.localidad||'');
+      const pC = iramNorm(p.clienteReal||p.clienteNorm||p.cliente||'');
+      return (!nC || pC.includes(nC)) && (!nL || pL.includes(nL));
+    });
+    if (!aquitar.length) return `No tengo "${cl.localidad||cl.cliente}" en la ruta.`;
+    const idsQuitar = new Set(aquitar.map(p => p.id));
+    save(K_RUTA, ruta.filter(p => !idsQuitar.has(p.id)));
+    // Sync análisis: marcar enRuta=false
+    const analisis = (() => { try { return JSON.parse(localStorage.getItem(K_ANALISIS)||'[]'); } catch{return[];} })();
+    analisis.forEach(a => { if (idsQuitar.has(a.id)) a.enRuta = false; });
+    localStorage.setItem(K_ANALISIS, JSON.stringify(analisis));
+    if (typeof renderRuta === 'function') renderRuta();
+    if (typeof renderLista === 'function') renderLista();
+    iramRellenarDrive();
+    const nombres = aquitar.map(p=>`${p.clienteReal||p.cliente} · ${p.localidad||''}`).join(', ');
+    return `✅ ${aquitar.length===1?'Aviso quitado':aquitar.length+' avisos quitados'} de la ruta: ${nombres}.`;
   }
 
   /* ── COMPLETAR AVISO ── */
@@ -15150,14 +15371,39 @@ async function iramEjecutarAccion(cl) {
     const hoyD     = new Date();
     let pend = analisis.filter(a => a.estado!=='completado'&&a.estado!=='cerrado');
 
-    // "más cerca de X" → mostrar todos EXCEPTO los de X
+    // "más cerca de X" → ordenar por distancia real si hay coordenadas, si no excluir X
     if (cl.cercaDe) {
-      const nRef = normTopo(cl.cercaDe);
+      const nRef  = normTopo(cl.cercaDe);
       const otros = pend.filter(a => {
         const aL = normTopo(a.localidad||'');
         return !aL.includes(nRef.slice(0,4)) && !nRef.includes(aL.slice(0,4));
       });
       if (!otros.length) return `No hay más avisos disponibles fuera de ${cl.cercaDe}.`;
+
+      // Intentar ordenar por coordenadas reales
+      const coords = (() => { try { return JSON.parse(localStorage.getItem('pyc_coords')||'{}'); } catch{return{};} })();
+      const excel  = loadArr(K_EXCEL);
+      // Coordenadas de referencia (Siete Aguas)
+      const refClientes = excel.filter(c => normTopo(c.MUNICIPIO||'').includes(nRef.slice(0,4)));
+      const refCoord = refClientes.map(c => coords[c.CODIGO||'']).find(c => c?.lat);
+      if (refCoord) {
+        // Ordenar otros avisos por distancia
+        const conDist = otros.map(a => {
+          const exRow  = iramBuscarCliente(a.clienteReal||a.cliente||'', a.localidad||'');
+          const coord  = exRow ? coords[exRow.CODIGO||''] : null;
+          const dist   = coord ? distanciaKm(refCoord.lat, refCoord.lng, coord.lat, coord.lng) : 999;
+          return { a, dist };
+        }).sort((x,y) => x.dist - y.dist);
+        const lista = conDist.map(({a,dist}) => {
+          const cli  = a.clienteReal||a.clienteNorm||a.cliente||'?';
+          const loc  = a.localidad||'';
+          const dStr = dist < 999 ? ` (${dist.toFixed(0)}km)` : '';
+          return `${cli} · ${loc}${dStr}`;
+        }).join(', ');
+        return `${otros.length} aviso${otros.length>1?'s':''} más cerca: ${lista}.`;
+      }
+
+      // Sin coordenadas: mostrar agrupado por localidad
       const porLoc = {};
       otros.forEach(a => { const l=a.localidad||'?'; if(!porLoc[l])porLoc[l]=[]; porLoc[l].push(a.clienteReal||a.clienteNorm||a.cliente||'?'); });
       const lista = Object.entries(porLoc).map(([l,cs])=>`${l}: ${cs.join(', ')}`).join(' · ');
@@ -15545,6 +15791,7 @@ NAVEGAR(destino,cliente?,localidad?) — navegar a un lugar o aviso
 CONSULTA_AVISOS — avisos de la ruta activa
 CONSULTA_LOCALIDADES — en qué localidades hay avisos
 ANADIR_AVISO(destino,localidad?) — añadir aviso(s) a la ruta
+QUITAR_AVISO(cliente?,localidad?) — quitar aviso(s) de la ruta. Usar cuando dice "quita","elimina","saca" + localidad o cliente + "de la ruta"
 CREAR_RUTA(n?) — crear ruta con N avisos
 ANALIZAR_PARTES(localidad?,cliente?) — consultar partes/avisos en análisis
 CLIENTES_LOCALIDAD(localidad?,cliente?) — qué clientes hay en un pueblo (del Excel)
@@ -15571,6 +15818,12 @@ MATERIAL_PENDIENTE — material pendiente
 URGENTE — urgente al inicio de la ruta
 GASOLINERA — buscar gasolineras cercanas
 LUGAR(tipo?) — buscar restaurantes, farmacias, supermercados cerca
+SALUDO — "hola", "buenos días", "buenas tardes". Resumen del día al iniciar
+COMO_VOY — "cómo voy", "cómo va el día", "qué tal". Progreso de la jornada
+QUE_ME_QUEDA — "qué me queda", "resumen rápido". Lista de paradas pendientes
+POR_DONDE_EMPIEZO — "por dónde empiezo", "qué hago primero". Sugerencia de orden por urgencia
+CONTEXTO_OFICINA — "dime de esta oficina", "qué sé de aquí". Info de la oficina activa
+URGENTES_TRABAJO — "en las urgentes qué hay que hacer", "qué hay en las urgentes". Trabajo de los avisos urgentes
 RESUMEN_DIA — resumen del día
 CUANTO_QUEDA — cuántos avisos quedan en la ruta
 CHAT — pregunta web, tiempo, noticias, tráfico, mercados, o no reconocido
