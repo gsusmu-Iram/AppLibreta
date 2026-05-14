@@ -12635,12 +12635,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     <div class="iram-hdr">
       <div class="iram-hdr-top">
-        <button class="iram-close" onclick="pycCerrarChat()">✕</button>
+        <div class="iram-status-ico" onclick="iramMostrarAyuda()" style="cursor:pointer" title="Frases disponibles">🚗</div>
         <div class="iram-hdr-center">
           <div class="iram-hdr-name">IRAM</div>
           <div class="iram-hdr-sub">MODO CONDUCCIÓN</div>
         </div>
-        <div class="iram-status-ico" onclick="iramMostrarAyuda()" style="cursor:pointer" title="Frases disponibles">🚗</div>
+        <button class="iram-close" onclick="pycCerrarChat()">✕</button>
       </div>
     </div>
 
@@ -13242,8 +13242,9 @@ function pycAbrirChat() {
   _iramIA   = 'groq';
 
   document.getElementById('pyc-overlay').classList.add('open');
-  iramShowMode('chat');
+  iramShowMode('drive');
   iramRellenarDrive();
+  iramRestaurarCrono();
 
   pycCheckKey();
   const tenia = iramCargarHistorial();
@@ -13906,7 +13907,8 @@ function iramClasificar(txt) {
 
     // dime información X / dime info X
     if (/^informaci[oó]n\s+|^info\s+/i.test(r)) {
-      const q = r.replace(/^informaci[oó]n\s+|^info\s+/i,'').trim();
+      const q = r.replace(/^informaci[oó]n\s+|^info\s+/i,'')
+                 .replace(/^(?:sobre|de[l]?|acerca\s+de)\s+/i,'').trim();
       const mBrand = q.match(/\b(spider|morley|ajax|hikvision|dahua|nvr|dvr|grabador|central|arm|panel)\b/i);
       const { cliente, localidad } = extraerClienteLoc(q);
       return { intento:'BUSCAR_INFO_TECNICA', query: mBrand?.[1]||q, cliente, localidad };
@@ -15799,6 +15801,7 @@ async function iramClasificarIA(txt) {
 
 function iramArrancatCrono() {
   _pycCronoInicio = Date.now();
+  localStorage.setItem('pyc_crono_inicio', _pycCronoInicio);
   const display = document.getElementById('drive-crono-display');
   const widget  = document.getElementById('drive-crono');
   if (widget) widget.style.display = 'block';
@@ -15813,6 +15816,7 @@ function iramArrancatCrono() {
 
 function iramPararCrono() {
   if (_pycCronoTimer) { clearInterval(_pycCronoTimer); _pycCronoTimer = null; }
+  localStorage.removeItem('pyc_crono_inicio');
   const widget = document.getElementById('drive-crono');
   if (widget) widget.style.display = 'none';
   if (!_pycCronoInicio) return '¿?';
@@ -15820,6 +15824,23 @@ function iramPararCrono() {
   _pycCronoInicio = null;
   const m = Math.floor(secs/60), s = secs%60;
   return m ? `${m} minuto${m!==1?'s':''} y ${s} segundo${s!==1?'s':''}.` : `${s} segundo${s!==1?'s':''}.`;
+}
+
+// Restaurar cronómetro si estaba activo al salir
+function iramRestaurarCrono() {
+  const guardado = localStorage.getItem('pyc_crono_inicio');
+  if (!guardado) return;
+  _pycCronoInicio = parseInt(guardado);
+  const display = document.getElementById('drive-crono-display');
+  const widget  = document.getElementById('drive-crono');
+  if (widget) widget.style.display = 'block';
+  if (_pycCronoTimer) clearInterval(_pycCronoTimer);
+  _pycCronoTimer = setInterval(() => {
+    const secs = Math.floor((Date.now() - _pycCronoInicio) / 1000);
+    const m = String(Math.floor(secs/60)).padStart(2,'0');
+    const s = String(secs%60).padStart(2,'0');
+    if (display) display.textContent = `${m}:${s}`;
+  }, 1000);
 }
 
 function pycAutoResize(el) {
