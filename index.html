@@ -12761,6 +12761,13 @@ document.addEventListener('DOMContentLoaded', () => {
       <!-- Lista compacta del resto de la ruta -->
       <div id="drive-lista" style="display:none;background:rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;margin-top:4px"></div>
 
+      <!-- Cronómetro -->
+      <div id="drive-crono" style="display:none;background:rgba(0,0,0,.35);border-radius:12px;padding:12px 16px;margin-top:4px;text-align:center">
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:.1em;margin-bottom:4px">⏱ CRONÓMETRO</div>
+        <div id="drive-crono-display" style="font-size:32px;font-weight:800;color:#fff;letter-spacing:.05em;font-variant-numeric:tabular-nums">00:00</div>
+        <button onclick="iramPararCrono()" style="margin-top:8px;padding:5px 16px;border-radius:20px;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:12px;font-weight:700;cursor:pointer">■ Parar</button>
+      </div>
+
       <!-- Acciones -->
       <div class="drive-actions">
         <div class="drive-action" onclick="iramWaze()">
@@ -13029,6 +13036,9 @@ let _pycHist        = [];
 let _pycRecognition = null;
 let _pycHablando    = false;
 let _pycThinking    = false;
+let _pycSilencio    = false;
+let _pycCronoInicio = null;
+let _pycCronoTimer  = null;
 let _iramIA         = 'groq';
 
 /* ── Navegación entre pantallas de Iram ── */
@@ -13846,6 +13856,13 @@ function iramClasificar(txt) {
     if (/^de\s+esta\s+oficina/i.test(r))       return { intento:'CONTEXTO_OFICINA' };
     if (/^qu[eé]\s+hay\s+en\s+(?:las?\s+)?urgentes?/i.test(r)) return { intento:'URGENTES_TRABAJO' };
 
+    // dime el código de X / dime el código del X
+    if (/^el\s+codigo\s+(de[l]?\s+)?/i.test(r)) {
+      const q = r.replace(/^el\s+codigo\s+(de[l]?\s+)?/i,'').trim();
+      const { cliente, localidad } = extraerClienteLoc(q);
+      return { intento:'BUSCAR_INFO_TECNICA', query: q, cliente, localidad };
+    }
+
     // dime el historial de/del X
     if (/^el\s+historial/i.test(r)) {
       const q = r.replace(/^el\s+historial\s+(?:de[l]?\s+)?/i,'').trim();
@@ -13933,53 +13950,71 @@ function iramClasificar(txt) {
   }
 
   // ════════════════════════════════════════════
-  // CLASIFICACIÓN PRINCIPAL
+  // CLASIFICACIÓN PRINCIPAL — usa t (normalizado sin acentos)
   // ════════════════════════════════════════════
 
   // ── Respuestas cortas ──
-  if (/^(hecho|listo|terminado|done)$/i.test(raw))           return { intento:'COMPLETAR_AVISO', trabajo:'' };
-  if (/^(s[íi]|vale|dale|ok|claro|venga|adelante|perfecto)$/i.test(raw)) return { intento:'CONFIRMAR' };
-  if (/^(no|cancelar|mejor\s+no)$/i.test(raw))              return { intento:'CANCELAR' };
-  if (/^(siguiente|próxima\s+parada|siguiente\s+parada)$/i.test(raw)) return { intento:'SIGUIENTE_AVISO' };
-  if (/^urgente$/i.test(raw))                                return { intento:'URGENTE' };
+  if (/^(hecho|listo|terminado|done)$/i.test(t))            return { intento:'COMPLETAR_AVISO', trabajo:'' };
+  if (/^(si|vale|dale|ok|claro|venga|adelante|perfecto)$/i.test(t)) return { intento:'CONFIRMAR' };
+  if (/^(no|cancelar|mejor\s+no)$/i.test(t))               return { intento:'CANCELAR' };
+  if (/^(siguiente|proxima\s+parada|siguiente\s+parada)$/i.test(t)) return { intento:'SIGUIENTE_AVISO' };
+  if (/^urgente$/i.test(t))                                  return { intento:'URGENTE' };
+  if (/^que\s+hora\s+es/i.test(t))                         return { intento:'QUE_HORA_ES' };
+
+  // ── MODO SILENCIO / VOZ ──
+  if (/^(modo\s+silencio|para\s+de\s+hablar|calla|silencio\s+iram)/i.test(t))
+    return { intento:'MODO_SILENCIO' };
+  if (/^(habla|vuelve\s+a\s+hablar|activa\s+voz|pon\s+voz)/i.test(t))
+    return { intento:'MODO_VOZ' };
+
+  // ── CRONÓMETRO ──
+  if (/^(pon|arranca|inicia|empieza)\s+(un\s+)?cronometro/i.test(t))
+    return { intento:'CRONOMETRO', accion:'arrancar' };
+  if (/^(para|stop|cuanto\s+ha\s+pasado|cuanto\s+llevo|tiempo\s+del\s+cronometro)/i.test(t) && _pycCronoInicio)
+    return { intento:'CRONOMETRO', accion:'parar' };
 
   // ── CREA RUTA ──
-  if (/^crea[r]?\s+(?:una?\s+)?ruta/i.test(raw)) {
-    const m = raw.match(/\b(\d+)\b/);
+  if (/^crea\s+(?:una?\s+)?ruta/i.test(t)) {
+    const m = t.match(/\b(\d+)\b/);
     return { intento:'CREAR_RUTA', n: m?.[1]||'' };
   }
 
-  // ── DIME ──
-  if (/^dime\s+/i.test(raw))
-    return clasificarDime(raw.replace(/^dime\s+/i,''));
+  // ── DIME / DAME ──
+  if (/^(dime|dame)\s+/i.test(t))
+    return clasificarDime(t.replace(/^(dime|dame)\s+/i,''));
 
   // ── CREA ──
-  if (/^crea[r]?\s+/i.test(raw))
-    return clasificarCrea(raw.replace(/^crea[r]?\s+/i,''));
+  if (/^crea\s+/i.test(t))
+    return clasificarCrea(t.replace(/^crea\s+/i,''));
 
-  // ── FINALIZA ──
-  if (/^finaliza[r]?/i.test(raw)) {
-    const trabajo = raw.replace(/^finaliza[r]?[,\s]*/i,'').trim();
+  // ── FINALIZA — excepción si viene "tarea" ──
+  if (/^finaliza/i.test(t)) {
+    if (/^finaliza\s+tarea/i.test(t)) {
+      const titulo = t.replace(/^finaliza\s+tareas?\s*/i,'').trim();
+      return { intento:'MARCAR_TAREA_HECHA', titulo };
+    }
+    const trabajo = txt.replace(/^finaliza[r]?[,\s]*/i,'').trim();
     return { intento:'COMPLETAR_AVISO', trabajo };
   }
 
-  // ── LLÉVAME ──
-  if (/^ll[eé]vame\s+/i.test(raw)) {
-    const dest = raw.replace(/^ll[eé]vame\s+(?:a[l]?\s+)?/i,'').trim();
-    const { cliente, localidad } = extraerClienteLoc(dest);
+  // ── LLÉVAME — solo → siguiente parada ──
+  if (/^llevame$/i.test(t)) return { intento:'SIGUIENTE_AVISO' };
+  if (/^llevame\s+/i.test(t)) {
+    const dest = txt.replace(/^ll[eé]vame\s+(?:a[l]?\s+)?/i,'').trim();
+    const { cliente, localidad } = extraerClienteLoc(iramNorm(dest));
     return { intento:'NAVEGAR', destino: dest, cliente, localidad };
   }
 
   // ── QUITA ──
-  if (/^quita[r]?\s+/i.test(raw)) {
-    const resto = raw.replace(/^quita[r]?\s+/i,'').replace(/\bde\s+la\s+ruta\b/gi,'').trim();
+  if (/^quita\s+/i.test(t)) {
+    const resto = t.replace(/^quita\s+/i,'').replace(/\bde\s+la\s+ruta\b/gi,'').trim();
     const { cliente, localidad } = extraerClienteLoc(resto);
     return { intento:'QUITAR_AVISO', cliente, localidad };
   }
 
   // ── REGISTRA / MARCA (MTO) ──
-  if (/^(registra[r]?|marca[r]?|anota[r]?|apunta[r]?)\s+/i.test(raw)) {
-    const resto = raw.replace(/^(registra[r]?|marca[r]?|anota[r]?|apunta[r]?)\s+/i,'');
+  if (/^(registra|marca|anota|apunta)\s+/i.test(t)) {
+    const resto = t.replace(/^(registra|marca|anota|apunta)\s+/i,'');
     const trimM = txt.match(/\b(q[1-4])\b/i);
     const { cliente, localidad } = extraerClienteLoc(
       resto.replace(/\b(el\s+)?(mto|mantenimiento|q[1-4])\b/gi,'').trim()
@@ -13988,27 +14023,24 @@ function iramClasificar(txt) {
   }
 
   // ── AÑADE ──
-  if (/^a[ñn]ade[r]?\s+/i.test(raw)) {
-    const resto = raw.replace(/^a[ñn]ade[r]?\s+/i,'').replace(/\ba\s+la\s+ruta\b/gi,'').trim();
+  if (/^(anade|add)\s+/i.test(t)) {
+    const resto = t.replace(/^(anade|add)\s+/i,'').replace(/\ba\s+la\s+ruta\b/gi,'').trim();
     const { cliente, localidad } = extraerClienteLoc(resto);
     return { intento:'ANADIR_AVISO', destino: resto, cliente, localidad };
   }
 
+  // ── ESTÁ HECHO EL MTO (sin "dime") → local ──
+  if (/^(esta|hay|tiene[n]?)\s+(?:hecho\s+)?(?:el\s+)?(?:mto|mantenimiento)/i.test(t) ||
+      /^(?:el\s+)?(?:mto|mantenimiento)\s+(de[l]?|del)\s+/i.test(t)) {
+    const q = t.replace(/^(esta\s+hecho|esta|hay|tiene[n]?|el|hecho|mto|mantenimiento|de[l]?)\s*/gi,'').trim();
+    const trimM = txt.match(/\b(q[1-4])\b/i);
+    const { cliente, localidad } = extraerClienteLoc(q);
+    return { intento:'MTO_ESTADO', cliente, localidad, trim: trimM?.[1]?.toUpperCase()||'' };
+  }
+
   // ── HOLA / BUENOS DÍAS ──
-  if (/^(hola|buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches)/i.test(raw))
+  if (/^(hola|buenos\s+dias|buenas\s+tardes|buenas\s+noches)/i.test(t))
     return { intento:'SALUDO' };
-
-  // ── QUÉ HORA ES ──
-  if (/^qu[eé]\s+hora\s+es/i.test(raw))
-    return { intento:'QUE_HORA_ES' };
-
-  // ── MODO SILENCIO ──
-  if (/^(modo\s+silencio|para\s+de\s+hablar|calla|silencio\s+iram)/i.test(raw))
-    return { intento:'MODO_SILENCIO' };
-
-  // ── URGENTE ──
-  if (/^(urgente|ponlo\s+de\s+urgente|marca\s+urgente)/i.test(raw))
-    return { intento:'URGENTE' };
 
   // ── TODO LO DEMÁS → Groq → Gemini ──
   return { intento:'CHAT' };
@@ -14135,6 +14167,30 @@ async function iramEjecutarAccion(cl) {
   }
 
   /* ── RESUMEN DÍA ── */
+  /* ── MODO SILENCIO ── */
+  if (cl.intento === 'MODO_SILENCIO') {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    _pycHablando = false;
+    _pycSilencio = true;
+    return '🔇 Silencio activado.';
+  }
+
+  /* ── MODO VOZ ── */
+  if (cl.intento === 'MODO_VOZ') {
+    _pycSilencio = false;
+    return '🔊 Voz activada.';
+  }
+
+  /* ── CRONÓMETRO ── */
+  if (cl.intento === 'CRONOMETRO') {
+    if (cl.accion === 'parar') {
+      const resultado = iramPararCrono();
+      return `⏱ Tiempo: ${resultado}`;
+    }
+    iramArrancatCrono();
+    return '⏱ Cronómetro arrancado.';
+  }
+
   /* ── QUÉ HORA ES ── */
   if (cl.intento === 'QUE_HORA_ES') {
     const ahora = new Date();
@@ -14626,11 +14682,13 @@ async function iramEjecutarAccion(cl) {
     const nombre = cl.cliente||ofi?.cliente||'ese cliente';
     const loc    = cl.localidad||ofi?.localidad||'';
     if (!visitas.length) return `No hay visitas registradas en ${nombre}${loc?' de '+loc:''}.`;
-    const u       = visitas[0];
-    const trabajo = (u.TRABAJO||u.trabajo||'sin descripción').slice(0,80);
-    const locStr  = u.LOCALIDAD||u.localidad ? ` de ${u.LOCALIDAD||u.localidad}` : '';
-    const total   = visitas.length > 1 ? ` En total llevas ${visitas.length} visitas.` : '';
-    return `La última en ${u.CLIENTE||u.cliente}${locStr} fue el ${u.FECHA||'?'} — ${trabajo}.${total}`;
+    // Mostrar todas las visitas (máx 5) con fecha y trabajo
+    const lista = visitas.slice(0,5).map(v => {
+      const trab = (v.TRABAJO||v.trabajo||'sin descripción').slice(0,70);
+      return `• ${v.FECHA||'?'} — ${trab}`;
+    }).join('\n');
+    const mas = visitas.length > 5 ? `\n(y ${visitas.length-5} más)` : '';
+    return `${nombre}${loc?' de '+loc:''} — ${visitas.length} visita${visitas.length>1?'s':''}:\n${lista}${mas}`;
   }
 
   /* ── LLAMAR ── */
@@ -15551,6 +15609,7 @@ function iramBuscarCliente(nombre, localidad) {
 /* ── Texto → voz (Web Speech Synthesis) ── */
 function pycHablar(txt) {
   if (!window.speechSynthesis) return;
+  if (_pycSilencio) return;   // modo silencio activo
   window.speechSynthesis.cancel();
 
   // Limpiar texto para TTS
@@ -15736,6 +15795,31 @@ async function iramClasificarIA(txt) {
     const cl   = JSON.parse(raw.replace(/```json|```/g,'').trim());
     return cl?.intento ? cl : { intento: 'CHAT' };
   } catch(e) { return { intento: 'CHAT' }; }
+}
+
+function iramArrancatCrono() {
+  _pycCronoInicio = Date.now();
+  const display = document.getElementById('drive-crono-display');
+  const widget  = document.getElementById('drive-crono');
+  if (widget) widget.style.display = 'block';
+  if (_pycCronoTimer) clearInterval(_pycCronoTimer);
+  _pycCronoTimer = setInterval(() => {
+    const secs = Math.floor((Date.now() - _pycCronoInicio) / 1000);
+    const m = String(Math.floor(secs/60)).padStart(2,'0');
+    const s = String(secs%60).padStart(2,'0');
+    if (display) display.textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+function iramPararCrono() {
+  if (_pycCronoTimer) { clearInterval(_pycCronoTimer); _pycCronoTimer = null; }
+  const widget = document.getElementById('drive-crono');
+  if (widget) widget.style.display = 'none';
+  if (!_pycCronoInicio) return '¿?';
+  const secs = Math.floor((Date.now() - _pycCronoInicio) / 1000);
+  _pycCronoInicio = null;
+  const m = Math.floor(secs/60), s = secs%60;
+  return m ? `${m} minuto${m!==1?'s':''} y ${s} segundo${s!==1?'s':''}.` : `${s} segundo${s!==1?'s':''}.`;
 }
 
 function pycAutoResize(el) {
