@@ -13842,85 +13842,109 @@ function iramClasificar(txt) {
   }
 
   // ── Helper DIME ──
+  // ── Helper: parada activa (primera pendiente de la ruta) ──
+  function iramGetParadaActiva() {
+    if (_iramOficinaActiva) return _iramOficinaActiva;
+    const pend = loadArr(K_RUTA).filter(r => r.estado === 'pendiente');
+    if (!pend.length) return null;
+    const p = pend[0];
+    return { cliente: p.clienteReal||p.clienteNorm||p.cliente||'', codigo: p.codigo||'', localidad: p.localidad||'', direccion: p.direccion||'' };
+  }
+
+  // ── Helper: extrae código numérico si viene al final ("Cajamar 21900" → cod=21900) ──
+  function _extraerCodigo(q) {
+    const mCod = q.match(/\b(\d{4,})\s*$/);
+    if (!mCod) return { q, codigo:'' };
+    return { q: q.slice(0, mCod.index).trim(), codigo: mCod[1] };
+  }
+
   function clasificarDime(resto) {
     const r = resto.trim();
 
-    if (/^los\s+avisos?\s+de\s+hoy/i.test(r)) return { intento:'CONSULTA_AVISOS' };
-    if (/^los\s+avisos?/i.test(r))             return { intento:'ANALIZAR_PARTES', localidad:'', cliente:'', cercaDe:'' };
-    if (/^las\s+tareas?/i.test(r))             return { intento:'CONSULTA_TAREAS' };
-    if (/^los\s+eventos?/i.test(r))            return { intento:'CONSULTA_EVENTOS' };
-    if (/^la\s+siguiente|^siguiente/i.test(r)) return { intento:'SIGUIENTE_AVISO' };
-    if (/^cu[aá]ntos?/i.test(r))              return { intento:'CUANTO_QUEDA' };
-    if (/^c[oó]mo\s+voy/i.test(r))            return { intento:'COMO_VOY' };
-    if (/^qu[eé]\s+me\s+queda|^qu[eé]\s+queda/i.test(r)) return { intento:'QUE_ME_QUEDA' };
-    if (/^por\s+d[oó]nde\s+empiezo/i.test(r)) return { intento:'POR_DONDE_EMPIEZO' };
-    if (/^de\s+esta\s+oficina/i.test(r))       return { intento:'CONTEXTO_OFICINA' };
+    // ── Avisos y ruta ──
+    if (/^los\s+avisos?\s+de\s+hoy/i.test(r))   return { intento:'CONSULTA_AVISOS' };
+    if (/^los\s+avisos?/i.test(r))               return { intento:'ANALIZAR_PARTES', localidad:'', cliente:'', cercaDe:'' };
+    if (/^qu[eé]\s+(trabajo\s+tengo|hay\s+que\s+hacer\s*$|me\s+queda\s+por\s+hacer)/i.test(r)) return { intento:'CONSULTA_AVISOS' };
+    if (/^el\s+trabajo\s+que\s+me\s+queda|^qu[eé]\s+me\s+queda|^qu[eé]\s+queda/i.test(r)) return { intento:'QUE_ME_QUEDA' };
+    if (/^la\s+(?:siguiente|proxima)\s+parada|^(?:siguiente|proxima)\s+parada/i.test(r)) return { intento:'SIGUIENTE_AVISO' };
+    if (/^cu[aá]ntos?/i.test(r))                 return { intento:'CUANTO_QUEDA' };
+
+    // ── Estado del día ──
+    if (/^las\s+tareas?/i.test(r))               return { intento:'CONSULTA_TAREAS' };
+    if (/^los\s+eventos?/i.test(r))              return { intento:'CONSULTA_EVENTOS' };
+    if (/^c[oó]mo\s+voy/i.test(r))              return { intento:'COMO_VOY' };
+    if (/^por\s+d[oó]nde\s+empiezo/i.test(r))   return { intento:'POR_DONDE_EMPIEZO' };
+    if (/^de\s+esta\s+oficina/i.test(r))         return { intento:'CONTEXTO_OFICINA' };
     if (/^qu[eé]\s+hay\s+en\s+(?:las?\s+)?urgentes?/i.test(r)) return { intento:'URGENTES_TRABAJO' };
 
-    // dime el código de X / dime el código del X
-    if (/^el\s+codigo\s+(de[l]?\s+)?/i.test(r)) {
-      const q = r.replace(/^el\s+codigo\s+(de[l]?\s+)?/i,'').trim();
+    // ── Código de info técnica ──
+    if (/^el\s+codigo\s+(?:de[l]?\s+)?/i.test(r)) {
+      const q = r.replace(/^el\s+codigo\s+(?:de[l]?\s+)?/i,'').trim();
       const { cliente, localidad } = extraerClienteLoc(q);
       return { intento:'BUSCAR_INFO_TECNICA', query: q, cliente, localidad };
     }
 
-    // dime el historial de/del X
-    if (/^el\s+historial/i.test(r)) {
-      const q = r.replace(/^el\s+historial\s+(?:de[l]?\s+)?/i,'').trim();
-      const mF = q.match(/\b(viernes\s+pasado|semana\s+pasada|ayer|hoy|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i);
-      const { cliente, localidad } = extraerClienteLoc(mF ? q.replace(mF[0],'').trim() : q);
-      return { intento:'HISTORIAL_CLIENTE', cliente, localidad, fecha: mF?.[1]||'' };
+    // ── Historial — con código numérico, con cliente, o sin nada (parada activa) ──
+    if (/^(?:el\s+)?historial/i.test(r)) {
+      const q   = r.replace(/^(?:el\s+)?historial\s+(?:de[l]?\s+)?/i,'').trim();
+      const mF  = q.match(/\b(viernes\s+pasado|semana\s+pasada|ayer|hoy|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i);
+      const sinF = mF ? q.replace(mF[0],'').trim() : q;
+      const { q: sinCod, codigo } = _extraerCodigo(sinF);
+      const { cliente, localidad } = sinCod ? extraerClienteLoc(sinCod) : { cliente:'', localidad:'' };
+      if (!cliente && !localidad && !codigo && !mF) {
+        const activa = iramGetParadaActiva();
+        if (activa) return { intento:'HISTORIAL_CLIENTE', cliente: activa.cliente, localidad: activa.localidad, codigo: activa.codigo, fecha:'' };
+        return { intento:'HISTORIAL_CLIENTE', cliente:'', localidad:'', codigo:'', fecha:'' };
+      }
+      return { intento:'HISTORIAL_CLIENTE', cliente, localidad, codigo, fecha: mF?.[1]||'' };
     }
 
-    // dime si está hecho el MTO / dime el MTO / dime el mantenimiento
-    if (/^si\s+est[aá]\s+hecho|^el\s+(?:mto|mantenimiento)/i.test(r)) {
-      const q = r.replace(/^si\s+est[aá]\s+hecho\s+(?:el\s+)?(?:mto|mantenimiento)\s+(?:de[l]?\s+)?/i,'')
-                 .replace(/^el\s+(?:mto|mantenimiento)\s+(?:de[l]?\s+)?/i,'').trim();
+    // ── MTO — flexible: cualquier orden de palabras ──
+    if (/\b(?:mto|mantenimiento)\b/i.test(r) && !/^(?:los|qu[eé])\s+(?:mantenimientos?|mtos?)/i.test(r)) {
+      const q = r.replace(/\b(?:si\s+esta|esta|hecho|el|los|mto|mantenimiento|de[l]?)\b/gi,'').replace(/\s+/g,' ').trim();
       const trimM = txt.match(/\b(q[1-4])\b/i);
-      const { cliente, localidad } = extraerClienteLoc(q);
-      return { intento:'MTO_ESTADO', cliente, localidad, trim: trimM?.[1]?.toUpperCase()||'' };
+      const { q: sinCod, codigo } = _extraerCodigo(q);
+      const { cliente, localidad } = sinCod ? extraerClienteLoc(sinCod) : { cliente:'', localidad:'' };
+      if (!cliente && !localidad && !codigo) {
+        const activa = iramGetParadaActiva();
+        if (activa) return { intento:'MTO_ESTADO', cliente: activa.cliente, localidad: activa.localidad, codigo: activa.codigo, trim: trimM?.[1]?.toUpperCase()||'' };
+      }
+      return { intento:'MTO_ESTADO', cliente, localidad, codigo, trim: trimM?.[1]?.toUpperCase()||'' };
     }
 
-    // dime qué mantenimientos faltan
-    if (/^qu[eé]\s+(?:mantenimientos?|mtos?)\s+faltan/i.test(r)) return { intento:'AVERIAS_SIN_MTO' };
-
-    // dime los mantenimientos de la semana/mes
-    if (/^los\s+(?:mantenimientos?|mtos?)/i.test(r)) {
+    // ── MTO semana/mes ──
+    if (/^(?:los\s+)?(?:mantenimientos?|mtos?)/i.test(r)) {
       const periodo = /semana\s+pasada/i.test(r) ? 'semana_pasada' : /mes/i.test(r) ? 'mes_actual' : 'semana_actual';
       return { intento:'MTO_SEMANA', periodo };
     }
+    if (/^qu[eé]\s+(?:mantenimientos?|mtos?)\s+faltan/i.test(r)) return { intento:'AVERIAS_SIN_MTO' };
 
-    // dime el horario de/del X
+    // ── Horario ──
     if (/^el\s+horario/i.test(r)) {
       const q = r.replace(/^el\s+horario\s+(?:de[l]?\s+)?/i,'').trim();
       const mDia = q.match(/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[ñn]ana)\b/i);
       const sinDia = q.replace(/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[ñn]ana)\b/gi,'').trim();
-      const { cliente, localidad } = extraerClienteLoc(sinDia || q);
+      const { cliente, localidad } = extraerClienteLoc(sinDia||q);
       return { intento:'HORARIO', cliente, localidad, dia: mDia?.[1]||'' };
     }
 
-    // dime la nota de X / dime las notas
+    // ── Notas e información ──
     if (/^las?\s+notas?/i.test(r)) {
       const q = r.replace(/^las?\s+notas?\s+(?:de\s+)?/i,'').trim();
       return { intento:'CONSULTA_NOTAS', query: q };
     }
-
-    // dime información X / dime info X
     if (/^informaci[oó]n\s+|^info\s+/i.test(r)) {
-      const q = r.replace(/^informaci[oó]n\s+|^info\s+/i,'')
-                 .replace(/^(?:sobre|de[l]?|acerca\s+de)\s+/i,'').trim();
+      const q = r.replace(/^informaci[oó]n\s+|^info\s+/i,'').replace(/^(?:sobre|de[l]?|acerca\s+de)\s+/i,'').trim();
       const mBrand = q.match(/\b(spider|morley|ajax|hikvision|dahua|nvr|dvr|grabador|central|arm|panel)\b/i);
       const { cliente, localidad } = extraerClienteLoc(q);
       return { intento:'BUSCAR_INFO_TECNICA', query: mBrand?.[1]||q, cliente, localidad };
     }
 
-    // dime las oficinas de X
+    // ── Oficinas y trabajo ──
     if (/^las\s+oficinas?\s+de/i.test(r)) {
       const loc = r.replace(/^las\s+oficinas?\s+de\s+/i,'').trim();
       return { intento:'CLIENTES_LOCALIDAD', localidad: loc };
     }
-
-    // dime qué hay que hacer en X
     if (/^qu[eé]\s+hay\s+que\s+hacer/i.test(r)) {
       const q = r.replace(/^qu[eé]\s+hay\s+que\s+hacer\s+(?:en\s+)?(?:el?\s+)?/i,'').trim();
       const { cliente, localidad } = extraerClienteLoc(q);
