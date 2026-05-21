@@ -9109,8 +9109,11 @@ function ejecutarBusqueda(q) {
   // HISTORIAL — incluye campos de equipo, agrupado por cliente en render
   _hisExpandidos = new Set();
   const resultsHis = historial.filter(h =>
-    match(h.CLIENTE)||match(h.SISTEMA)||match(h.TRABAJO)||match(h.LOCALIDAD)||
-    match(h.OT)||match(h.KEY)||
+    match(h.CLIENTE)||
+    (esNumerico ? nrm(h.SISTEMA) === qLow : match(h.SISTEMA))||
+    match(h.TRABAJO)||match(h.LOCALIDAD)||
+    match(h.OT)||
+    (esNumerico ? h.KEY === 'sis_' + qLow : match(h.KEY))||
     match(h['CENTRAL INTRUSIÓN'])||match(h['MODELO CENTRAL'])||
     match(h.GRABADOR)||match(h['COMUNICACIÓN'])||
     match(h['CENTRAL INCENDIO'])||match(h['CONTROL ACCESO'])
