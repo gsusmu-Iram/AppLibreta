@@ -4398,8 +4398,8 @@ function codigoVariantes(cod) {
   const c = nrmCod(cod);
   if (!c) return [];
   const vars = [c];
-  // 5 dígitos → probar sin último dígito (22460 → 2246)
-  if (/^\d{5}$/.test(c)) vars.push(c.slice(0,4));
+  // 5 dígitos terminados en 0 → probar sin último dígito (22460 → 2246)
+  if (/^\d{4}0$/.test(c)) vars.push(c.slice(0,4));
   // Termina en 0 → quitar el 0 (70800 → 7080)
   if (c.endsWith('0') && c.length >= 4) vars.push(c.slice(0,-1));
   // Con punto antes del último dígito
@@ -8192,7 +8192,7 @@ function autoMarcarMTO(parte, excelRowDirecto) {
     ofi = clientes.find(c => {
       const cod = nrm(c.CODIGO||c.codigo||'');
       const suf = String(c.CODIGO||c.codigo||'').split('-').pop().replace(/\D/g,'');
-      return (cod === nrm(sistema) || suf === sistema || sistema.startsWith(cod) || cod.startsWith(sistema));
+      return (cod === nrm(sistema) || suf === sistema);
     });
     // Fallback: buscar por nombre + localidad si no hay código
     if (!ofi && clienteNorm && parte.localidad) {
