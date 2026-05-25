@@ -230,7 +230,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 }
 .results-sep::before { content: ''; width: 20px; height: 1px; background: var(--paper-ruled); }
 .results-sep::after  { content: ''; flex: 1; height: 1px; background: var(--paper-ruled); }
-.count-badge { background: var(--ok); color: white; font-family: var(--font-mono); font-size: 8px; padding: 1px 7px; border-radius: 10px; font-weight: 700; }
+.count-badge { background: var(--ok); color: white; font-family: var(--font-mono); font-size: 13px; padding: 2px 9px; border-radius: 10px; font-weight: 700; }
 
 .btn-seleccionar {
   font-family: var(--font-mono); font-size: 9px;
@@ -15577,29 +15577,40 @@ function iramGetMtoData(cliente, codigo, localidad, trimActual) {
   // Capa 1: pyc_mto_manual con clave exacta
   if (mtoMan[clave]) return mtoMan[clave];
 
-  // Capa 2: pyc_mto_manual buscando por código normalizado
-  const codNorm = String(codigo||'').replace(/^0+/,'').toLowerCase();
-  if (codNorm) {
-    const match = Object.keys(mtoMan).find(k => {
+  // Capa 2: pyc_mto_manual buscando por variantes de código (incluye trailing-zero: 22170→2217)
+  const codNorm = nrmCod(codigo);
+  const vars = (typeof codigoVariantes === 'function' && codNorm) ? codigoVariantes(codNorm) : (codNorm ? [codNorm] : []);
+  if (vars.length) {
+    const matchKey = Object.keys(mtoMan).find(k => {
       const kCod = k.split('_').pop();
-      return kCod === codNorm;
+      return vars.includes(kCod);
     });
-    if (match) return mtoMan[match];
+    if (matchKey) return mtoMan[matchKey];
   }
 
-  // Capa 3: Excel por código normalizado → leer Q1-Q4
+  // Capa 3: Excel por variantes de código → leer Q1-Q4 + fusionar fechas manuales
   const exRow = excel.find(c => {
-    const ec = String(c.CODIGO||c.codigo||'').replace(/^0+/,'').toLowerCase();
-    return codNorm && ec && (ec === codNorm);
+    const ec = nrmCod(c.CODIGO||c.codigo||'');
+    return vars.length && ec && vars.includes(ec);
   });
-  if (exRow) return { Q1: exRow.Q1||'', Q2: exRow.Q2||'', Q3: exRow.Q3||'', Q4: exRow.Q4||'', INT: exRow.INT||'' };
+  if (exRow) {
+    const exKey = typeof mtoKey === 'function' ? mtoKey(exRow) : null;
+    const man   = exKey ? (mtoMan[exKey]||{}) : {};
+    return {
+      INT: man['INT'] || exRow.INT||'',
+      Q1:  man['Q1']  || exRow.Q1 ||'',
+      Q2:  man['Q2']  || exRow.Q2 ||'',
+      Q3:  man['Q3']  || exRow.Q3 ||'',
+      Q4:  man['Q4']  || exRow.Q4 ||''
+    };
+  }
 
-  // Capa 4: Historial — buscar "mto/mantenimiento/Q1/Q2/Q3/Q4" por código
-  if (codNorm && trimActual) {
+  // Capa 4: Historial — buscar "mto/mantenimiento/Q1/Q2/Q3/Q4" por variantes de código
+  if (vars.length && trimActual) {
     const mtoKw = new RegExp(`\\b(mto|mantenimiento|${trimActual}|pci)\\b`, 'i');
     const visita = hist.find(v => {
-      const vKey = String(v.KEY||'').replace(/^sis_/,'').replace(/^0+/,'').toLowerCase();
-      return vKey === codNorm && mtoKw.test(v.TRABAJO||v.trabajo||'');
+      const vKey = nrmCod(String(v.KEY||'').replace(/^sis_/,''));
+      return vars.includes(vKey) && mtoKw.test(v.TRABAJO||v.trabajo||'');
     });
     if (visita) return { [trimActual]: visita.FECHA || 'hecho' };
   }
