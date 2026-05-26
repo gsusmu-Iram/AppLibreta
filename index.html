@@ -7148,9 +7148,9 @@ function datosExportarExcel() {
     // ── COORDENADAS (caché geocodificación) ──────────────────
     datosProg('excel', 93, 'Exportando Coordenadas…');
     const coordsObj  = cargarCoords();
-    const coordsRows = Object.entries(coordsObj).map(([clave, c]) => ({
-      CLAVE: clave, LAT: c.lat, LNG: c.lng, TIPO: c.gps ? 'GPS' : 'Localidad'
-    }));
+    const coordsRows = Object.entries(coordsObj)
+      .filter(([, c]) => c.gps)
+      .map(([clave, c]) => ({ CLAVE: clave, LAT: c.lat, LNG: c.lng, TIPO: 'GPS' }));
     if (coordsRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(coordsRows), 'Coordenadas');
 
     // ── MTO_EXT (extintores caducados) ───────────────────────
@@ -7434,18 +7434,12 @@ function datosImportarExcel(input) {
         }
 
         else if (nl.includes('coordenada')) {
-          const rows = getRows(ws).filter(r => r['CLAVE'] && r['LAT'] && r['LNG']);
+          const rows = getRows(ws).filter(r => r['CLAVE'] && r['LAT'] && r['LNG'] && r['TIPO'] === 'GPS');
           if (rows.length) {
             const existing = cargarCoords();
             rows.forEach(r => {
               const clave = String(r['CLAVE']);
-              if (!existing[clave]) {
-                existing[clave] = {
-                  lat: parseFloat(r['LAT']),
-                  lng: parseFloat(r['LNG']),
-                  ...(r['TIPO'] === 'GPS' ? { gps: true } : {})
-                };
-              }
+              existing[clave] = { lat: parseFloat(r['LAT']), lng: parseFloat(r['LNG']), gps: true };
             });
             save(K_COORDS, existing);
           }
