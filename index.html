@@ -4495,9 +4495,10 @@ function enriquecerConExcel(p) {
     if (!p.localidad)      p.localidad      = row.MUNICIPIO  || row.municipio  || '';
     if (!p.direccionCorta) p.direccionCorta = direccionCorta(p.direccion);
     if (!p.codigo)         p.codigo         = String(row.CODIGO || row.codigo || '').trim();
-    p.ext_polvo = row.EXT_POLVO || row.ext_polvo || 0;
-    p.ext_co2   = row.EXT_CO2   || row.ext_co2   || 0;
-    p.zona      = row.ZONA      || row.zona       || '';
+    p.ext_polvo     = row.EXT_POLVO     || row.ext_polvo     || 0;
+    p.ext_co2       = row.EXT_CO2       || row.ext_co2       || 0;
+    p.zona          = row.ZONA          || row.zona          || '';
+    p.observaciones = row.OBSERVACIONES || row.observaciones || '';
 
     // ── Actualización inversa: el parte enriquece el Excel ──
     let excelActualizado = false;
@@ -5066,6 +5067,11 @@ function renderizar() {
                   ${i.etiquetas&&i.etiquetas.length?`<div style="font-family:var(--font-mono);font-size:9px;color:var(--ink-xl);margin-top:2px">${i.etiquetas.join(' ')}</div>`:``}
                 </div>`).join('')}
               </div>`:``}
+              ${p.observaciones?`<div class="ep-sec">
+                <div class="ep-lbl" style="color:var(--accent)">📋 Datos de oficina</div>
+                <div style="background:rgba(249,115,22,.06);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;padding:7px 10px;font-size:12px;font-weight:600;color:var(--navy);white-space:pre-wrap">${escH(p.observaciones)}</div>
+              </div>`:``}
+
               ${p.extintoresCaducados?`<div class="ep-sec"><div class="ep-lbl" style="color:var(--warn)">🧯 Extintores caducados — sustituir</div><div style="display:flex;gap:6px;margin-top:5px">${p.extintoresCaducados.polvo>0?`<span style="background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.3);border-radius:5px;padding:3px 9px;font-size:11px;font-weight:700;color:var(--warn)">💨 Polvo: ${p.extintoresCaducados.polvo}</span>`:""} ${p.extintoresCaducados.co2>0?`<span style="background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.3);border-radius:5px;padding:3px 9px;font-size:11px;font-weight:700;color:var(--warn)">❄️ CO₂: ${p.extintoresCaducados.co2}</span>`:""}</div></div>`:''}
 
               <!-- Acciones: siempre 🔍 Ver cliente | 🗺️/↩️ Ruta | 🗑️ Eliminar -->
@@ -9226,7 +9232,7 @@ function renderResultadosFiltrados() {
       if (r.codigo)  btns += `<button class="res-act copy" onclick="event.stopPropagation();copiarTexto('${escH(r.codigo)}',this)">📋 ${escH(r.codigo)}</button>`;
       if (r.central) btns += `<span class="res-act" style="cursor:default;pointer-events:none">⚙️ ${escH(r.central)}</span>`;
       // Botón editar cliente
-      btns += `<button class="res-act nav" onclick="event.stopPropagation();editarClienteExcel(JSON.parse(this.dataset.d))" data-d="${escH(JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''}))}" title="Editar datos del cliente">✏️ Editar</button>`;
+      btns += `<button class="res-act nav" onclick="event.stopPropagation();editarClienteExcel(JSON.parse(this.dataset.d))" data-d="${escH(JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||'',observaciones:r.datos||''}))}" title="Editar datos del cliente">✏️ Editar</button>`;
       // Botón añadir aviso a análisis
       const avisoData = JSON.stringify({codigo:r.codigo||'',cliente:r.titleRaw||'',localidad:r.localidad||'',direccion:r.direccion||'',horario:r.horario||''});
       btns += `<button class="res-act nav" onclick="event.stopPropagation();anadirAAnalisis(JSON.parse(this.dataset.d))" data-d="${escH(avisoData)}" title="Añadir a análisis">➕ Análisis</button>`;
@@ -9612,6 +9618,8 @@ function editarClienteExcel(datos) {
         <option value="7">7 — Alicante</option>
         <option value="8">8 — Murcia</option>
       </select>
+      ${lbl('Datos de oficina')}
+      <textarea id="ecli-obs" rows="3" placeholder="Los martes hay mercado · Llaves en oficina de al lado…" style="width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid rgba(26,39,68,.15);font-size:14px;background:#fff;box-sizing:border-box;font-family:inherit;color:#1a2744;resize:vertical">${escH(datos.observaciones||'')}</textarea>
     </div>
     <div style="padding:12px 16px;background:#fff;border-top:1px solid rgba(26,39,68,.08)">
       <button onclick="guardarClienteExcel('${escH(datos.codigo)}')" style="width:100%;padding:14px;border-radius:12px;border:none;background:#f97316;color:#fff;font-size:15px;font-weight:700;cursor:pointer">💾 Guardar en Excel</button>
@@ -9626,6 +9634,7 @@ function guardarClienteExcel(codigoOriginal) {
   const direccion = document.getElementById('ecli-direccion')?.value.trim();
   const horario   = document.getElementById('ecli-horario')?.value.trim();
   const zona      = document.getElementById('ecli-zona')?.value.trim();
+  const obs       = document.getElementById('ecli-obs')?.value.trim();
 
   if (!cliente && !codigo) { toast('Necesitas al menos cliente o código'); return; }
 
@@ -9641,6 +9650,7 @@ function guardarClienteExcel(codigoOriginal) {
     if (direccion) excel[idx].DIRECCION = direccion;
     if (horario)   excel[idx].HORARIO   = horario;
     if (zona)      excel[idx].ZONA      = zona;
+    if (obs !== undefined) excel[idx].OBSERVACIONES = obs;
     save(K_EXCEL, excel);
   } else {
     // Cliente nuevo — añadirlo al Excel
