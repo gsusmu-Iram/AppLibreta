@@ -4398,11 +4398,11 @@ function codigoVariantes(cod) {
   const c = nrmCod(cod);
   if (!c) return [];
   const vars = [c];
-  // 5 dígitos terminados en 0 → probar sin último dígito (22460 → 2246)
+  // 5 dígitos terminados en 0 → quitar el último 0 (70800 → 7080, cabecera)
   if (/^\d{4}0$/.test(c)) vars.push(c.slice(0,4));
-  // Termina en 0 → quitar el 0 (70800 → 7080)
-  if (c.endsWith('0') && c.length >= 4) vars.push(c.slice(0,-1));
-  // Con punto antes del último dígito
+  // 4 dígitos → añadir un 0 (2154 → 21540, 7116 → 71160; Excel corto ↔ Beta largo)
+  if (/^\d{4}$/.test(c)) vars.push(c + '0');
+  // Con punto antes del último dígito (códigos decimales: 22173 → 2217.3)
   if (c.length >= 5) vars.push(c.slice(0,-1) + '.' + c.slice(-1));
   return [...new Set(vars)];
 }
@@ -9108,12 +9108,13 @@ function ejecutarBusqueda(q) {
 
   // HISTORIAL — incluye campos de equipo, agrupado por cliente en render
   _hisExpandidos = new Set();
+  const varsQ = esNumerico ? codigoVariantes(qLow) : [];
   const resultsHis = historial.filter(h =>
     match(h.CLIENTE)||
-    (esNumerico ? nrm(h.SISTEMA) === qLow : match(h.SISTEMA))||
+    (esNumerico ? varsQ.includes(nrmCod(h.SISTEMA)) : match(h.SISTEMA))||
     match(h.TRABAJO)||match(h.LOCALIDAD)||
     match(h.OT)||
-    (esNumerico ? (h.KEY === 'sis_' + qLow || nrmCod(String(h.KEY||'').replace(/^sis_/,'')) === qLow) : match(h.KEY))||
+    (esNumerico ? varsQ.includes(nrmCod(String(h.KEY||'').replace(/^sis_/,''))) : match(h.KEY))||
     match(h['CENTRAL INTRUSIÓN'])||match(h['MODELO CENTRAL'])||
     match(h.GRABADOR)||match(h['COMUNICACIÓN'])||
     match(h['CENTRAL INCENDIO'])||match(h['CONTROL ACCESO'])
