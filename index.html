@@ -9113,7 +9113,7 @@ function ejecutarBusqueda(q) {
     (esNumerico ? nrm(h.SISTEMA) === qLow : match(h.SISTEMA))||
     match(h.TRABAJO)||match(h.LOCALIDAD)||
     match(h.OT)||
-    (esNumerico ? h.KEY === 'sis_' + qLow : match(h.KEY))||
+    (esNumerico ? (h.KEY === 'sis_' + qLow || nrmCod(String(h.KEY||'').replace(/^sis_/,'')) === qLow) : match(h.KEY))||
     match(h['CENTRAL INTRUSIÓN'])||match(h['MODELO CENTRAL'])||
     match(h.GRABADOR)||match(h['COMUNICACIÓN'])||
     match(h['CENTRAL INCENDIO'])||match(h['CONTROL ACCESO'])
@@ -12678,6 +12678,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "dime por dónde empiezo"<br>
             "dime de esta oficina"<br>
             "dime el historial del Cajamar Almàssera"<br>
+            "dime la ficha del Cajamar 2044"<br>
+            "dime la ficha de la 2217"<br>
+            "dime la ficha del DIA de Alboraya"<br>
             "dime si está hecho el MTO del BBVA de Burjasot"<br>
             "dime qué mantenimientos faltan"<br>
             "dime los mantenimientos de la semana"<br>
@@ -13479,7 +13482,7 @@ async function pycEnviar() {
 
     // 2. Si local reconoció intent pero faltan datos clave → Groq rellena campos
     const necesitaGroq = cl.intento !== 'CHAT' && !cl.cliente && !cl.localidad && !cl.codigo && !cl.trim &&
-      ['REGISTRAR_MTO','HISTORIAL_CLIENTE','MTO_ESTADO','CONSULTA_TRABAJO','HORARIO','BUSCAR_OFICINA'].includes(cl.intento);
+      ['REGISTRAR_MTO','HISTORIAL_CLIENTE','MTO_ESTADO','CONSULTA_TRABAJO','HORARIO','BUSCAR_OFICINA','FICHA_CLIENTE'].includes(cl.intento);
 
     if (necesitaGroq || cl.intento === 'CHAT') {
       const clIA = await iramClasificarIA(txt).catch(() => null);
@@ -13889,6 +13892,18 @@ function iramClasificar(txt) {
       const q = r.replace(/^el\s+codigo\s+(?:de[l]?\s+)?/i,'').trim();
       const { cliente, localidad } = extraerClienteLoc(q);
       return { intento:'BUSCAR_INFO_TECNICA', query: q, cliente, localidad };
+    }
+
+    // ── Ficha completa de cliente ──
+    if (/^la\s+ficha/i.test(r)) {
+      const q = r.replace(/^la\s+ficha\s+(?:de[l]?\s+)?/i,'').trim();
+      const { q: sinCod, codigo } = _extraerCodigo(q);
+      const { cliente, localidad } = sinCod ? extraerClienteLoc(sinCod) : { cliente:'', localidad:'' };
+      if (!cliente && !localidad && !codigo) {
+        const activa = iramGetParadaActiva();
+        if (activa) return { intento:'FICHA_CLIENTE', cliente: activa.cliente, localidad: activa.localidad, codigo: activa.codigo };
+      }
+      return { intento:'FICHA_CLIENTE', cliente, localidad, codigo };
     }
 
     // ── Historial — con código numérico, con cliente, o sin nada (parada activa) ──
@@ -14722,6 +14737,86 @@ async function iramEjecutarAccion(cl) {
     }).join('\n');
     const mas = visitas.length > 5 ? `\n(y ${visitas.length-5} más)` : '';
     return `${nombre}${loc?' de '+loc:''} — ${visitas.length} visita${visitas.length>1?'s':''}:\n${lista}${mas}`;
+  }
+
+  /* ── FICHA CLIENTE — resumen consolidado ── */
+  if (cl.intento === 'FICHA_CLIENTE') {
+    const excel = loadArr(K_EXCEL);
+    const hist  = loadArr(K_HIST);
+    const equip = loadObj(K_EQUIPOS);
+    const nCod  = nrmCod(cl.codigo||'');
+    const vars  = (typeof codigoVariantes === 'function' && nCod) ? codigoVariantes(nCod) : (nCod ? [nCod] : []);
+
+    // 1. Localizar fila Excel — por código (con variantes) o por cliente+localidad
+    let exRow = null;
+    if (vars.length) {
+      exRow = excel.find(c => vars.includes(nrmCod(c.CODIGO||c.codigo||''))) || null;
+    }
+    if (!exRow) exRow = iramBuscarCliente(cl.cliente||'', cl.localidad||'');
+    if (!exRow) {
+      const ref = cl.codigo || cl.cliente || cl.localidad || 'esa oficina';
+      return `No encuentro ${ref} en el Excel.`;
+    }
+
+    const nombre = exRow.CLIENTE   || exRow.cliente   || '?';
+    const cod    = exRow.CODIGO    || exRow.codigo    || '';
+    const muni   = exRow.MUNICIPIO || exRow.municipio || '';
+    const dir    = exRow.DIRECCIÓN || exRow.DIRECCION || exRow.direccion || '';
+    const hor    = exRow.HORARIO   || exRow.horario   || '';
+    const obs    = exRow.OBSERVACIONES || exRow.observaciones || '';
+
+    // 2. Últimas visitas (por código con variantes)
+    const codVisita = nrmCod(cod);
+    const varsV = (typeof codigoVariantes === 'function' && codVisita) ? codigoVariantes(codVisita) : (codVisita ? [codVisita] : []);
+    const visitas = hist.filter(v => {
+      const vKey = nrmCod(String(v.KEY||'').replace(/^sis_/,''));
+      return varsV.includes(vKey);
+    }).sort((a,b)=>(b.FECHA||'').localeCompare(a.FECHA||'')).slice(0,3);
+
+    // 3. Equipos (por código exacto o variantes)
+    let eq = equip[cod] || null;
+    if (!eq && varsV.length) {
+      const k = Object.keys(equip).find(k => varsV.includes(nrmCod(k)));
+      if (k) eq = equip[k];
+    }
+
+    // 4. MTO estado del trimestre actual
+    const mes = new Date().getMonth();
+    const trimAct = mes<3?'Q1':mes<6?'Q2':mes<9?'Q3':'Q4';
+    const mtoData = (typeof iramGetMtoData === 'function') ? iramGetMtoData(nombre, cod, muni, trimAct) : null;
+
+    // ── Construir ficha ──
+    let out = `📋 ${nombre}${cod?' · '+cod:''}${muni?' · '+muni:''}`;
+    if (dir) out += `\n📍 ${dir}`;
+    if (hor) out += `\n🕐 ${typeof verbalizarHorario==='function'?verbalizarHorario(hor):hor}`;
+
+    if (visitas.length) {
+      out += `\n\n🔧 Últimas visitas:`;
+      visitas.forEach(v => {
+        const trab = (v.TRABAJO||v.trabajo||'sin descripción').slice(0,70);
+        out += `\n  ${v.FECHA||'?'} — ${trab}`;
+      });
+    } else {
+      out += `\n\n🔧 Sin visitas registradas.`;
+    }
+
+    if (eq) {
+      const partes = [];
+      if (eq['CENTRAL INTRUSIÓN']||eq.central)  partes.push(`Central: ${eq['CENTRAL INTRUSIÓN']||eq.central}${eq.MODELO||eq.modelo?' '+(eq.MODELO||eq.modelo):''}`);
+      if (eq.GRABADOR||eq.grabador)             partes.push(`Grabador: ${eq.GRABADOR||eq.grabador}`);
+      if (eq['CENTRAL INCENDIO']||eq.incendio)  partes.push(`Incendio: ${eq['CENTRAL INCENDIO']||eq.incendio}`);
+      if (eq['CONTROL ACCESO']||eq.acceso)      partes.push(`Acceso: ${eq['CONTROL ACCESO']||eq.acceso}`);
+      if (partes.length) out += `\n\n🖥️ Equipos:\n  ` + partes.join('\n  ');
+    }
+
+    if (obs) out += `\n\n📝 Datos de oficina:\n  ${obs}`;
+
+    if (mtoData) {
+      const v = mtoData[trimAct];
+      if (v) out += `\n\n🔥 MTO ${trimAct}: ${v}`;
+    }
+
+    return out;
   }
 
   /* ── LLAMAR ── */
