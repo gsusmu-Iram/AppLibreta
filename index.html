@@ -6398,10 +6398,14 @@ function guardarFinalizar() {
     'CENTRAL INCENDIO':  vals.incendio || '',
     'CONTROL ACCESO':    vals.acceso   || '',
   };
-  // Si ya existe fila con esta OT o con el mismo KEY hoy → actualizar, si no → añadir
+  // Con OT → solo coincide si es la MISMA OT (dos partes distintos el mismo día no se pisan)
+  // Sin OT en ninguno → caer a KEY + fecha + sistema + trabajo (SEG y PCI del mismo día no se pisan)
   const idxHist = hist.findIndex(h => {
-    if (p.ot && (h.OT||h.ot) && String(h.OT||h.ot||'') === p.ot) return true;
-    return h.KEY === nuevaFila.KEY && h.FECHA === fecha;
+    const hOt = String(h.OT||h.ot||'');
+    if (p.ot || hOt) return !!(p.ot && hOt && hOt === p.ot);
+    return h.KEY === nuevaFila.KEY && h.FECHA === fecha
+        && (h.SISTEMA||'') === nuevaFila.SISTEMA
+        && (h.TRABAJO||'') === nuevaFila.TRABAJO;
   });
   if (idxHist !== -1) {
     hist[idxHist] = nuevaFila;
@@ -13527,7 +13531,7 @@ async function pycEnviar() {
       _pycThinking = false; return;
     }
 
-    pycMsgIA('🤔 No he entendido. Sin conexión a Gemini para preguntas generales.', false, 'local');
+    pycMsgIA('🤔 No te he pillado. Puedes decir: "dime la ficha de…", "cuánto me queda", "siguiente aviso", "cómo voy" o "qué me queda".', false, 'local');
 
   } catch(e) {
     console.error('IRAM error:', e?.message, e?.stack);
@@ -14753,7 +14757,25 @@ async function iramEjecutarAccion(cl) {
     if (vars.length) {
       exRow = excel.find(c => vars.includes(nrmCod(c.CODIGO||c.codigo||''))) || null;
     }
-    if (!exRow) exRow = iramBuscarCliente(cl.cliente||'', cl.localidad||'');
+    if (!exRow) {
+      // Sin código → buscar TODAS las coincidencias por cliente+localidad
+      const matches = iramBuscarClientes(cl.cliente||'', cl.localidad||'');
+      if (matches.length === 1) {
+        exRow = matches[0];
+      } else if (matches.length > 1) {
+        // Desambiguar: listar para que elija por código
+        const cliN = matches[0].CLIENTE || matches[0].cliente || 'cliente';
+        const locN = cl.localidad || matches[0].MUNICIPIO || matches[0].municipio || '';
+        let lista = `Hay ${matches.length} oficinas de ${cliN}${locN?' en '+locN:''}. Dime el código:`;
+        matches.slice(0, 12).forEach(c => {
+          const cc = c.CODIGO||c.codigo||'?';
+          const dd = c.DIRECCIÓN||c.DIRECCION||c.direccion||'';
+          lista += `\n  · ${cc}${dd?' — '+dd:''}`;
+        });
+        if (matches.length > 12) lista += `\n  …y ${matches.length-12} más`;
+        return lista;
+      }
+    }
     if (!exRow) {
       const ref = cl.codigo || cl.cliente || cl.localidad || 'esa oficina';
       return `No encuentro ${ref} en el Excel.`;
@@ -15742,6 +15764,22 @@ function iramBuscarCliente(nombre, localidad) {
   }) || null;
 }
 
+
+
+/* ── Buscar TODAS las coincidencias por nombre y/o localidad (para desambiguar) ── */
+function iramBuscarClientes(nombre, localidad) {
+  const nN = iramNorm(nombre);
+  const nL = normTopo(localidad);
+  if (!nN && !nL) return [];
+  const excel = loadArr(K_EXCEL);
+  return excel.filter(c => {
+    const cN = iramNorm(c.CLIENTE||c.cliente||'');
+    const cL = normTopo(c.MUNICIPIO||c.municipio||'');
+    const matchN = !nN || cN.includes(nN) || (cN.length >= 3 && nN.includes(cN));
+    const matchL = !nL || cL.includes(nL) || (cL.length >= 3 && nL.includes(cL));
+    return matchN && matchL;
+  });
+}
 
 
 /* ── Pulir respuesta local con Groq (hace la frase más natural) ── */
