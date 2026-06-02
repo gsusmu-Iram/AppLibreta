@@ -5384,17 +5384,38 @@ function haversine(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+// Estima la ruta REAL por carretera a partir de la distancia en línea recta.
+// Combina dos correcciones sobre el haversine:
+//  1) Factor de rodeo (circuity): las carreteras no van rectas; los trayectos
+//     cortos serpentean más (más giros, calles) que los largos (autovías).
+//  2) Velocidad media efectiva: incluye semáforos, tráfico y arranques/paradas.
+// Calibrado con datos reales de Waze (3,1 km recta ≈ 4,4 km / 10 min).
+// Para afinar: sube/baja los factores y las velocidades.
+function estimarRuta(kmRecta) {
+  if (!kmRecta || kmRecta < 0) return { km: 0, min: 0 };
+  let factor;
+  if      (kmRecta < 2)  factor = 1.5;   // trayecto muy corto, mucho rodeo
+  else if (kmRecta < 10) factor = 1.4;   // urbano / periurbano
+  else if (kmRecta < 30) factor = 1.3;   // comarcal
+  else                   factor = 1.25;  // autovía, más directo
+  const km = kmRecta * factor;
+  let vel; // km/h media efectiva
+  if      (km < 5)  vel = 26;   // urbano con paradas
+  else if (km < 15) vel = 42;   // mixto
+  else if (km < 40) vel = 62;   // interurbano
+  else              vel = 78;   // autovía
+  return { km, min: Math.round(km / vel * 60) };
+}
+
 function kmAMinutos(km) {
-  // 35 km/h urbano si <15 km, 65 km/h interurbano si más
-  const vel = km < 15 ? 35 : 65;
-  return Math.round(km / vel * 60);
+  return estimarRuta(km).min;
 }
 
 function formatTiempo(km) {
-  const min = kmAMinutos(km);
-  if (min < 60) return `~${min} min · ${km.toFixed(1)} km`;
-  const h = Math.floor(min/60), m = min % 60;
-  return `~${h}h ${m}min · ${km.toFixed(1)} km`;
+  const r = estimarRuta(km);
+  if (r.min < 60) return `~${r.min} min · ${r.km.toFixed(1)} km`;
+  const h = Math.floor(r.min/60), m = r.min % 60;
+  return `~${h}h ${m}min · ${r.km.toFixed(1)} km`;
 }
 
 /* ================================================================
@@ -5832,8 +5853,8 @@ function renderLista() {
         origen = p;
       }
       if (kmTotal > 0) {
-        const min = Math.round(kmTotal / (kmTotal < 30 ? 35 : 65) * 60);
-        tiempoTotalStr = min < 60 ? `~${min} min · ${kmTotal.toFixed(0)} km` : `~${Math.floor(min/60)}h${min%60?` ${min%60}min`:''} · ${kmTotal.toFixed(0)} km`;
+        const r = estimarRuta(kmTotal);
+        tiempoTotalStr = r.min < 60 ? `~${r.min} min · ${r.km.toFixed(0)} km` : `~${Math.floor(r.min/60)}h${r.min%60?` ${r.min%60}min`:''} · ${r.km.toFixed(0)} km`;
       }
     }
     // URL ruta completa en Maps (hasta 10 waypoints por limitación de URL)
@@ -15055,9 +15076,9 @@ async function iramEjecutarAccion(cl) {
     let tiempo = '';
     const c = (typeof _getCoordsParada === 'function') ? _getCoordsParada(sig, cargarCoords()) : null;
     if (c && c.lat && gpsActual && gpsActual.lat) {
-      const km  = haversine(gpsActual.lat, gpsActual.lng, c.lat, c.lng);
-      const min = kmAMinutos(km);
-      tiempo = `, a unos ${min} minuto${min!==1?'s':''} y ${km.toFixed(1)} kilómetros`;
+      const kmRecta = haversine(gpsActual.lat, gpsActual.lng, c.lat, c.lng);
+      const r = estimarRuta(kmRecta);
+      tiempo = `, a unos ${r.min} minuto${r.min!==1?'s':''} y ${r.km.toFixed(1)} kilómetros`;
     }
     return `La siguiente es ${cliente}${loc}${tiempo}.`;
   }
