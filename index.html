@@ -3523,7 +3523,7 @@ body { font-size: 14px; }
     <div class="ubic-box-body">
       <div class="field-group">
         <div class="field-lbl">Nombre</div>
-        <input class="field-input" id="ubic-nombre" type="text" placeholder="Casa, Almacén, PYCSECA…">
+        <input class="field-input" id="ubic-nombre" type="text" placeholder="Casa, Almacén, Trabajo…">
       </div>
       <div class="field-group">
         <div class="field-lbl">Dirección</div>
@@ -5813,7 +5813,7 @@ function renderLista() {
   setText('s-pci',   paradas.filter(p=>p.sistema==='PCI').length);
   setText('tab-count', pendientes.length);
 
-  const salida = load(K_SALIDA) || {nombre:'PYCSECA Seguridad', addr:'C/ Nicolás Estévanez 3, Valencia'};
+  const salida = load(K_SALIDA) || {nombre:'Trabajo', addr:''};
   let html = '';
   let delay = 0;
 
@@ -6997,8 +6997,8 @@ function datosToast(msg, dur=2800) {
 }
 
 /* ================================================================
-   EXPORTAR EXCEL — genera PycsecaData_FECHA.xlsx
-   Compatible con el formato de Pycseca_v3
+   EXPORTAR EXCEL — genera FECHA_Libreta.xlsx
+   Formato Libreta
    ================================================================ */
 function datosExportarExcel() {
   if (typeof XLSX === 'undefined') {
@@ -7231,7 +7231,7 @@ function datosExportarExcel() {
 }
 
 /* ================================================================
-   IMPORTAR EXCEL — carga PycsecaData.xlsx
+   IMPORTAR EXCEL — carga el backup .xlsx
    ================================================================ */
 function datosImportarExcel(input) {
   const file = input.files[0];
@@ -7729,7 +7729,7 @@ function getMtoColor(cli) {
   if (c.includes('ABANCA'))
     return mkCol('#004F9F','#004F9F','🔵 ABANCA');
   if (/CAJAMAR|CAJA\s*RURAL|RURALCAJA|CAIXA/.test(c))
-    return mkCol('#2a6773','#2a6773','🟢 CAJAMAR');    // verde azulado PYCSECA
+    return mkCol('#2a6773','#2a6773','🟢 CAJAMAR');    // verde azulado
   if (esBanco(cli))
     return mkCol('#1e40af','#1e40af','🏦 Banco');
   // ── Gasolineras ──
@@ -10426,7 +10426,7 @@ function renderCierre() {
 
   // Texto de cierre
   const sep  = '━━━━━━━━━━━━━━━━━━━━━━';
-  let lines  = [`PYCSECA · ${fechaTxt}`, sep];
+  let lines  = [`PycLibreta · ${fechaTxt}`, sep];
   finalizadas.forEach(p => {
     lines.push(`✓ ${(p.clienteReal||p.cliente||'—').toUpperCase()} ${p.codigo||''} · ${(p.localidad||'').toUpperCase()}`);
     if (p.trabajoRealizado) lines.push(`  ${p.trabajoRealizado.slice(0,60)}`);
@@ -12269,8 +12269,8 @@ document.addEventListener('DOMContentLoaded', () => {
   iniciarGPS();
   if (!loadArr(K_UBICS).length) {
     save(K_UBICS, [
-      {nombre:'PYCSECA Seguridad', addr:'C/ Nicolás Estévanez 3, Valencia', tipo:'trabajo'},
-      {nombre:'Casa',              addr:'Almàssera, Valencia',               tipo:'personal'},
+      {nombre:'Trabajo', addr:'', tipo:'trabajo'},
+      {nombre:'Casa',    addr:'Almàssera, Valencia', tipo:'personal'},
     ]);
   }
   irA('analisis');
@@ -15051,7 +15051,15 @@ async function iramEjecutarAccion(cl) {
     iramConfirmarWaze(sig);
     const cliente = sig.clienteReal || sig.clienteNorm || sig.cliente || '?';
     const loc     = sig.localidad ? ` en ${sig.localidad}` : '';
-    return `La siguiente es ${cliente}${loc}.`;
+    // Tiempo y distancia estimados desde tu posición GPS (sirve en modo conducción)
+    let tiempo = '';
+    const c = (typeof _getCoordsParada === 'function') ? _getCoordsParada(sig, cargarCoords()) : null;
+    if (c && c.lat && gpsActual && gpsActual.lat) {
+      const km  = haversine(gpsActual.lat, gpsActual.lng, c.lat, c.lng);
+      const min = kmAMinutos(km);
+      tiempo = `, a unos ${min} minuto${min!==1?'s':''} y ${km.toFixed(1)} kilómetros`;
+    }
+    return `La siguiente es ${cliente}${loc}${tiempo}.`;
   }
 
   /* ── NAVEGAR ── */
