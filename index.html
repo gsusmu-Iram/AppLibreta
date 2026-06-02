@@ -5426,9 +5426,23 @@ function _claveLoc(parada) {
   return (parada.localidad || '').toLowerCase().trim() || null;
 }
 
+// Claves candidatas de coords para cliente+código (cubre variantes 4↔5 díg: 2013 ↔ 20130)
+function _clavesCoord(cliente, codigo) {
+  const cli = String(cliente||'').toLowerCase().replace(/\s+/g,'_').trim().slice(0,20);
+  const cod = nrmCod(codigo||'');
+  if (!cli || !cod) return [];
+  const vars = (typeof codigoVariantes === 'function') ? codigoVariantes(cod) : [cod];
+  return vars.map(v => `${cli}__${v}`);
+}
+
 // Obtener las mejores coords disponibles para una parada
 function _getCoordsParada(parada, coords) {
-  // 1. Coords exactas GPS por código
+  // 1. GPS exacto por cliente+código (probando variantes de código)
+  const cliente = parada.clienteNorm || parada.clienteReal || parada.cliente || '';
+  for (const k of _clavesCoord(cliente, parada.codigo)) {
+    if (coords[k]) return coords[k];
+  }
+  // 1b. clave exacta legacy (por si se guardó con otro formato)
   const cExacta = _claveExacta(parada);
   if (cExacta && coords[cExacta]) return coords[cExacta];
   // 2. Coords por localidad
@@ -7001,6 +7015,7 @@ function datosExportarExcel() {
     const clientes = loadArr(K_EXCEL);
     const mtoMan   = loadObj(K_MTO_MAN);  // fechas marcadas manualmente
     const nuevos   = datosClientesNuevos();
+    const coordsCli = cargarCoords();      // GPS guardados → se vuelcan en cada fila
 
     // Añadir clientes nuevos con flag
     const todosClientes = [...clientes];
@@ -7028,6 +7043,11 @@ function datosExportarExcel() {
           const q2Val   = man['Q2']  || String(c.Q2   || '');
           const q3Val   = man['Q3']  || String(c.Q3   || '');
           const q4Val   = man['Q4']  || String(c.Q4   || '');
+          // Coordenada GPS de la oficina (si existe), probando variantes de código
+          let _lat = '', _lng = '';
+          for (const k of _clavesCoord(c.CLIENTE || c.cliente || '', c.CODIGO || c.codigo || '')) {
+            if (coordsCli[k] && coordsCli[k].gps) { _lat = coordsCli[k].lat; _lng = coordsCli[k].lng; break; }
+          }
           return ({
           'ZONA':        String(c.ZONA       || c.zona       || ''),
           'CLIENTE':     String(c.CLIENTE    || c.cliente    || ''),
@@ -7048,11 +7068,13 @@ function datosExportarExcel() {
           'COMUNICACIÓN': String(c['COMUNICACIÓN'] || ''),
           'INCENDIO':  String(c.INCENDIO || ''),
           'ACCESO':    String(c.ACCESO || ''),
+          'LAT':       _lat,
+          'LNG':       _lng,
         });})
       : [{'ZONA':'','CLIENTE':'','CODIGO':'','DIRECCION':'','MUNICIPIO':'','PROVINCIA':'',
           'OBSERVACIONES':'','INT':'','Q1':'','Q2':'','Q3':'','Q4':'',
           'EXT_POLVO':0,'EXT_CO2':0,'HORARIO':'','CENTRAL':'','MOD. CENTRAL':'',
-          'GRABADOR':'','COMUNICACIÓN':'','INCENDIO':'','ACCESO':''}];
+          'GRABADOR':'','COMUNICACIÓN':'','INCENDIO':'','ACCESO':'','LAT':'','LNG':''}];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cliRows), 'Clientes');
 
     // ── HISTORIAL ──────────────────────────────────────────────
@@ -7171,13 +7193,8 @@ function datosExportarExcel() {
     ];
     if (etqRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(etqRows), 'Etiquetas');
 
-    // ── COORDENADAS (caché geocodificación) ──────────────────
-    datosProg('excel', 93, 'Exportando Coordenadas…');
-    const coordsObj  = cargarCoords();
-    const coordsRows = Object.entries(coordsObj)
-      .filter(([, c]) => c.gps)
-      .map(([clave, c]) => ({ CLAVE: clave, LAT: c.lat, LNG: c.lng, TIPO: 'GPS' }));
-    if (coordsRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(coordsRows), 'Coordenadas');
+    // ── COORDENADAS: ahora van en columnas LAT/LNG de la hoja Clientes ──
+    // (hoja Coordenadas eliminada para no duplicar)
 
     // ── MTO_EXT (extintores caducados) ───────────────────────
     datosProg('excel', 94, 'Exportando MTO_Ext…');
@@ -7273,6 +7290,19 @@ function datosImportarExcel(input) {
           }));
           save(K_EXCEL, clientes);
           cliCount = clientes.length;
+
+          // ── Coordenadas GPS desde columnas LAT/LNG de cada oficina ──
+          const coordsExist = cargarCoords();
+          let coordsLeidas = 0;
+          rows.forEach(r => {
+            const lat = parseFloat(String(r['LAT']||'').replace(',','.'));
+            const lng = parseFloat(String(r['LNG']||'').replace(',','.'));
+            if (!isNaN(lat) && !isNaN(lng) && lat && lng) {
+              const claves = _clavesCoord(r['CLIENTE']||'', r['CODIGO']||'');
+              if (claves.length) { coordsExist[claves[0]] = { lat, lng, gps:true }; coordsLeidas++; }
+            }
+          });
+          if (coordsLeidas) save(K_COORDS, coordsExist);
         }
 
         else if (nl.includes('historial')) {
