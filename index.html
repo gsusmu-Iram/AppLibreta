@@ -546,6 +546,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
   outline:none; margin-top:4px; box-sizing:border-box; }
 .equip-otro::placeholder { color:var(--ink-xl); font-size:11px; }
 
+.equip-sel {
   width: 100%; border: 1.5px solid rgba(26,39,68,.15); border-radius: var(--r-sm);
   padding: 8px 10px; font-family: var(--font-ui); font-size: 12px; color: var(--navy);
   background: white; outline: none; -webkit-appearance: none; appearance: none;
@@ -555,6 +556,26 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 }
 .equip-sel:focus { border-color: var(--orange); }
 .equip-sel.filled { border-color: var(--ok); background-color: rgba(22,163,74,.04); color: var(--navy); font-weight:700; }
+.equip-drop {
+  width:100%; display:flex; align-items:center; gap:9px; box-sizing:border-box;
+  border:1.5px solid rgba(26,39,68,.12); border-radius:12px;
+  padding:10px 12px; background:#fff; cursor:pointer; outline:none;
+  -webkit-tap-highlight-color:transparent; text-align:left;
+  box-shadow:0 1px 3px rgba(26,39,68,.06);
+  transition:border-color .15s, background .15s, box-shadow .15s, transform .08s;
+}
+.equip-drop:active { transform:scale(.98); box-shadow:0 1px 2px rgba(26,39,68,.08); }
+.equip-drop.filled { border-color:var(--ok); background:linear-gradient(135deg,rgba(22,163,74,.07),rgba(22,163,74,.03)); }
+.equip-drop-ic {
+  font-size:15px; flex-shrink:0; width:30px; height:30px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(26,39,68,.05); transition:background .15s;
+}
+.equip-drop.filled .equip-drop-ic { background:rgba(22,163,74,.14); }
+.equip-drop-val { flex:1; min-width:0; font-size:13px; color:var(--ink-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.equip-drop.filled .equip-drop-val { color:var(--navy); font-weight:700; }
+.equip-drop-arr { font-size:11px; color:var(--ink-xl); flex-shrink:0; }
+.equip-drop.filled .equip-drop-arr { color:var(--ok); }
 
 .equip-acord-hdr {
   display: flex; align-items: center; justify-content: space-between;
@@ -568,9 +589,9 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .equip-acord-arr.open { transform: rotate(180deg); }
 .equip-acord-body { display: none; padding: 10px 0 0; }
 .equip-acord-body.open { display: block; }
-.equip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.equip-item { display: flex; flex-direction: column; gap: 4px; }
-.equip-lbl  { font-family: var(--font-mono); font-size: 7px; color: var(--ink-light);
+.equip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.equip-item { display: flex; flex-direction: column; gap: 5px; }
+.equip-lbl  { font-family: var(--font-mono); font-size: 8px; color: var(--ink-light);
   letter-spacing: .08em; text-transform: uppercase; }
 .sel-btn {
   display: flex; align-items: center; justify-content: space-between;
@@ -1021,7 +1042,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .ult-vis-estado.pend { background:rgba(217,119,6,.1); color:var(--warn); }
 
 /* ── BOTTOM SHEET ── */
-
+.sheet-overlay {
   position: fixed; inset: 0; z-index: 9999;
   background: rgba(10,18,35,.5);
   display: flex; align-items: flex-end;
@@ -1945,8 +1966,10 @@ body { font-size: 14px; }
 .bav-stack>*{pointer-events:all}
 .banner-aviso{border-radius:var(--r-md);padding:11px 13px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(10,18,35,.15);animation:bavIn .4s cubic-bezier(.34,1.56,.64,1)}
 @keyframes bavIn{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
-.bav-tareas-alarm{background:linear-gradient(135deg,rgba(217,119,6,.14),rgba(217,119,6,.08));border:1.5px solid rgba(217,119,6,.4);}
-.bav-tareas-alarm .bav-title{color:var(--warn);}
+.bav-tareas-alarm{background:linear-gradient(135deg,#f97316,#ea580c);border:1.5px solid #c2410c;box-shadow:0 6px 20px rgba(234,88,12,.45);}
+.bav-tareas-alarm .bav-title{color:#fff;}
+.bav-tareas-alarm .bav-sub{color:rgba(255,255,255,.9);}
+.bav-tareas-alarm .bav-close{background:rgba(255,255,255,.25);color:#fff;}
 .bav-ico{font-size:22px;flex-shrink:0}
 .bav-txt{flex:1;min-width:0}
 .bav-title{font-size:14px;font-weight:900;line-height:1.2}
@@ -3400,18 +3423,11 @@ body { font-size: 14px; }
           <div class="equip-grid">
             <div class="equip-item">
               <span class="equip-lbl">Central intrusión</span>
-              <select class="equip-sel" id="eq-central" onchange="onEquipChange('central',this)">
-                <option value="">— Seleccionar —</option>
-                <option>Galaxy Flex</option>
-                <option>Galaxy Dimensión</option>
-                <option>Ajax</option>
-                <option>PACOM</option>
-                <option>Texecom</option>
-                <option>SPC</option>
-                <option>Vesta</option>
-                <option value="__otro__">Otro…</option>
-              </select>
-              <input class="equip-otro" id="eq-central-otro" type="text" placeholder="Especifica cuál…" style="display:none" oninput="vals.central=this.value;actualizarBadgeEquipos()">
+              <button type="button" class="equip-drop" id="eq-central" onclick="abrirSheet('central')">
+                <span class="equip-drop-ic">🚨</span>
+                <span class="equip-drop-val" id="eq-central-val">— Seleccionar —</span>
+                <span class="equip-drop-arr">▾</span>
+              </button>
             </div>
             <div class="equip-item">
               <span class="equip-lbl">Instalación</span>
@@ -3419,54 +3435,35 @@ body { font-size: 14px; }
             </div>
             <div class="equip-item">
               <span class="equip-lbl">Grabador</span>
-              <select class="equip-sel" id="eq-grabador" onchange="onEquipChange('grabador',this)">
-                <option value="">— Seleccionar —</option>
-                <option>Hikvision</option>
-                <option>Scati</option>
-                <option>Dahua</option>
-                <option>Axis</option>
-                <option value="__otro__">Otro…</option>
-              </select>
-              <input class="equip-otro" id="eq-grabador-otro" type="text" placeholder="Especifica cuál…" style="display:none" oninput="vals.grabador=this.value;actualizarBadgeEquipos()">
+              <button type="button" class="equip-drop" id="eq-grabador" onclick="abrirSheet('grabador')">
+                <span class="equip-drop-ic">📹</span>
+                <span class="equip-drop-val" id="eq-grabador-val">— Seleccionar —</span>
+                <span class="equip-drop-arr">▾</span>
+              </button>
             </div>
             <div class="equip-item">
               <span class="equip-lbl">Comunicación</span>
-              <select class="equip-sel" id="eq-com" onchange="onEquipChange('com',this)">
-                <option value="">— Seleccionar —</option>
-                <option>2G con antena</option>
-                <option>2G sin antena</option>
-                <option>4G omnidireccional</option>
-                <option>4G antena pequeña</option>
-                <option>Ethernet</option>
-                <option>Fibra</option>
-                <option>ADSL</option>
-                <option>ALWON</option>
-                <option value="__otro__">Otro…</option>
-              </select>
-              <input class="equip-otro" id="eq-com-otro" type="text" placeholder="Especifica cuál…" style="display:none" oninput="vals.com=this.value;actualizarBadgeEquipos()">
+              <button type="button" class="equip-drop" id="eq-com" onclick="abrirSheet('com')">
+                <span class="equip-drop-ic">📡</span>
+                <span class="equip-drop-val" id="eq-com-val">— Seleccionar —</span>
+                <span class="equip-drop-arr">▾</span>
+              </button>
             </div>
             <div class="equip-item">
               <span class="equip-lbl">Central incendio</span>
-              <select class="equip-sel" id="eq-incendio" onchange="onEquipChange('incendio',this)">
-                <option value="">— Seleccionar —</option>
-                <option>Visión</option>
-                <option>Morley</option>
-                <option>Honeywell</option>
-                <option>Aritech</option>
-                <option>Notifier</option>
-                <option value="__otro__">Otro…</option>
-              </select>
-              <input class="equip-otro" id="eq-incendio-otro" type="text" placeholder="Especifica cuál…" style="display:none" oninput="vals.incendio=this.value;actualizarBadgeEquipos()">
+              <button type="button" class="equip-drop" id="eq-incendio" onclick="abrirSheet('incendio')">
+                <span class="equip-drop-ic">🔥</span>
+                <span class="equip-drop-val" id="eq-incendio-val">— Seleccionar —</span>
+                <span class="equip-drop-arr">▾</span>
+              </button>
             </div>
             <div class="equip-item">
               <span class="equip-lbl">Control acceso</span>
-              <select class="equip-sel" id="eq-acceso" onchange="onEquipChange('acceso',this)">
-                <option value="">— Seleccionar —</option>
-                <option>Salto</option>
-                <option>Honeywell</option>
-                <option value="__otro__">Otro…</option>
-              </select>
-              <input class="equip-otro" id="eq-acceso-otro" type="text" placeholder="Especifica cuál…" style="display:none" oninput="vals.acceso=this.value;actualizarBadgeEquipos()">
+              <button type="button" class="equip-drop" id="eq-acceso" onclick="abrirSheet('acceso')">
+                <span class="equip-drop-ic">🚪</span>
+                <span class="equip-drop-val" id="eq-acceso-val">— Seleccionar —</span>
+                <span class="equip-drop-arr">▾</span>
+              </button>
             </div>
           </div>
         </div>
@@ -3526,7 +3523,7 @@ body { font-size: 14px; }
     <div class="ubic-box-body">
       <div class="field-group">
         <div class="field-lbl">Nombre</div>
-        <input class="field-input" id="ubic-nombre" type="text" placeholder="Casa, Almacén, Oficina…">
+        <input class="field-input" id="ubic-nombre" type="text" placeholder="Casa, Almacén, PYCSECA…">
       </div>
       <div class="field-group">
         <div class="field-lbl">Dirección</div>
@@ -4592,12 +4589,18 @@ function analizar() {
   const texto = document.getElementById('input-partes').value.trim();
   if (!texto) return;
   const partes=cargarPartes(), otsExist=new Set(partes.map(p=>p.ot).filter(Boolean)), otsVistos=cargarOtsVistos();
+  const otsPrevias = new Set(otsExist);   // snapshot antes de añadir
+  const otsPegado  = new Set();            // OTs vistas en este pegado
+  let nuevos=0, yaEstaban=0, dupPegado=0, parseados=0;
   for (const np of parsearTexto(texto)) {
-    if (np.ot&&otsExist.has(np.ot)) continue;
+    parseados++;
+    if (np.ot && otsPrevias.has(np.ot))  { yaEstaban++; continue; }
+    if (np.ot && otsPegado.has(np.ot))   { dupPegado++; continue; }
     np.isNew=!otsVistos.has(np.ot||np.id);
     enriquecerConExcel(np);
     partes.unshift(np);
-    if(np.ot) otsExist.add(np.ot);
+    if(np.ot) { otsExist.add(np.ot); otsPegado.add(np.ot); }
+    nuevos++;
   }
   // Ordenar: urgentes primero, luego por antigüedad (más días pendiente = antes)
   partes.sort((a, b) => {
@@ -4616,6 +4619,15 @@ function analizar() {
   guardarPartes(partes);
   document.getElementById('input-partes').value='';
   renderizar();
+  // Feedback de lo que ha pasado al pegar
+  if (parseados === 0) {
+    toast('⚠️ No se reconoció ningún parte');
+  } else {
+    let msg = `${nuevos} nuevo${nuevos!==1?'s':''}`;
+    if (yaEstaban) msg += ` · ${yaEstaban} ya estaba${yaEstaban!==1?'n':''}`;
+    if (dupPegado) msg += ` · ${dupPegado} duplicado${dupPegado!==1?'s':''}`;
+    toast(msg);
+  }
   // Actualizar badge de clientes nuevos en Backup
   try {
     const nuevos = typeof datosClientesNuevos === 'function' ? datosClientesNuevos() : [];
@@ -4867,7 +4879,7 @@ function guardarParteNuevo(id) {
   const idx = partes.findIndex(x => x.id === id);
   if (idx === -1) return;
   partes[idx].clienteReal = document.getElementById('ep-cliente')?.value.trim() || partes[idx].clienteReal;
-  partes[idx].clienteNorm = partes[idx].clienteReal;
+  partes[idx].clienteNorm = normalizarCliente(partes[idx].clienteReal || partes[idx].clienteNorm || '');
   partes[idx].codigo      = document.getElementById('ep-codigo')?.value.trim() || partes[idx].codigo;
   partes[idx].localidad   = document.getElementById('ep-localidad')?.value.trim() || partes[idx].localidad;
   partes[idx].direccion   = document.getElementById('ep-direccion')?.value.trim() || partes[idx].direccion;
@@ -4880,8 +4892,9 @@ function guardarParteNuevo(id) {
   const codNrm = nrmCod(partes[idx].codigo||'');
   const exIdx = clis.findIndex(c => codNrm && nrmCod(c.CODIGO||c.codigo||'') === codNrm);
   if (exIdx !== -1) {
-    if (partes[idx].localidad) clis[exIdx].MUNICIPIO = partes[idx].localidad;
-    if (partes[idx].direccion) clis[exIdx].DIRECCION = partes[idx].direccion;
+    if (partes[idx].localidad)  clis[exIdx].MUNICIPIO = partes[idx].localidad;
+    if (partes[idx].direccion)  clis[exIdx].DIRECCION = partes[idx].direccion;
+    if (partes[idx].horarioTxt) clis[exIdx].HORARIO   = partes[idx].horarioTxt;
     save(K_EXCEL, clis);
   }
   document.getElementById('edit-parte-bd')?.remove();
@@ -5494,6 +5507,10 @@ async function geocodificarPendientes() {
       try { _renderMapaPins(); } catch(e) {}
     }
   }
+  // Tras geocodificar todo, refrescar la lista para que aparezcan los tiempos estimados
+  if (locsPendientes.length && vistaActual !== 'mapa' && typeof renderLista === 'function') {
+    try { renderLista(); } catch(e) {}
+  }
 }
 
 /* ================================================================
@@ -5766,6 +5783,15 @@ function renderLista() {
   const activa     = pendientes[0] || null;
   paradaActual     = activa;
 
+  // Inyectar coords (GPS exacto o localidad) en las paradas → habilita cálculo de tiempos
+  const _coordsRuta = (typeof cargarCoords === 'function') ? cargarCoords() : {};
+  pendientes.forEach(p => {
+    if ((!p.lat || !p.lng) && typeof _getCoordsParada === 'function') {
+      const c = _getCoordsParada(p, _coordsRuta);
+      if (c) { p.lat = c.lat; p.lng = c.lng; }
+    }
+  });
+
   // Stats
   setText('s-total', paradas.length);
   setText('s-pend',  pendientes.length);
@@ -5773,7 +5799,7 @@ function renderLista() {
   setText('s-pci',   paradas.filter(p=>p.sistema==='PCI').length);
   setText('tab-count', pendientes.length);
 
-  const salida = load(K_SALIDA) || {nombre:'Mi empresa', addr:''};
+  const salida = load(K_SALIDA) || {nombre:'PYCSECA Seguridad', addr:'C/ Nicolás Estévanez 3, Valencia'};
   let html = '';
   let delay = 0;
 
@@ -6101,13 +6127,13 @@ function abrirFinalizarPara(id) {
       }
 
       const eq = loadObj(K_EQUIPOS)[p.codigo||p.id] || {};
-      finActivo = false;
+      finActivo = true;   // abrir ya en estado Finalizado (la intención al pulsar Finalizar)
       const btnFin    = document.getElementById('btn-fin');
       const modalHdr  = document.getElementById('modal-hdr');
       const btnGuardar= document.getElementById('btn-guardar');
-      if (btnFin)    { btnFin.classList.remove('on'); btnFin.textContent = '✓ Marcar como Finalizado'; }
-      if (modalHdr)  modalHdr.classList.remove('finalizado');
-      if (btnGuardar) btnGuardar.classList.remove('ok');
+      if (btnFin)    { btnFin.classList.add('on'); btnFin.textContent = '✓ Finalizado'; }
+      if (modalHdr)  modalHdr.classList.add('finalizado');
+      if (btnGuardar) btnGuardar.classList.add('ok');
 
       // Reset botón GPS según si esta parada ya tiene coords guardadas
       const btnGps = document.getElementById('btn-gps-guardar');
@@ -6335,24 +6361,14 @@ function onEquipChange(campo, sel) {
 }
 
 function refrescarSels() {
-  const mapa = { central:'eq-central', grabador:'eq-grabador', com:'eq-com',
-                 incendio:'eq-incendio', acceso:'eq-acceso' };
-  Object.entries(mapa).forEach(([campo, id]) => {
-    const sel   = document.getElementById(id);
-    const otro  = document.getElementById(id + '-otro');
-    if (!sel) return;
+  const campos = ['central','grabador','com','incendio','acceso'];
+  campos.forEach(campo => {
+    const btn = document.getElementById('eq-' + campo);
+    const val = document.getElementById('eq-' + campo + '-val');
+    if (!btn || !val) return;
     const v = vals[campo] || '';
-    // Ver si el valor está en las opciones estándar
-    const enOpciones = [...sel.options].some(o => o.value === v && o.value !== '__otro__' && o.value !== '');
-    if (v && !enOpciones) {
-      // Valor custom (Otro) — mostrar input
-      sel.value = '__otro__';
-      if (otro) { otro.style.display = 'block'; otro.value = v; }
-    } else {
-      sel.value = v;
-      if (otro) otro.style.display = 'none';
-    }
-    sel.classList.toggle('filled', !!v);
+    val.textContent = v || '— Seleccionar —';
+    btn.classList.toggle('filled', !!v);
   });
   actualizarBadgeEquipos();
 }
@@ -6967,8 +6983,8 @@ function datosToast(msg, dur=2800) {
 }
 
 /* ================================================================
-   EXPORTAR EXCEL — genera MisDatos_FECHA.xlsx
-   Compatible con el formato de datos v3
+   EXPORTAR EXCEL — genera PycsecaData_FECHA.xlsx
+   Compatible con el formato de Pycseca_v3
    ================================================================ */
 function datosExportarExcel() {
   if (typeof XLSX === 'undefined') {
@@ -7198,7 +7214,7 @@ function datosExportarExcel() {
 }
 
 /* ================================================================
-   IMPORTAR EXCEL — carga MisDatos.xlsx
+   IMPORTAR EXCEL — carga PycsecaData.xlsx
    ================================================================ */
 function datosImportarExcel(input) {
   const file = input.files[0];
@@ -7683,7 +7699,7 @@ function getMtoColor(cli) {
   if (c.includes('ABANCA'))
     return mkCol('#004F9F','#004F9F','🔵 ABANCA');
   if (/CAJAMAR|CAJA\s*RURAL|RURALCAJA|CAIXA/.test(c))
-    return mkCol('#2a6773','#2a6773','🟢 CAJAMAR');    // verde azulado
+    return mkCol('#2a6773','#2a6773','🟢 CAJAMAR');    // verde azulado PYCSECA
   if (esBanco(cli))
     return mkCol('#1e40af','#1e40af','🏦 Banco');
   // ── Gasolineras ──
@@ -10380,7 +10396,7 @@ function renderCierre() {
 
   // Texto de cierre
   const sep  = '━━━━━━━━━━━━━━━━━━━━━━';
-  let lines  = [`Mi empresa · ${fechaTxt}`, sep];
+  let lines  = [`PYCSECA · ${fechaTxt}`, sep];
   finalizadas.forEach(p => {
     lines.push(`✓ ${(p.clienteReal||p.cliente||'—').toUpperCase()} ${p.codigo||''} · ${(p.localidad||'').toUpperCase()}`);
     if (p.trabajoRealizado) lines.push(`  ${p.trabajoRealizado.slice(0,60)}`);
@@ -12223,7 +12239,7 @@ document.addEventListener('DOMContentLoaded', () => {
   iniciarGPS();
   if (!loadArr(K_UBICS).length) {
     save(K_UBICS, [
-      {nombre:'Mi empresa', addr:'', tipo:'trabajo'},
+      {nombre:'PYCSECA Seguridad', addr:'C/ Nicolás Estévanez 3, Valencia', tipo:'trabajo'},
       {nombre:'Casa',              addr:'Almàssera, Valencia',               tipo:'personal'},
     ]);
   }
@@ -13878,6 +13894,13 @@ function iramClasificar(txt) {
 
     // ── Avisos y ruta ──
     if (/^los\s+avisos?\s+de\s+hoy/i.test(r))   return { intento:'CONSULTA_AVISOS' };
+    // "los avisos del Cajamar" / "los avisos de Valencia" → filtrar (análisis = sin filtro)
+    const mAv = r.match(/^los\s+avisos?\s+de[l]?\s+(.+)/i);
+    if (mAv) {
+      const f = mAv[1].trim();
+      if (/^an[aá]lisis$/i.test(f)) return { intento:'ANALIZAR_PARTES', localidad:'', cliente:'', cercaDe:'' };
+      return { intento:'ANALIZAR_PARTES', localidad:f, cliente:f, cercaDe:'' };
+    }
     if (/^los\s+avisos?/i.test(r))               return { intento:'ANALIZAR_PARTES', localidad:'', cliente:'', cercaDe:'' };
     if (/^qu[eé]\s+(trabajo\s+tengo|hay\s+que\s+hacer\s*$|me\s+queda\s+por\s+hacer)/i.test(r)) return { intento:'CONSULTA_AVISOS' };
     if (/^el\s+trabajo\s+que\s+me\s+queda|^qu[eé]\s+me\s+queda|^qu[eé]\s+queda/i.test(r)) return { intento:'QUE_ME_QUEDA' };
@@ -14723,6 +14746,11 @@ async function iramEjecutarAccion(cl) {
     const nL   = normTopo(cl.localidad||ofi?.localidad||'');
     const nCod = (cl.codigo||ofi?.codigo||'').replace(/^0+/,'').toLowerCase();
     if (!nC && !nCod && !nL) return 'Dime el cliente para buscar en el historial.';
+    // Desambiguar si el usuario dio cliente/localidad (no código) y hay varias oficinas
+    if (!nCod && (cl.cliente || cl.localidad)) {
+      const resHist = iramResolverOficina('', cl.cliente||'', cl.localidad||'');
+      if (resHist.ambiguo) return resHist.ambiguo;
+    }
     const visitas = hist.filter(v => {
       if (nCod) {
         const vKey = String(v.KEY||'').replace(/^sis_/,'').replace(/^0+/,'').toLowerCase();
@@ -14746,40 +14774,17 @@ async function iramEjecutarAccion(cl) {
 
   /* ── FICHA CLIENTE — resumen consolidado ── */
   if (cl.intento === 'FICHA_CLIENTE') {
-    const excel = loadArr(K_EXCEL);
     const hist  = loadArr(K_HIST);
     const equip = loadObj(K_EQUIPOS);
-    const nCod  = nrmCod(cl.codigo||'');
-    const vars  = (typeof codigoVariantes === 'function' && nCod) ? codigoVariantes(nCod) : (nCod ? [nCod] : []);
 
-    // 1. Localizar fila Excel — por código (con variantes) o por cliente+localidad
-    let exRow = null;
-    if (vars.length) {
-      exRow = excel.find(c => vars.includes(nrmCod(c.CODIGO||c.codigo||''))) || null;
-    }
-    if (!exRow) {
-      // Sin código → buscar TODAS las coincidencias por cliente+localidad
-      const matches = iramBuscarClientes(cl.cliente||'', cl.localidad||'');
-      if (matches.length === 1) {
-        exRow = matches[0];
-      } else if (matches.length > 1) {
-        // Desambiguar: listar para que elija por código
-        const cliN = matches[0].CLIENTE || matches[0].cliente || 'cliente';
-        const locN = cl.localidad || matches[0].MUNICIPIO || matches[0].municipio || '';
-        let lista = `Hay ${matches.length} oficinas de ${cliN}${locN?' en '+locN:''}. Dime el código:`;
-        matches.slice(0, 12).forEach(c => {
-          const cc = c.CODIGO||c.codigo||'?';
-          const dd = c.DIRECCIÓN||c.DIRECCION||c.direccion||'';
-          lista += `\n  · ${cc}${dd?' — '+dd:''}`;
-        });
-        if (matches.length > 12) lista += `\n  …y ${matches.length-12} más`;
-        return lista;
-      }
-    }
-    if (!exRow) {
+    // 1. Resolver oficina (código → directo · varias → desambiguar)
+    const res = iramResolverOficina(cl.codigo||'', cl.cliente||'', cl.localidad||'');
+    if (res.ambiguo) return res.ambiguo;
+    if (res.vacio || !res.row) {
       const ref = cl.codigo || cl.cliente || cl.localidad || 'esa oficina';
       return `No encuentro ${ref} en el Excel.`;
     }
+    const exRow = res.row;
 
     const nombre = exRow.CLIENTE   || exRow.cliente   || '?';
     const cod    = exRow.CODIGO    || exRow.codigo    || '';
@@ -14872,7 +14877,9 @@ async function iramEjecutarAccion(cl) {
     const clienteQ   = cl.cliente   || _iramOficinaActiva?.cliente  || '';
     const localidadQ = cl.localidad || _iramOficinaActiva?.localidad || '';
     if (!clienteQ && !localidadQ) return 'Dime de qué oficina quieres el horario.';
-    const exRow = iramBuscarCliente(clienteQ, localidadQ);
+    const resH = iramResolverOficina(cl.codigo||'', clienteQ, localidadQ);
+    if (resH.ambiguo) return resH.ambiguo;
+    const exRow = resH.row;
     if (!exRow) {
       if (_iramOficinaActiva?.horario) return `${_iramOficinaActiva.cliente} · ${_iramOficinaActiva.localidad}: ${_iramOficinaActiva.horario}`;
       return `No encuentro "${clienteQ||localidadQ}" en el Excel.`;
@@ -14959,9 +14966,11 @@ async function iramEjecutarAccion(cl) {
         }).join('\n');
         return `En ${cl.localidad}:\n${lista}`;
       }
-      // Cliente (con o sin localidad)
-      const exRow = iramBuscarCliente(cl.cliente||'', cl.localidad||'');
-      if (!exRow) return `No encuentro ${cl.cliente||cl.localidad||'esa oficina'} en la base de datos.`;
+      // Cliente (con o sin localidad) — desambiguar si hay varias
+      const res = iramResolverOficina(cl.codigo||'', cl.cliente||'', cl.localidad||'');
+      if (res.ambiguo) return res.ambiguo;
+      if (res.vacio || !res.row) return `No encuentro ${cl.cliente||cl.localidad||'esa oficina'} en la base de datos.`;
+      const exRow = res.row;
       const d = iramGetMtoData(exRow.CLIENTE||'', exRow.CODIGO||'', exRow.MUNICIPIO||'', trim);
       const nombre = `${exRow.CLIENTE} · ${exRow.MUNICIPIO}`;
       if (!d) return `${nombre} — sin datos de MTO registrados.`;
@@ -15779,6 +15788,33 @@ function iramBuscarClientes(nombre, localidad) {
     const matchL = !nL || cL.includes(nL) || (cL.length >= 3 && nL.includes(cL));
     return matchN && matchL;
   });
+}
+
+
+/* ── Resolver oficina: {row} si única · {ambiguo:texto} si varias · {vacio:true} si ninguna ── */
+function iramResolverOficina(codigo, cliente, localidad) {
+  const excel = loadArr(K_EXCEL);
+  const nCod  = nrmCod(codigo||'');
+  const vars  = (typeof codigoVariantes==='function' && nCod) ? codigoVariantes(nCod) : (nCod?[nCod]:[]);
+  if (vars.length) {
+    const row = excel.find(c => vars.includes(nrmCod(c.CODIGO||c.codigo||'')));
+    if (row) return { row };
+  }
+  const matches = iramBuscarClientes(cliente||'', localidad||'');
+  if (matches.length === 1) return { row: matches[0] };
+  if (matches.length > 1) {
+    const cliN = matches[0].CLIENTE||matches[0].cliente||'cliente';
+    const locN = localidad || matches[0].MUNICIPIO || matches[0].municipio || '';
+    let lista = `Hay ${matches.length} oficinas de ${cliN}${locN?' en '+locN:''}. Dime el código:`;
+    matches.slice(0,12).forEach(c => {
+      const cc = c.CODIGO||c.codigo||'?';
+      const dd = c.DIRECCIÓN||c.DIRECCION||c.direccion||'';
+      lista += `\n  · ${cc}${dd?' — '+dd:''}`;
+    });
+    if (matches.length > 12) lista += `\n  …y ${matches.length-12} más`;
+    return { ambiguo: lista };
+  }
+  return { vacio: true };
 }
 
 
