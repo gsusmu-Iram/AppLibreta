@@ -4202,7 +4202,7 @@ function parsearBloque(bloque) {
     codigo:'', localidad:'', direccion:'', direccionCorta:'',
     aviso:'', avisoTipo:'',
     descripcion:'', sistema:'SEG',
-    urgente:false, horasUrgencia:0, fecha:'', fechaEjecucion:'', fechaFijada:'', horaFijada:'', dias:0,
+    urgente:false, horasUrgencia:0, fecha:'', fechaEjecucion:'', fechaFijada:'', horaFijada:'', fijado:false, dias:0,
     timestamp:Date.now(), isNew:false, enRuta:false,
     horario:null, estaAbierta:false, historial:[], ext_polvo:null, ext_co2:null, zona:'',
   };
@@ -4248,6 +4248,7 @@ function parsearBloque(bloque) {
   }
 
   // Fijado/Fijada: "Fijad[ao] [dd/mm/yyyy] HH:MM [hs]"
+  p.fijado = /\bFijad[ao]\b/i.test(t);
   const mFij = t.match(/Fijad[ao]\s+(?:(\d{2}\/\d{2}\/\d{4})\s+)?(\d{1,2}:\d{2})(?:\s*hs)?/i);
   if (mFij) {
     const hora = mFij[2];
@@ -4965,7 +4966,7 @@ function renderizar() {
         const bRuta   =isRuta          ?'<span class="badge-ruta">EN RUTA</span>':'';
         const bUrgente=p.urgente&&!isRuta?`<span class="badge-urgente">🚨 URGENTE${p.horasUrgencia?' '+p.horasUrgencia+'H':''}</span>`:'';
         const bAntiguo=dias>7&&!isRuta  ?`<span class="badge-antiguo">${dias}d</span>`:'';
-        const bFijado =p.horaFijada&&!isRuta?`<span class="badge-fijado">FIJADO ${p.horaFijada}${p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''}</span>`:'';
+        const bFijado =p.fijado&&!isRuta?`<span class="badge-fijado">FIJADO${p.horaFijada?' '+p.horaFijada+(p.fechaFijada?' · '+p.fechaFijada.slice(8)+'/'+p.fechaFijada.slice(5,7):''):''}</span>`:'';
 
         // Chips MTO — todas las capas igual que módulo MTO
         const _mesAct  = new Date().getMonth();
