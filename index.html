@@ -2688,10 +2688,12 @@ body { font-size: 14px; }
       <button class="fil-btn fil-more" id="mto-more-btn" onclick="toggleMtoMenu()" style="flex-shrink:0">⋮</button>
     </div>
 
-    <!-- Selectores de filtro — dos filas, Estado y Tipo separados PARA REVERTIR: volver a un solo select mto-sel-tipo -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      <select id="mto-sel-cliente" onchange="setCliente(this.value)"
-        style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+    <!-- Selectores de filtro con etiquetas — Estado y Revisión son ejes distintos -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 8px">
+      <label style="display:flex;flex-direction:column;gap:3px">
+        <span style="font-family:var(--font-mono);font-size:8px;color:var(--ink-light);letter-spacing:.08em;text-transform:uppercase;padding-left:3px">Cliente</span>
+        <select id="mto-sel-cliente" onchange="setCliente(this.value)"
+        style="width:100%;box-sizing:border-box;border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
                font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
                background:white;outline:none;cursor:pointer;-webkit-appearance:none;
                background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
@@ -2702,16 +2704,22 @@ body { font-size: 14px; }
         <option value="repsol">🟠 Repsol</option>
         <option value="otros">⚫ Otros</option>
       </select>
-      <select id="mto-sel-zona" onchange="setZona(this.value)"
-        style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+      </label>
+      <label style="display:flex;flex-direction:column;gap:3px">
+        <span style="font-family:var(--font-mono);font-size:8px;color:var(--ink-light);letter-spacing:.08em;text-transform:uppercase;padding-left:3px">Zona</span>
+        <select id="mto-sel-zona" onchange="setZona(this.value)"
+        style="width:100%;box-sizing:border-box;border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
                font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
                background:white;outline:none;cursor:pointer;-webkit-appearance:none;
                background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
                background-repeat:no-repeat;background-position:right 8px center">
         <option value="todas">📍 Todas</option>
       </select>
-      <select id="mto-sel-estado" onchange="mtoSelEstado(this.value)"
-        style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+      </label>
+      <label style="display:flex;flex-direction:column;gap:3px">
+        <span style="font-family:var(--font-mono);font-size:8px;color:var(--ink-light);letter-spacing:.08em;text-transform:uppercase;padding-left:3px">Estado</span>
+        <select id="mto-sel-estado" onchange="mtoSelEstado(this.value)"
+        style="width:100%;box-sizing:border-box;border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
                font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
                background:white;outline:none;cursor:pointer;-webkit-appearance:none;
                background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
@@ -2720,8 +2728,11 @@ body { font-size: 14px; }
         <option value="hechas">✅ Hechas</option>
         <option value="pend">⏳ Pendientes</option>
       </select>
-      <select id="mto-sel-tipo" onchange="mtoSelTipoPuro(this.value)"
-        style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
+      </label>
+      <label style="display:flex;flex-direction:column;gap:3px">
+        <span style="font-family:var(--font-mono);font-size:8px;color:var(--ink-light);letter-spacing:.08em;text-transform:uppercase;padding-left:3px">Revisión</span>
+        <select id="mto-sel-tipo" onchange="mtoSelTipoPuro(this.value)"
+        style="width:100%;box-sizing:border-box;border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:7px 8px;
                font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--ink-mid);
                background:white;outline:none;cursor:pointer;-webkit-appearance:none;
                background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');
@@ -2733,6 +2744,7 @@ body { font-size: 14px; }
         <option value="Q3">🔥 PCI 3</option>
         <option value="Q4">🔥 PCI 4</option>
       </select>
+      </label>
     </div>
 
     <!-- Menú acciones ocasionales -->
@@ -3600,6 +3612,16 @@ body { font-size: 14px; }
         <div class="dna-sub">No están en el Excel · Se añaden al exportar</div>
       </div>
       <button class="dna-btn" onclick="datosVerNuevos()">Ver</button>
+    </div>
+
+    <!-- ── TAMAÑO DE LETRA ── -->
+    <div id="datos-sec-zoom" style="margin-bottom:14px">
+      <div class="dsec-lbl">🔠 Tamaño de letra</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <button class="zoom-btn" id="zoom-normal" onclick="setZoomApp('normal')" style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:9px 4px;background:#fff;font-weight:700;font-size:13px;color:var(--ink-mid);cursor:pointer">Normal</button>
+        <button class="zoom-btn" id="zoom-grande" onclick="setZoomApp('grande')" style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:9px 4px;background:#fff;font-weight:700;font-size:15px;color:var(--ink-mid);cursor:pointer">Grande</button>
+        <button class="zoom-btn" id="zoom-xl" onclick="setZoomApp('xl')" style="border:1.5px solid rgba(26,39,68,.15);border-radius:var(--r-md);padding:9px 4px;background:#fff;font-weight:700;font-size:17px;color:var(--ink-mid);cursor:pointer">XL</button>
+      </div>
     </div>
     <!-- ── EXCEL ── -->
     <div id="datos-sec-excel">
@@ -7687,6 +7709,30 @@ function mtoSelTipoPuro(val) {
   mtoTipo = val; // 'todos' | 'INT' | 'Q1' | 'Q2' | 'Q3' | 'Q4'
   renderMTO();
 }
+
+/* ── TAMAÑO DE LETRA (zoom global) ──
+   Escala toda la app con CSS zoom. Niveles: normal/grande/xl.
+   PARA REVERTIR: borrar estas funciones, la sección #datos-sec-zoom y la llamada a aplicarZoom(). */
+const _ZOOM_NIVELES = { normal: 1, grande: 1.12, xl: 1.25 };
+function aplicarZoom() {
+  let niv = 'normal';
+  try { niv = localStorage.getItem('pyc_zoom') || 'normal'; } catch(e) {}
+  const factor = _ZOOM_NIVELES[niv] || 1;
+  document.documentElement.style.zoom = factor;
+  ['normal','grande','xl'].forEach(n => {
+    const b = document.getElementById('zoom-' + n);
+    if (b) {
+      const on = n === niv;
+      b.style.background  = on ? 'var(--orange)' : '#fff';
+      b.style.color       = on ? '#fff' : 'var(--ink-mid)';
+      b.style.borderColor = on ? 'var(--orange)' : 'rgba(26,39,68,.15)';
+    }
+  });
+}
+function setZoomApp(niv) {
+  try { localStorage.setItem('pyc_zoom', niv); } catch(e) {}
+  aplicarZoom();
+}
 let _delKey     = null;    // key de la oficina a borrar
 let _extKey     = null;    // key de la oficina en edición de extintores
 let _extTemp    = { polvo:0, co2:0 };
@@ -8354,6 +8400,11 @@ function calcularStatsFiltradas(clientes, mtoMan) {
       const mun = c.MUNICIPIO || c.municipio || '';
       const hay = (cli + ' ' + cod + ' ' + mun + ' ' + (c.DIRECCION||c.direccion||'')).toLowerCase();
       if (!hay.includes(mtoBusq)) return false;
+    }
+    // Filtro por tipo — solo oficinas que tienen ese tipo (igual que la lista)
+    if (mtoTipo !== 'todos') {
+      const tipos = getMtoTipos(c.CLIENTE || c.cliente || '');
+      if (!tipos.includes(mtoTipo)) return false;
     }
     return true;
   });
@@ -12289,6 +12340,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const M = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   setText('fecha-hoy', `${D[h.getDay()]} ${h.getDate()} ${M[h.getMonth()]} · ${h.getFullYear()}`);
   iniciarGPS();
+  try { aplicarZoom(); } catch(e) {}
   if (!loadArr(K_UBICS).length) {
     save(K_UBICS, [
       {nombre:'Trabajo', addr:'', tipo:'trabajo'},
