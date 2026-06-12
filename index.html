@@ -3404,6 +3404,7 @@ body { font-size: 14px; }
       </div>
       <div class="modal-hdr-title" id="modal-titulo">¿Trabajo finalizado?</div>
       <div class="modal-hdr-subtitle" id="modal-subtitulo">—</div>
+      <span id="modal-urgente" style="display:none;align-items:center;gap:4px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:var(--r-pill);margin-top:6px;width:fit-content;box-shadow:0 2px 6px rgba(220,38,38,.4)">🔴 URGENTE</span>
       <div class="modal-hdr-trabajo" id="modal-trabajo-parte" style="display:none"></div>
     </div>
 
@@ -3412,21 +3413,21 @@ body { font-size: 14px; }
 
       <!-- Trabajo realizado -->
       <div class="field-group">
-        <div class="field-lbl">Trabajo realizado</div>
+        <div class="field-lbl">🔧 Trabajo realizado</div>
         <textarea class="field-ta" id="campo-trabajo" rows="3"
           id="campo-trabajo-ph"></textarea>
       </div>
 
       <!-- Notas de oficina -->
       <div class="field-group">
-        <div class="field-lbl">Datos de oficina <span class="field-lbl-opt">(se guardan en el Excel)</span></div>
+        <div class="field-lbl">📋 Datos de oficina <span class="field-lbl-opt">(se guardan en el Excel)</span></div>
         <textarea class="field-ta" id="campo-obs" rows="2"
           placeholder="Los martes hay mercado · Llaves en oficina de al lado…"></textarea>
       </div>
 
       <!-- Horario compacto -->
       <div class="field-group">
-        <div class="field-lbl">Horario oficina</div>
+        <div class="field-lbl">🕐 Horario oficina</div>
         <div class="horario-row">
           <input class="field-ta" id="campo-horario"
             style="font-family:var(--font-mono);font-size:12px;height:auto;padding:8px 10px"
@@ -6182,6 +6183,10 @@ function abrirFinalizarPara(id) {
       setText('modal-titulo', `${p.clienteReal||p.cliente} · ${p.codigo||''}`);
       setText('modal-subtitulo', `${p.localidad||''}${p.direccion?' · '+p.direccion:''}`);
 
+      // Badge urgente
+      const elUrg = document.getElementById('modal-urgente');
+      if (elUrg) elUrg.style.display = p.urgente ? 'inline-flex' : 'none';
+
       // Trabajo del parte en cabecera
       const trabajoParte = p.trabajo || '';
       const elTrabajoParte = document.getElementById('modal-trabajo-parte');
@@ -6255,9 +6260,10 @@ function abrirFinalizarPara(id) {
         if (campoHorSt && horTxt) {
           const cerrada = checkCerrada(horTxt, JSON.parse(localStorage.getItem('pyc_festivos')||'[]'), p.localidad);
           campoHorSt.textContent = cerrada ? '🔴 ' + cerrada.detalle : '🟢 Abierta';
-          campoHorSt.style.color = cerrada ? '#dc2626' : '#16a34a';
+          campoHorSt.style.cssText = `font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0;padding:5px 11px;border-radius:8px;${cerrada ? 'background:rgba(220,38,38,.1);color:#dc2626' : 'background:rgba(22,163,74,.12);color:#15803d'}`;
         } else if (campoHorSt) {
           campoHorSt.textContent = '';
+          campoHorSt.style.cssText = '';
         }
       }
 
