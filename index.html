@@ -3410,11 +3410,6 @@ body { font-size: 14px; }
     <!-- Cuerpo scrollable -->
     <div class="modal-body">
 
-      <!-- Finalizado -->
-      <button class="btn-finalizado" id="btn-fin" onclick="toggleFin()">
-        ✓ Marcar como Finalizado
-      </button>
-
       <!-- Trabajo realizado -->
       <div class="field-group">
         <div class="field-lbl">Trabajo realizado</div>
@@ -5980,10 +5975,7 @@ function renderLista() {
           <div class="expand-actions">
             <button class="btn-waze" style="flex:1" onclick="navWaze('${escAttr(p.direccion)}','${escAttr(p.localidad)}')">👻 Waze</button>
             <button class="btn-maps" style="flex:1" onclick="navMaps('${escAttr(p.direccion)}','${escAttr(p.localidad)}')">📍 Maps</button>
-            <button onclick="gpsGuardarParada('${escAttr(p.id)}')"
-              style="flex:1;background:#2563eb;border:none;border-radius:var(--r-pill);
-                     padding:10px;font-size:12px;font-weight:800;color:white;
-                     cursor:pointer;-webkit-tap-highlight-color:transparent">📍 GPS</button>
+            <button class="btn-maps" style="flex:1;background:var(--orange)" onclick="gpsGuardarParada('${escAttr(p.id)}')">📍 GPS</button>
             <button onclick="quitarParada('${escAttr(p.id)}')"
               style="flex:0 0 auto;background:white;border:1.5px solid rgba(220,38,38,.3);border-radius:var(--r-pill);
                      padding:10px 12px;font-size:12px;font-weight:800;color:var(--error);
@@ -6474,6 +6466,7 @@ function refrescarSels() {
    ================================================================ */
 function guardarFinalizar() {
   if (!paradaActual) { cerrarFinalizar(); return; }
+  finActivo = true; // Guardar siempre finaliza la parada (ya no existe el botón de marcar)
 
   const p      = paradaActual;
   const trabajo= document.getElementById('campo-trabajo').value.trim();
