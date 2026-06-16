@@ -88,14 +88,14 @@ html, body { height: 100%; font-family: var(--font-ui); background: var(--paper)
    ================================================================ */
 .app-header {
   background: linear-gradient(135deg, var(--navy-deep) 0%, var(--navy) 55%, var(--navy-mid) 100%);
-  padding: 11px 16px 0;
+  padding: 7px 16px 0;
   flex-shrink: 0; position: relative; z-index: 15;
   box-shadow: 0 4px 24px rgba(0,0,0,.28), 0 1px 0 rgba(249,115,22,.18);
 }
-.header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .logo { display: flex; align-items: center; gap: 9px; }
 .logo-icon {
-  width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
   background: var(--navy-mid); border: 1.5px solid rgba(249,115,22,.6);
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 0 12px rgba(249,115,22,.25), inset 0 1px 0 rgba(255,255,255,.08);
@@ -1705,6 +1705,8 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
   max-width: 480px; margin: 0 auto;
   overflow: hidden;
   z-index: 81;
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
 }
 
 /* Barra SIEMPRE visible arriba */
@@ -2510,7 +2512,7 @@ body { font-size: 14px; }
 
 <!-- ══ PANTALLA PIN ══ -->
 <div class="app">
-  <div class="spiral"><div class="ring"></div>
+  <div class="spiral" style="display:none"><div class="ring"></div>
     <div class="ring"></div>
     <div class="ring"></div>
     <div class="ring"></div>
@@ -2556,7 +2558,6 @@ body { font-size: 14px; }
             <rect x="23.8" y="22.2" width="2.2" height="1.6" rx=".5" fill="#f97316"/>
             <rect x="29" y="22.2" width="2.2" height="1.6" rx=".5" fill="#f97316"/>
           </svg></div>
-        <span class="logo-txt">Pyc<em>Libreta</em></span>
       </div>
       <div class="header-meta" style="display:flex;align-items:center;gap:8px">
         <span class="meta-date" id="fecha-hoy">—</span>
@@ -8865,17 +8866,13 @@ function initBuscarSwipe() {
   }, { passive: true });
 
   outer.addEventListener('touchmove', e => {
-    if (intent) {
-      if (intent === 'H') e.preventDefault();
-      return;
+    if (intent === null) {
+      const dx = Math.abs(e.touches[0].clientX - sx);
+      const dy = Math.abs(e.touches[0].clientY - sy);
+      if (dx > 10 || dy > 10) intent = dx > dy ? 'H' : 'V';
     }
-    const dx = Math.abs(e.touches[0].clientX - sx);
-    const dy = Math.abs(e.touches[0].clientY - sy);
-    if (dx > 10 || dy > 10) {
-      intent = dx > dy * 1.2 ? 'H' : 'V';
-    }
-    if (intent === 'H') e.preventDefault();
-  }, { passive: false });
+    // No prevenimos nada: touch-action: pan-y en el CSS bloquea el gesto horizontal nativo
+  }, { passive: true });
 
   outer.addEventListener('touchend', e => {
     if (intent !== 'H') { intent = null; return; }
@@ -12374,7 +12371,7 @@ function tareasFixAltura() {
   var wrapper = document.getElementById('tareas-views-wrapper');
   if (!outer || !wrapper) return;
   var vh = window.innerHeight;
-  var top = 108;   // spiral(22) + header(58) + dots(28)
+  var top = 80;   // header fino (~50) + dots(28), sin gusanillo
   var bot = 58;    // tab-bar
   var h = vh - top - bot;
   if (h < 100) h = vh - bot; // fallback si el header no existe
