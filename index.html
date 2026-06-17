@@ -4598,8 +4598,8 @@ function enriquecerConExcel(p) {
       if (_hCod) {
         const hKey = String(h.KEY || '').replace(/^sis_/,'');
         const hKeyNrm = nrmCod(hKey);
-        // Si la KEY tiene código y no coincide con ninguna variante → descartar
-        if (hKeyNrm && hKeyNrm.length >= 3 && !isNaN(hKeyNrm)) {
+        // Si la KEY tiene código (numérico o alfanumérico) y no coincide con ninguna variante → descartar
+        if (hKeyNrm && hKeyNrm.length >= 3) {
           const vars = codigoVariantes(p.codigo);
           if (!vars.includes(hKeyNrm) && hKeyNrm !== _hCod) return false;
         }
