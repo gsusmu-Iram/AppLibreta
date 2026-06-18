@@ -3667,7 +3667,7 @@ body { font-size: 14px; }
     <div class="dstats">
       <div class="dstat" id="dstat-cli"><div class="dstat-n" id="dstat-cli-n">—</div><div class="dstat-l">Clientes</div></div>
       <div class="dstat" id="dstat-his"><div class="dstat-n" id="dstat-his-n">—</div><div class="dstat-l">Historial</div></div>
-      <div class="dstat" id="dstat-eq" ><div class="dstat-n" id="dstat-eq-n" >—</div><div class="dstat-l">Equipos</div></div>
+      <div class="dstat" id="dstat-eq" ><div class="dstat-n" id="dstat-eq-n" >—</div><div class="dstat-l">GPS</div></div>
     </div>
     <div class="dbackup-row">
       <span class="dbackup-lbl">Último backup</span>
@@ -5549,10 +5549,15 @@ async function geocodificarLocalidad(localidad, coords) {
 // Guardar coords exactas GPS (llamado desde modal Finalizar)
 function guardarCoordsGPS(parada, lat, lng) {
   if (!lat || !lng) return false;
-  const clave = _claveExacta(parada);
-  if (!clave) return false;
+  const cliente = parada.clienteNorm || parada.clienteReal || parada.cliente || '';
+  const variantes = _clavesCoord(cliente, parada.codigo);
+  const claveLegacy = _claveExacta(parada);
+  const claves = variantes.length ? variantes : (claveLegacy ? [claveLegacy] : []);
+  if (!claves.length) return false;
   const coords = cargarCoords();
-  coords[clave] = { lat, lng, gps: true, ts: Date.now() };
+  const dato = { lat, lng, gps: true, ts: Date.now() };
+  claves.forEach(k => { coords[k] = dato; });
+  if (claveLegacy && !claves.includes(claveLegacy)) coords[claveLegacy] = dato; // compat retro
   save(K_COORDS, coords);
   return true;
 }
@@ -6212,9 +6217,9 @@ function abrirFinalizarPara(id) {
       // Reset botón GPS según si esta parada ya tiene coords guardadas
       const btnGps = document.getElementById('btn-gps-guardar');
       if (btnGps) {
-        const cExacta  = _claveExacta(p);
         const coords   = cargarCoords();
-        const tieneGps = !!(cExacta && coords[cExacta] && coords[cExacta].gps);
+        const coordsData = typeof _getCoordsParada === 'function' ? _getCoordsParada(p, coords) : null;
+        const tieneGps = !!(coordsData && coordsData.gps);
         btnGps.textContent      = tieneGps ? '✅ GPS' : '📍 GPS';
         btnGps.style.background = tieneGps ? 'rgba(22,163,74,.2)' : 'rgba(255,255,255,.15)';
       }
@@ -6926,16 +6931,25 @@ function datosActualizarUI() {
   const backup   = load(K_BACKUP_TS);
   const nuevos   = datosClientesNuevos();
 
+  // Nº de oficinas con coordenadas GPS guardadas (no nº de claves, que pueden ser variantes del mismo código)
+  const coordsAll = cargarCoords();
+  const gpsCount  = clientes.filter(c => {
+    const r = typeof _getCoordsParada === 'function'
+      ? _getCoordsParada({ clienteNorm: c.CLIENTE || c.cliente || '', codigo: c.CODIGO || c.codigo || '' }, coordsAll)
+      : null;
+    return r && r.gps;
+  }).length;
+
   // Stats
   setText('dstat-cli-n', clientes.length || '—');
   setText('dstat-his-n', hist.length     || '—');
-  setText('dstat-eq-n',  equipos.length  || '—');
+  setText('dstat-eq-n',  gpsCount        || '—');
 
   // Clases warn si no hay datos
   ['dstat-cli','dstat-his','dstat-eq'].forEach((id, i) => {
     const el = document.getElementById(id);
     if (!el) return;
-    const vals = [clientes.length, hist.length, equipos.length];
+    const vals = [clientes.length, hist.length, gpsCount];
     el.classList.toggle('warn', vals[i] === 0);
   });
 
@@ -7385,7 +7399,7 @@ function datosImportarExcel(input) {
             const lng = parseFloat(String(r['LNG']||'').replace(',','.'));
             if (!isNaN(lat) && !isNaN(lng) && lat && lng) {
               const claves = _clavesCoord(r['CLIENTE']||'', r['CODIGO']||'');
-              if (claves.length) { coordsExist[claves[0]] = { lat, lng, gps:true }; coordsLeidas++; }
+              if (claves.length) { claves.forEach(k => { coordsExist[k] = { lat, lng, gps:true }; }); coordsLeidas++; }
             }
           });
           if (coordsLeidas) save(K_COORDS, coordsExist);
