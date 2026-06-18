@@ -3886,13 +3886,13 @@ body { font-size: 14px; }
     <button class="bav-close" onclick="cerrarBavTareas()">✕</button>
   </div>
   <!-- Banner Eventos hoy -->
-  <div id="bav-eventos" style="display:none;position:relative;margin:4px 12px 0;background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(6,182,212,.06));border:1.5px solid rgba(6,182,212,.35);border-radius:12px;padding:10px 14px;display:none;align-items:center;gap:10px;animation:bavIn .4s cubic-bezier(.34,1.56,.64,1)">
+  <div id="bav-eventos" style="display:none;position:relative;margin:4px 12px 0;background:linear-gradient(135deg,#06b6d4,#0891b2);border:1.5px solid #0e7490;box-shadow:0 6px 20px rgba(6,182,212,.4);border-radius:12px;padding:10px 14px;display:none;align-items:center;gap:10px;animation:bavIn .4s cubic-bezier(.34,1.56,.64,1)">
     <span style="font-size:20px">📅</span>
     <div style="flex:1;min-width:0">
-      <div id="bav-ev-titulo" style="font-size:13px;font-weight:800;color:#06b6d4;line-height:1.2">Evento hoy</div>
-      <div id="bav-ev-sub" style="font-size:11px;color:#64748b;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <div id="bav-ev-titulo" style="font-size:13px;font-weight:800;color:#fff;line-height:1.2">Evento hoy</div>
+      <div id="bav-ev-sub" style="font-size:11px;color:rgba(255,255,255,.9);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
     </div>
-    <button onclick="cerrarBavEventos()" style="background:rgba(6,182,212,.15);border:none;border-radius:50%;width:26px;height:26px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#06b6d4">✕</button>
+    <button onclick="cerrarBavEventos()" style="background:rgba(255,255,255,.25);border:none;border-radius:50%;width:26px;height:26px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff">✕</button>
   </div>
 </div>
 <!-- ── FIN BANNERS AVISO ── -->
@@ -7335,7 +7335,7 @@ function datosImportarExcel(input) {
       const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
 
       // Detecta si la hoja tiene fila de título extra antes de las cabeceras
-      const HEADERS = ['KEY','ZONA','CLIENTE','CÓDIGO','CODIGO','Fecha','ID'];
+      const HEADERS = ['KEY','ZONA','CLIENTE','CÓDIGO','CODIGO','Fecha','ID','CLAVE','ETIQUETA'];
       function getRows(ws, opts={}) {
         const a1 = ws['A1'] ? String(ws['A1'].v || '') : '';
         const tieneTitle = !HEADERS.some(h => a1.startsWith(h));
@@ -10641,11 +10641,6 @@ function mostrarFestivos() {
 function renderCierre() {
   const ruta    = loadArr(K_RUTA_B);
   const partes  = loadArr(K_ANALISIS_B);
-  const hoy     = new Date().toLocaleDateString('es-ES');
-  const D = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const M = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-  const now = new Date();
-  const fechaTxt = `${D[now.getDay()].toUpperCase()} ${now.getDate()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getFullYear()}`;
 
   const finalizadas = ruta.filter(p => p.estado === 'completada');
   const pendientes  = ruta.filter(p => p.estado === 'pendiente');
@@ -10656,21 +10651,19 @@ function renderCierre() {
   setText2('cs-pend',  pendientes.length);
   setText2('cs-otros', otros.length);
 
-  // Texto de cierre
-  const sep  = '━━━━━━━━━━━━━━━━━━━━━━';
-  let lines  = [`PycLibreta · ${fechaTxt}`, sep];
+  // Texto de cierre — solo cliente · código · localidad, una línea por oficina
+  // Campsa Eess se muestra como Repsol en el texto a compartir
+  const nombreCompartir = p => {
+    const cli = (p.clienteReal||p.cliente||'—').toUpperCase();
+    return cli.includes('CAMPSA') ? 'REPSOL' : cli;
+  };
+  let lines = [];
   finalizadas.forEach(p => {
-    lines.push(`✓ ${(p.clienteReal||p.cliente||'—').toUpperCase()} ${p.codigo||''} · ${(p.localidad||'').toUpperCase()}`);
-    if (p.trabajoRealizado) lines.push(`  ${p.trabajoRealizado.slice(0,60)}`);
+    lines.push(`${nombreCompartir(p)} ${p.codigo||''} · ${(p.localidad||'').toUpperCase()}`);
   });
-  if (pendientes.length) {
-    lines.push(sep);
-    pendientes.forEach(p => {
-      lines.push(`⏳ ${(p.clienteReal||p.cliente||'—').toUpperCase()} ${p.codigo||''} · ${(p.localidad||'').toUpperCase()} (pend.)`);
-    });
-  }
-  lines.push(sep);
-  lines.push(`${finalizadas.length} final. · ${pendientes.length} pend. · ${otros.length} otros`);
+  pendientes.forEach(p => {
+    lines.push(`${nombreCompartir(p)} ${p.codigo||''} · ${(p.localidad||'').toUpperCase()}`);
+  });
 
   const txt = document.getElementById('cierre-txt');
   if (txt) txt.textContent = lines.join('\n');
