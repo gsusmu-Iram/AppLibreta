@@ -5849,7 +5849,7 @@ function getSys(s) {
 
 function navWaze(dir, loc) {
   const q = encodeURIComponent((dir||'') + ' ' + (loc||''));
-  window.open('https://waze.com/ul?q=' + q + '&navigate=yes', '_blank');
+  window.location.href = 'https://waze.com/ul?q=' + q + '&navigate=yes';
 }
 function navMaps(dir, loc) {
   const q = encodeURIComponent((dir||'') + ' ' + (loc||''));
@@ -13220,7 +13220,7 @@ function iramAbrirWazeParada(parada) {
     pycMsgIA('No tengo dirección para esta parada.'); return;
   }
 
-  window.open(url, '_blank');
+  window.location.href = url;
   const origenMsg = tipoCoords || (dir ? '📋 Por dirección' : '🔍 Solo localidad');
   pycMsgIA(`Waze → ${cliente}${loc ? ' · ' + loc : ''}\n${origenMsg}`, false, 'local');
 }
