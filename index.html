@@ -4008,16 +4008,22 @@ const NORM_CLIENTE = {
   'PLENERGY GRUPO':                  'PLENERGY',
   'PLENERGY':                        'PLENERGY',
   'SP':                              'SP',
+  'SPRINTER':                        'SP',
   'AQUAE SECURITY':                  'AQUAE',
   'AQUAE SECURITY, SAU':             'AQUAE',
 };
 const NOMBRE_DISPLAY = { 'BBVA': 'BBVA' };
 
+function _escRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function normalizarCliente(raw) {
   if (!raw) return 'OTROS';
   const up = raw.toUpperCase().trim();
   if (NORM_CLIENTE[up]) return NORM_CLIENTE[up];
-  for (const [k,v] of Object.entries(NORM_CLIENTE)) { if (up.includes(k)) return v; }
+  // Coincidencia por palabra completa (\b) para evitar falsos positivos
+  // como 'SP' encontrando coincidencia dentro de 'ESPAGNE'
+  for (const [k,v] of Object.entries(NORM_CLIENTE)) {
+    if (new RegExp('\\b' + _escRegex(k) + '\\b').test(up)) return v;
+  }
   return up;
 }
 function getCfg(norm) { return CLIENTES_CONFIG[norm] || CFG_DEFAULT; }
