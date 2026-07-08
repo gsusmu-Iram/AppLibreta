@@ -10886,6 +10886,7 @@ function _itCopiar(btn, txt) {
 }
 
 function _renderItEdit(item) {
+  window._iteTipoSeleccionado = item.tipoDato || '';   // reset al tipo actual del item
   document.getElementById('it-nav-titulo').textContent = 'Editando…';
 
   // Etiquetas disponibles para sugerencias
@@ -10914,11 +10915,12 @@ function _renderItEdit(item) {
     <input class="it-edit-field" id="ite-sistema" value="${escH(item.sistema||'')}" placeholder="Spider Pro, Galaxy…" autocomplete="off">
 
     <label class="it-edit-label">Tipo de dato</label>
-    <select class="it-edit-field" id="ite-tipodato"
-      style="cursor:pointer;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%235a6a8a%22/></svg>');background-repeat:no-repeat;background-position:right 2px center">
-      ${['','🗝️ Llaves','🌐 IP / Red','🔒 Contraseña','🕐 Horario','📞 Contacto','📋 Datos','📝 Info','📹 CCTV','📖 Manuales']
-        .map(v => `<option value="${v}" ${(item.tipoDato||''===v)?'selected':''}>${v||'— Selecciona tipo —'}</option>`).join('')}
-    </select>
+    <div class="tipo-chips" id="ite-tipo-chips">
+      ${getTiposDato().map(t => {
+        const sel = (item.tipoDato||'') === t;
+        return `<div class="tc ${sel?'sel':''}" onclick="(function(el,t){el.parentNode.querySelectorAll('.tc').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');window._iteTipoSeleccionado=t;})(this,'${t.replace(/'/g,"&#39;")}')">${t}</div>`;
+      }).join('')}
+    </div>
 
     <label class="it-edit-label">Información · usa "Clave: valor" para mejor presentación</label>
     <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
@@ -11044,7 +11046,7 @@ function guardarEdicionInfoTec() {
     codigo:    (document.getElementById('ite-codigo')?.value   || '').trim(),
     poblacion: (document.getElementById('ite-poblacion')?.value|| '').trim(),
     sistema:   (document.getElementById('ite-sistema')?.value  || '').trim(),
-    tipoDato:  (document.getElementById('ite-tipodato')?.value || '').trim(),
+    tipoDato:  (window._iteTipoSeleccionado !== undefined ? window._iteTipoSeleccionado : (document.querySelector('#ite-tipo-chips .tc.sel')?.textContent || '')).trim(),
     detalle:   (() => {
       if (window._iteQuill) {
         const html = window._iteQuill.root.innerHTML;
