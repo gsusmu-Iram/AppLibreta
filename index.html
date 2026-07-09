@@ -9058,7 +9058,7 @@ function renderInfoSaved() {
         <button class="ii-del" onclick="event.stopPropagation();borrarInfo('${item.id}')">✕</button>
       </div>
       <div class="ii-desc">${escH(stripHTML(item.detalle||'').slice(0,120))}${stripHTML(item.detalle||'').length>120?'…':''}</div>
-      ${item.etiquetas.length ? `<div class="ii-tags">${item.etiquetas.join(' ')}</div>` : ''}
+      ${(item.etiquetas||[]).length ? `<div class="ii-tags">${(item.etiquetas||[]).join(' ')}</div>` : ''}
     </div>`).join('');
 }
 
