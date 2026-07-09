@@ -9445,13 +9445,13 @@ function ejecutarBusqueda(q) {
   // INFO TÉCNICA
   const resultsInf = infoTec.filter(i =>
     match(i.entidad)||match(i.codigo)||match(i.detalle)||match(i.sistema)||
-    match(i.tipoDato)||(i.etiquetas||[]).some(t=>match(t))
+    match(i.tipoDato)||_normEtqs(i.etiquetas).some(t=>match(t))
   ).slice(0,10).map(i => ({
     tipo:'inf', id:i.id, detalle:i.detalle||'',
     hint: (match(i.entidad)||match(i.codigo)) ? '' : (i.tipoDato||''),
     title:   `${i.entidad||'—'}${i.codigo?' · '+i.codigo:''}${i.poblacion?' · '+i.poblacion:''}`,
     sub:     stripHTML(i.detalle||'').slice(0,100),
-    meta:    (i.etiquetas||[]).join(' ')||i.tipoDato||'',
+    meta:    _normEtqs(i.etiquetas).join(' ')||i.tipoDato||'',
     titleHL: `${hl(i.entidad||'')}${i.codigo?' · '+hl(i.codigo):''}`,
     subHL:   hl(stripHTML(i.detalle||'').slice(0,100)),
   }));
@@ -10756,11 +10756,16 @@ let _itEditMode  = false;  // true = modo edición activo
 
 function abrirInfoTecPage(id) {
   const item = loadArr(K_INFO_TEC).find(i => String(i.id) === String(id));
-  if (!item) return;
-  _itPageId   = id;
+  if (!item) { buscarToast('⚠️ Información no encontrada'); return; }
+  _itPageId   = String(id);
   _itEditMode = false;
-  _renderItVer(item);
-  document.getElementById('it-btn-edit').textContent = '✏️';
+  try { _renderItVer(item); } catch(e) {
+    console.error('_renderItVer error:', e);
+    document.getElementById('it-content').innerHTML =
+      `<div style="padding:16px;color:var(--error)">⚠️ Error al mostrar el contenido. Prueba a editar y volver a guardar.</div>`;
+  }
+  const btnEdit = document.getElementById('it-btn-edit');
+  if (btnEdit) btnEdit.textContent = '✏️';
   document.getElementById('it-page-overlay').classList.add('open');
 }
 
@@ -11043,7 +11048,7 @@ function toggleEditInfoTec() {
 
 function guardarEdicionInfoTec() {
   const lista = loadArr(K_INFO_TEC);
-  const idx   = lista.findIndex(i => i.id === _itPageId);
+  const idx   = lista.findIndex(i => String(i.id) === String(_itPageId));
   if (idx === -1) return;
 
   const etqRaw = (document.getElementById('ite-etiquetas')?.value || '').trim();
