@@ -10829,7 +10829,7 @@ function _itFormatDetalle(txt) {
   const PATRONES = [
     { re:/^(IP|GATEWAY|GW|MASK|MÁSCARA|DNS|LAN|WAN|RED)[\s:]+(.+)/i,   ico:'🌐', color:'var(--cyan)'    },
     { re:/^(C[OÓ]DIGO|CODE|PIN|CLAVE|KEY|ACCESO|ACCESS)[\s:]+(.+)/i,   ico:'🔑', color:'var(--orange)'  },
-    { re:/^(PASS(WORD)?|CONTRASEÑA|CONTRASE|PWD|PASSWORD)[\s:]+(.+)/i, ico:'🔒', color:'var(--error)'   },
+    { re:/^(PASS(?:WORD)?|CONTRASEÑA|CONTRASE|PWD|PASSWORD)[\s:]+(.+)/i, ico:'🔒', color:'var(--error)'   },
     { re:/^(USUARIO|USER|LOGIN|USR|ADMIN)[\s:]+(.+)/i,                  ico:'👤', color:'var(--ink-mid)' },
     { re:/^(HORARIO|HORA|SCHEDULE|TURNO|APERTURA|CIERRE)[\s:]+(.+)/i,  ico:'🕐', color:'var(--ok)'      },
     { re:/^(TF|TEL[EÉ]FONO?|PHONE|MÓVIL|MOVIL|CONTACTO)[\s:]+(.+)/i,  ico:'📞', color:'var(--navy)'    },
@@ -11038,7 +11038,7 @@ function _itToggleEtq(chip, etq) {
 }
 
 function toggleEditInfoTec() {
-  const item = loadArr(K_INFO_TEC).find(i => i.id === _itPageId);
+  const item = loadArr(K_INFO_TEC).find(i => String(i.id) === String(_itPageId));
   if (!item) return;
   _itEditMode = !_itEditMode;
   document.getElementById('it-btn-edit').textContent = _itEditMode ? '🖋️' : '✏️';
@@ -11074,7 +11074,11 @@ function guardarEdicionInfoTec() {
 
   _itEditMode = false;
   document.getElementById('it-btn-edit').textContent = '✏️';
-  _renderItVer(lista[idx]);
+  try { _renderItVer(lista[idx]); } catch(e) {
+    console.error('_renderItVer tras guardar:', e);
+    document.getElementById('it-content').innerHTML =
+      `<div style="padding:16px;color:var(--error)">⚠️ Contenido guardado, pero no se puede previsualizar. Prueba a simplificar el texto pegado.</div>`;
+  }
   document.getElementById('it-nav-titulo').textContent = lista[idx].entidad || '—';
   buscarToast('✓ Información actualizada');
   // Refrescar la lista guardada si está visible
