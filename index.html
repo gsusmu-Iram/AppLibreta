@@ -10936,15 +10936,7 @@ function _renderItEdit(item) {
       }).join('')}
     </div>
 
-    <label class="it-edit-label">Información · usa "Clave: valor" para mejor presentación</label>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
-      ${['IP:','Gateway:','Código:','Pass:','Usuario:','Horario:','Tel:','MAC:','Nota:'].map(p=>
-        `<button onclick="_itInsertarQuill('${p} ')"
-          style="background:rgba(249,115,22,.1);color:var(--orange-deep);border:1px solid rgba(249,115,22,.3);
-                 border-radius:var(--r-pill);padding:3px 10px;font-size:11px;font-weight:700;
-                 cursor:pointer;font-family:var(--font-mono);-webkit-tap-highlight-color:transparent">${p}</button>`
-      ).join('')}
-    </div>
+
     <div id="ite-quill-toolbar" style="border:1.5px solid rgba(249,115,22,.3);border-bottom:none;border-radius:8px 8px 0 0;background:#fff">
       <button class="ql-bold"></button>
       <button class="ql-italic"></button>
