@@ -10961,12 +10961,12 @@ function _renderItEdit(item) {
     <textarea id="ite-detalle" style="display:none"></textarea>
 
     <label class="it-edit-label">Etiquetas</label>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px" id="it-etq-chips">
-      ${etqChips}
+    <div class="tags-area" id="it-etq-chips" style="margin-bottom:10px">
+      ${getEtiquetas().map(t =>
+        `<div class="etq ${etqsAct.has(t)?'on':'off'}" onclick="_itToggleEtqNew(this,'${escH(t)}')">${escH(t)}</div>`
+      ).join('')}
+      <div class="etq etq-add" onclick="abrirEditarEtiquetas()">+ Añadir</div>
     </div>
-    <input class="it-edit-field" id="ite-etiquetas" value="${escH((item.etiquetas||[]).join(' '))}"
-      placeholder="#PCI #BBVA… (o toca los chips)" autocomplete="off"
-      style="font-size:11px">
 
     <button class="it-save-btn" onclick="guardarEdicionInfoTec()">💾 Guardar cambios</button>
   `;
@@ -11026,15 +11026,13 @@ function _itInsertarQuill(txt) {
   }
 }
 
-function _itToggleEtq(chip, etq) {
-  chip.classList.toggle('act');
-  // Actualizar el campo de texto de etiquetas
-  const input = document.getElementById('ite-etiquetas');
-  if (!input) return;
-  const actuales = new Set(input.value.trim().split(/\s+/).filter(Boolean));
-  if (chip.classList.contains('act')) actuales.add(etq);
-  else actuales.delete(etq);
-  input.value = [...actuales].join(' ');
+function _itToggleEtq(el, tag) {
+  el.classList.toggle('on');
+  el.classList.toggle('off');
+}
+function _itToggleEtqNew(el, tag) { _itToggleEtq(el, tag); }
+function _itGetEtqsSeleccionadas() {
+  return [...(document.querySelectorAll('#it-etq-chips .etq.on')||[])].map(el => el.textContent.trim());
 }
 
 function toggleEditInfoTec() {
@@ -11051,8 +11049,8 @@ function guardarEdicionInfoTec() {
   const idx   = lista.findIndex(i => String(i.id) === String(_itPageId));
   if (idx === -1) return;
 
-  const etqRaw = (document.getElementById('ite-etiquetas')?.value || '').trim();
-  const etqs   = etqRaw ? etqRaw.split(/\s+/).filter(Boolean) : [];
+  const etqRaw = _itGetEtqsSeleccionadas();
+  const etqs   = etqRaw;
 
   lista[idx] = {
     ...lista[idx],
