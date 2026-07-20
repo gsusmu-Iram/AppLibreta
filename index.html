@@ -3977,7 +3977,7 @@ const CLIENTES_CONFIG = {
   'PLENERGY': { color: '#f97316', pastel: '#feeadb' },
   'SP':       { color: '#3aaa35', pastel: '#dcf0da' },
   'ABANCA':   { color: '#004F9F', pastel: '#dde8f5' },
-  'AQUAE':    { color: '#0077B6', pastel: '#d9eef7' },
+  'CEMEX':    { color: '#5c4a32', pastel: '#ede8e2' },
 };
 const CFG_DEFAULT = { color: '#1a2744', pastel: '#e8ecf4' };
 
@@ -4009,8 +4009,9 @@ const NORM_CLIENTE = {
   'PLENERGY':                        'PLENERGY',
   'SP':                              'SP',
   'SPRINTER':                        'SP',
-  'AQUAE SECURITY':                  'AQUAE',
-  'AQUAE SECURITY, SAU':             'AQUAE',
+  'CEMEX':                             'CEMEX',
+  'CEMEX ESPAÑA':                      'CEMEX',
+  'CEMEX ESPAÑA OPERACIONES':          'CEMEX',
 };
 const NOMBRE_DISPLAY = { 'BBVA': 'BBVA' };
 
@@ -4116,6 +4117,11 @@ function extraerSistema(t) {
 function extraerCodigo(bloque) {
   const mCE = bloque.match(/\(C\.E\.\s*(\d+)\)/);
   if (mCE) return mCE[1];
+
+  // CEMEX: "de sistema CEMEX - NOMBRE INSTALACION (código)"
+  const mCemex = bloque.match(/de sistema\s+CEMEX\s*-\s*[^(\n]+\((\d{5,})\)/i);
+  if (mCemex) return mCemex[1];
+
   const m = bloque.match(/de sistema\s+([\w\.\-]+)/i);
   if (!m) return '';
   let cod = m[1].trim();
@@ -4830,7 +4836,7 @@ function renderizarBottomBar() {
    ⚙️ AGRUPACIÓN DOBLE: cliente → localidad
    ================================================================ */
 function agrupar(partes) {
-  const PRIORIDAD = {'CAJAMAR':0,'BBVA':1,'DIA':2,'REPSOL':3,'SP':3,'AQUAE':4,'PLENERGY':4,'JD':4,'OTROS':99};
+  const PRIORIDAD = {'CAJAMAR':0,'BBVA':1,'DIA':2,'REPSOL':3,'SP':3,'CEMEX':4,'AQUAE':4,'PLENERGY':4,'JD':4,'OTROS':99};
   const grupos={};
   for (const p of partes) {
     const g=p.clienteNorm||'OTROS';
@@ -7578,6 +7584,7 @@ function datosImportarExcel(input) {
               };
             });
             save(K_MTO_EXT, existing);
+            toast(`🧯 ${rows.length} extintor${rows.length>1?'es':''} caducado${rows.length>1?'s':''} restaurado${rows.length>1?'s':''}`);
           }
         }
 
