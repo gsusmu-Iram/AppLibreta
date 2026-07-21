@@ -13222,22 +13222,32 @@ function iramAbrirWazeParada(parada) {
   // Buscar coords usando _getCoordsParada (soporta clave nueva cliente__codigo y fallback localidad)
   const coords      = typeof cargarCoords === 'function' ? cargarCoords() : {};
   const coordsData  = typeof _getCoordsParada === 'function' ? _getCoordsParada(parada, coords) : null;
-  const lat         = coordsData?.lat || null;
-  const lng         = coordsData?.lng || null;
+  let lat         = coordsData?.lat != null ? parseFloat(String(coordsData.lat).replace(',', '.')) : null;
+  let lng         = coordsData?.lng != null ? parseFloat(String(coordsData.lng).replace(',', '.')) : null;
+  if (lat != null && (isNaN(lat) || !isFinite(lat))) lat = null;
+  if (lng != null && (isNaN(lng) || !isFinite(lng))) lng = null;
   const tipoCoords  = coordsData?.gps ? '📍 GPS guardado' : coordsData ? '🏘️ Por localidad' : null;
 
-  let url;
-  if (lat && lng) {
-    url = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+  let url, intentUrl;
+  if (lat != null && lng != null) {
+    url       = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+    intentUrl = `intent://waze.com/ul?ll=${lat},${lng}&navigate=yes#Intent;scheme=https;package=com.waze;end`;
   } else if (dir) {
-    url = `https://waze.com/ul?q=${encodeURIComponent(dir + (loc ? ', ' + loc : ''))}&navigate=yes`;
+    const q = encodeURIComponent(dir + (loc ? ', ' + loc : ''));
+    url       = `https://waze.com/ul?q=${q}&navigate=yes`;
+    intentUrl = `intent://waze.com/ul?q=${q}&navigate=yes#Intent;scheme=https;package=com.waze;end`;
   } else if (loc) {
-    url = `https://waze.com/ul?q=${encodeURIComponent(loc + ', Valencia, España')}&navigate=yes`;
+    const q = encodeURIComponent(loc + ', Valencia, España');
+    url       = `https://waze.com/ul?q=${q}&navigate=yes`;
+    intentUrl = `intent://waze.com/ul?q=${q}&navigate=yes#Intent;scheme=https;package=com.waze;end`;
   } else {
     pycMsgIA('No tengo dirección para esta parada.'); return;
   }
 
-  window.location.href = url;
+  // En Android, el intent:// es el handoff más fiable a la app de Waze; con fallback a la URL web
+  try { window.location.href = intentUrl; }
+  catch(e) { window.location.href = url; }
+  setTimeout(() => { try { window.location.href = url; } catch(e){} }, 1200);
   const origenMsg = tipoCoords || (dir ? '📋 Por dirección' : '🔍 Solo localidad');
   pycMsgIA(`Waze → ${cliente}${loc ? ' · ' + loc : ''}\n${origenMsg}`, false, 'local');
 }
