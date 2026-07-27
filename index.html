@@ -2575,7 +2575,7 @@ body { font-size: 14px; }
         <div class="mod-title">Análisis</div>
         <div class="mod-sub">Pega los partes · yo hago el resto</div>
       </div>
-      <button onclick="abrirClaudeChat()" title="Ver como chat"
+      <button onclick="pycAbrirChat()" title="Ver como chat"
         style="background:#fff;border:1px solid rgba(26,39,68,.12);border-radius:12px;padding:8px 12px;
                font-size:13px;font-weight:600;color:#3d3d3a;cursor:pointer;display:flex;align-items:center;
                gap:6px;box-shadow:0 1px 3px rgba(0,0,0,.05);-webkit-tap-highlight-color:transparent">
@@ -4700,68 +4700,13 @@ function analizar() {
 }
 
 /* ================================================================
-   💬 CHAT ESTILO CLAUDE — modo discreto (resumen + tabla de partes)
+   💬 RESUMEN + TABLA DE PARTES (dentro del chat IRAM, estilo Claude)
    ================================================================ */
 let _clCriterio = 'original';
-
-const _CL_AVATAR = `<div class="cl-avatar"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 1.5l2.6 6.3 6.3 2.6-6.3 2.6L12 22.5l-2.6-6.3L3.1 13l6.3-2.6L12 1.5z"/></svg></div>`;
-
-function claudeAutoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
-}
-
-function abrirClaudeChat() {
-  const ov = document.getElementById('claude-overlay');
-  const inner = document.getElementById('cl-msgs-inner');
-  if (!ov || !inner) return;
-  inner.innerHTML = '';
-  ov.classList.add('open');
-  const partes = _clPartesActivos();
-  if (partes.length) {
-    _claudeAppendAssist(claudeGenerarResumenTabla('original'));
-  } else {
-    _claudeAppendAssist(`<p>Hola 👋 Pega aquí los partes de trabajo y te preparo un resumen y una tabla.</p><p>Cuando tengas la tabla, puedes pedirme <strong>ordena por localidad</strong>, <strong>ordena por urgentes</strong> o <strong>ordena por fijados</strong>.</p>`);
-  }
-}
-
-function cerrarClaudeChat() {
-  document.getElementById('claude-overlay')?.classList.remove('open');
-}
-
-function claudeRefrescarSiAbierto() {
-  const ov = document.getElementById('claude-overlay');
-  if (ov && ov.classList.contains('open')) {
-    _claudeAppendAssist(claudeGenerarResumenTabla(_clCriterio || 'original'));
-  }
-}
 
 function _clPartesActivos() {
   const todos = cargarPartes();
   return todos.filter(p => p.estado !== 'completado' && p.estado !== 'cerrado');
-}
-
-function _claudeAppendUser(txt) {
-  const inner = document.getElementById('cl-msgs-inner');
-  const div = document.createElement('div');
-  div.className = 'cl-turn user';
-  div.innerHTML = `<div class="cl-user-bubble">${escH(txt)}</div>`;
-  inner.appendChild(div);
-  _claudeScroll();
-}
-
-function _claudeAppendAssist(html) {
-  const inner = document.getElementById('cl-msgs-inner');
-  const div = document.createElement('div');
-  div.className = 'cl-turn assist';
-  div.innerHTML = `<div class="cl-assist">${_CL_AVATAR}<div class="cl-assist-body">${html}</div></div>`;
-  inner.appendChild(div);
-  _claudeScroll();
-}
-
-function _claudeScroll() {
-  const m = document.getElementById('cl-msgs');
-  if (m) setTimeout(() => { m.scrollTop = m.scrollHeight; }, 30);
 }
 
 function _clOrdenar(partes, criterio) {
@@ -4789,14 +4734,10 @@ function _clPrioridad(p) {
 function claudeGenerarResumenTabla(criterio) {
   _clCriterio = criterio || 'original';
   const partes = _clOrdenar(_clPartesActivos(), _clCriterio);
-  if (!partes.length) return `<p>No hay partes activos ahora mismo. Pega unos cuantos y te los organizo.</p>`;
+  if (!partes.length) return `<div class="cl-assist-body"><p>No hay partes activos ahora mismo. Pega unos cuantos y te los organizo.</p></div>`;
 
-  // Resumen por cliente
   const grupos = {};
-  partes.forEach(p => {
-    const k = p.clienteReal || p.clienteNorm || '—';
-    (grupos[k] = grupos[k] || []).push(p);
-  });
+  partes.forEach(p => { const k = p.clienteReal || p.clienteNorm || '—'; (grupos[k] = grupos[k] || []).push(p); });
   const nombresOrden = Object.keys(grupos).sort((a,b) => grupos[b].length - grupos[a].length);
   const totalUrg = partes.filter(p=>p.urgente).length;
   const totalFij = partes.filter(p=>p.fijado).length;
@@ -4819,7 +4760,6 @@ function claudeGenerarResumenTabla(criterio) {
     resumen += `<p style="color:#6b6b68;font-size:14px">Prioridad: ${bits.join(' · ')}.</p>`;
   }
 
-  // Tabla
   const etiqOrden = { original:'orden de llegada', localidad:'localidad', urgentes:'urgencia', fijados:'fijados primero' };
   let tabla = `<div class="cl-table-wrap"><table class="cl-table"><thead><tr>
     <th>Fecha</th><th>Cliente</th><th>Código</th><th>Localidad</th><th>Sistema</th><th>Trabajo</th><th>Prioridad</th>
@@ -4849,13 +4789,29 @@ function claudeGenerarResumenTabla(criterio) {
   const nota = _clCriterio !== 'original'
     ? `<p style="color:#6b6b68;font-size:13px">Ordenado por ${etiqOrden[_clCriterio]}.</p>` : '';
 
-  return resumen + tabla + nota + chips;
+  return `<div class="cl-assist-body">${resumen + tabla + nota + chips}</div>`;
+}
+
+// Mensaje del asistente con HTML (tabla/resumen) — no se lee en voz alta
+function pycMsgIAHtml(html) {
+  _pycHist.push({ role:'model', text:html, ia:'local', noVoz:true, esTabla:true });
+  pycRenderMsgs();
+  iramGuardarHistorial();
 }
 
 function claudeReordenar(criterio) {
   const etiq = { localidad:'por localidad', urgentes:'por urgentes', fijados:'por fijados', original:'en el orden original' };
-  _claudeAppendUser(`Ordena ${etiq[criterio] || ''}`.trim());
-  _claudeAppendAssist(claudeGenerarResumenTabla(criterio));
+  pycMsgUser(`Ordena ${etiq[criterio] || ''}`.trim());
+  pycMsgIAHtml(claudeGenerarResumenTabla(criterio));
+}
+
+// Llamado desde analizar(): si el chat está abierto en modo texto, refrescar la tabla
+function claudeRefrescarSiAbierto() {
+  const ov = document.getElementById('pyc-overlay');
+  const chatActivo = document.getElementById('iram-chat')?.classList.contains('active');
+  if (ov && ov.classList.contains('open') && chatActivo && _clPartesActivos().length) {
+    pycMsgIAHtml(claudeGenerarResumenTabla('original'));
+  }
 }
 
 function _clEsPartes(txt) {
@@ -4870,52 +4826,6 @@ function _clComandoOrden(txt) {
   if (/fijad/.test(t)) return 'fijados';
   if (/original|como estaban|llegada|reinicia/.test(t)) return 'original';
   return null;
-}
-
-function claudeEnviar() {
-  const ta  = document.getElementById('cl-ta');
-  const txt = (ta?.value || '').trim();
-  if (!txt) return;
-  ta.value = '';
-  claudeAutoResize(ta);
-
-  // 1. ¿Son partes pegados?
-  if (_clEsPartes(txt)) {
-    const nParrafo = txt.split('\n').filter(l=>l.trim()).length;
-    _claudeAppendUser(txt.length > 180 ? txt.slice(0,180).trim() + '…' : txt);
-    const { parseados, nuevos, yaEstaban } = procesarTextoPartes(txt);
-    if (typeof renderizar === 'function') renderizar();
-    if (!parseados) {
-      _claudeAppendAssist(`<p>No he reconocido ningún parte en ese texto. Asegúrate de pegar el bloque completo tal cual lo copias.</p>`);
-      return;
-    }
-    let intro = `<p>He procesado <strong>${nuevos} parte${nuevos!==1?'s':''} nuevo${nuevos!==1?'s':''}</strong>`;
-    if (yaEstaban) intro += ` (${yaEstaban} ya estaba${yaEstaban!==1?'n':''})`;
-    intro += `.</p>`;
-    _claudeAppendAssist(intro + claudeGenerarResumenTabla('original'));
-    return;
-  }
-
-  // 2. ¿Comando de reordenación?
-  const crit = _clComandoOrden(txt);
-  if (crit) {
-    _claudeAppendUser(txt);
-    if (!_clPartesActivos().length) {
-      _claudeAppendAssist(`<p>Todavía no hay partes que ordenar. Pega unos cuantos primero.</p>`);
-      return;
-    }
-    _claudeAppendAssist(claudeGenerarResumenTabla(crit));
-    return;
-  }
-
-  // 3. Pregunta suelta sobre los partes
-  _claudeAppendUser(txt);
-  const partes = _clPartesActivos();
-  if (partes.length) {
-    _claudeAppendAssist(`<p>Puedo reorganizar la tabla por ti. Prueba con <strong>ordena por localidad</strong>, <strong>ordena por urgentes</strong> o <strong>ordena por fijados</strong>. También puedes pegar más partes y los añado.</p>`);
-  } else {
-    _claudeAppendAssist(`<p>Pega los partes de trabajo y te preparo el resumen y la tabla al momento.</p>`);
-  }
 }
 
 /* ================================================================
@@ -8170,9 +8080,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
     }
-    const claudeOpen = document.getElementById('claude-overlay')?.classList.contains('open');
-    if (claudeOpen) { cerrarClaudeChat(); history.pushState(null, '', location.href); return; }
-
     const iramOpen = document.getElementById('iram-overlay')?.classList.contains('open');
     if (iramOpen) { pycCerrarChat(); history.pushState(null, '', location.href); return; }
 
@@ -8197,8 +8104,8 @@ document.addEventListener('DOMContentLoaded', () => {
   popularZonas();
   renderMTO();
 
-  // Arranque discreto: abrir el chat estilo Claude al iniciar la app
-  try { if (typeof abrirClaudeChat === 'function') abrirClaudeChat(); } catch(e) {}
+  // Arranque discreto: abrir el chat (modo texto disfrazado de Claude)
+  try { if (typeof pycAbrirChat === 'function') pycAbrirChat(); } catch(e) {}
   } catch(e) { console.error('Init error:', e); }
 });
 
@@ -13185,125 +13092,47 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 </style>
 
-<!-- ══════════════════════════════════════════════════════
-     CHAT ESTILO CLAUDE — modo discreto
-     ══════════════════════════════════════════════════════ -->
+<!-- ══ Estilo tabla/resumen Claude reutilizable dentro del chat IRAM ══ -->
 <style>
-#claude-overlay {
-  position: fixed; inset: 0; z-index: 5000;
-  background: #f0eee6;
-  display: none; flex-direction: column;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #3d3d3a;
-}
-#claude-overlay.open { display: flex; }
-.cl-hdr {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px; background: #faf9f5;
-  border-bottom: 1px solid rgba(0,0,0,.06);
-  flex-shrink: 0;
-}
-.cl-hdr-back {
-  background: none; border: none; font-size: 22px; color: #3d3d3a;
-  cursor: pointer; padding: 4px 8px; border-radius: 8px; line-height: 1;
-  -webkit-tap-highlight-color: transparent;
-}
-.cl-hdr-back:active { background: rgba(0,0,0,.05); }
-.cl-hdr-title { font-size: 17px; font-weight: 600; color: #3d3d3a; letter-spacing: -.2px; }
-.cl-hdr-star { width: 22px; height: 22px; flex-shrink: 0; }
-.cl-msgs {
-  flex: 1; overflow-y: auto; padding: 20px 16px 8px;
-  -webkit-overflow-scrolling: touch;
-}
-.cl-msgs-inner { max-width: 720px; margin: 0 auto; }
-.cl-turn { margin-bottom: 26px; }
-.cl-turn.user { display: flex; justify-content: flex-end; }
-.cl-user-bubble {
-  background: #fff; border: 1px solid rgba(0,0,0,.07);
-  border-radius: 14px; padding: 11px 15px; max-width: 85%;
-  font-size: 15px; line-height: 1.5; color: #3d3d3a;
-  white-space: pre-wrap; word-break: break-word;
-  box-shadow: 0 1px 2px rgba(0,0,0,.03);
-}
-.cl-assist { display: flex; gap: 12px; align-items: flex-start; }
-.cl-avatar {
-  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
-  background: #d97757; display: flex; align-items: center; justify-content: center;
-  margin-top: 2px;
-}
-.cl-avatar svg { width: 15px; height: 15px; }
-.cl-assist-body { flex: 1; min-width: 0; font-size: 15px; line-height: 1.6; color: #3d3d3a; }
-.cl-assist-body p { margin: 0 0 12px; }
-.cl-assist-body h3 {
-  font-size: 15px; font-weight: 700; margin: 18px 0 8px; color: #3d3d3a;
-}
-.cl-assist-body strong { font-weight: 700; }
-.cl-assist-body ul { margin: 0 0 12px; padding-left: 20px; }
-.cl-assist-body li { margin-bottom: 5px; }
-.cl-table-wrap { overflow-x: auto; margin: 6px 0 14px; -webkit-overflow-scrolling: touch; border-radius: 10px; border: 1px solid rgba(0,0,0,.1); }
-.cl-table { border-collapse: collapse; width: 100%; font-size: 13px; background: #fff; }
-.cl-table th {
-  background: #f0eee6; text-align: left; padding: 9px 11px;
-  font-weight: 700; color: #3d3d3a; white-space: nowrap;
-  border-bottom: 1px solid rgba(0,0,0,.1);
-}
-.cl-table td {
-  padding: 9px 11px; border-bottom: 1px solid rgba(0,0,0,.06);
-  vertical-align: top; color: #3d3d3a;
-}
-.cl-table tr:last-child td { border-bottom: none; }
-.cl-table td.cl-trab { min-width: 200px; }
-.cl-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.cl-badge.urg { background: #fbe4e0; color: #c0392b; }
-.cl-badge.fij { background: #e8e2f5; color: #6c4bb5; }
-.cl-badge.norm { background: #ececec; color: #6b6b68; }
-.cl-chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 4px 0 2px; }
-.cl-chip {
-  background: #fff; border: 1px solid rgba(0,0,0,.12); border-radius: 20px;
-  padding: 6px 13px; font-size: 13px; color: #3d3d3a; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; transition: background .12s;
-}
-.cl-chip:active { background: #ece9e0; }
-.cl-input-area {
-  flex-shrink: 0; padding: 10px 16px 16px; background: #f0eee6;
-}
-.cl-input-inner {
-  max-width: 720px; margin: 0 auto; background: #fff;
-  border: 1px solid rgba(0,0,0,.12); border-radius: 16px;
-  padding: 8px 8px 8px 16px; display: flex; align-items: flex-end; gap: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.05);
-}
-.cl-textarea {
-  flex: 1; border: none; outline: none; resize: none; background: transparent;
-  font-size: 15px; line-height: 1.4; color: #3d3d3a; font-family: inherit;
-  max-height: 140px; padding: 6px 0;
-}
-.cl-send {
-  width: 34px; height: 34px; border-radius: 10px; border: none; flex-shrink: 0;
-  background: #d97757; color: #fff; font-size: 16px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  -webkit-tap-highlight-color: transparent;
-}
-.cl-send:disabled { background: #d8d5cc; cursor: default; }
-</style>
+.cl-assist-body h3 { font-size:15px; font-weight:700; margin:14px 0 8px; }
+.cl-assist-body ul { margin:0 0 12px; padding-left:20px; }
+.cl-assist-body li { margin-bottom:5px; }
+.cl-table-wrap { overflow-x:auto; margin:6px 0 14px; -webkit-overflow-scrolling:touch; border-radius:10px; border:1px solid rgba(0,0,0,.12); }
+.cl-table { border-collapse:collapse; width:100%; font-size:13px; background:#fff; }
+.cl-table th { background:#efe9dd; text-align:left; padding:9px 11px; font-weight:700; color:#3d3d3a; white-space:nowrap; border-bottom:1px solid rgba(0,0,0,.12); }
+.cl-table td { padding:9px 11px; border-bottom:1px solid rgba(0,0,0,.07); vertical-align:top; color:#3d3d3a; }
+.cl-table tr:last-child td { border-bottom:none; }
+.cl-table td.cl-trab { min-width:200px; }
+.cl-badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+.cl-badge.urg { background:#fbe4e0; color:#c0392b; }
+.cl-badge.fij { background:#e8e2f5; color:#6c4bb5; }
+.cl-badge.norm { background:#ececec; color:#6b6b68; }
+.cl-chips { display:flex; flex-wrap:wrap; gap:7px; margin:4px 0 2px; }
+.cl-chip { background:#fff; border:1px solid rgba(0,0,0,.15); border-radius:20px; padding:6px 13px; font-size:13px; color:#3d3d3a; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.cl-chip:active { background:#ece9e0; }
 
-<!-- Chat estilo Claude -->
-<div id="claude-overlay">
-  <div class="cl-hdr">
-    <button class="cl-hdr-back" onclick="cerrarClaudeChat()" title="Cerrar">←</button>
-    <svg class="cl-hdr-star" viewBox="0 0 24 24" fill="#d97757"><path d="M12 1.5l2.6 6.3 6.3 2.6-6.3 2.6L12 22.5l-2.6-6.3L3.1 13l6.3-2.6L12 1.5z"/></svg>
-    <div class="cl-hdr-title">Claude</div>
-  </div>
-  <div class="cl-msgs" id="cl-msgs"><div class="cl-msgs-inner" id="cl-msgs-inner"></div></div>
-  <div class="cl-input-area">
-    <div class="cl-input-inner">
-      <textarea class="cl-textarea" id="cl-ta" rows="1" placeholder="Escribe a Claude…"
-        oninput="claudeAutoResize(this)"
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();claudeEnviar()}"></textarea>
-      <button class="cl-send" id="cl-send" onclick="claudeEnviar()">↑</button>
-    </div>
-  </div>
-</div>
+/* ── Disfraz Claude del chat IRAM (solo modo texto) ── */
+#pyc-overlay.mode-chat { background:#f0eee6; }
+#pyc-overlay.mode-chat .iram-hdr { background:#faf9f5; border-bottom:1px solid rgba(0,0,0,.06); box-shadow:none; }
+#pyc-overlay.mode-chat .iram-hdr-name { color:#3d3d3a; font-weight:600; }
+#pyc-overlay.mode-chat .iram-msgs { background:#f0eee6; }
+#pyc-overlay.mode-chat .pyc-msg { align-items:flex-start; }
+#pyc-overlay.mode-chat .pyc-msg.ai .pyc-bubble { background:transparent; color:#3d3d3a; padding:2px 0; box-shadow:none; }
+#pyc-overlay.mode-chat .pyc-msg.user .pyc-bubble { background:#fff; color:#3d3d3a; border:1px solid rgba(0,0,0,.08); box-shadow:0 1px 2px rgba(0,0,0,.03); }
+#pyc-overlay.mode-chat .pyc-avatar { background:#d97757 !important; color:#fff; }
+#pyc-overlay.mode-chat .pyc-msg.user .pyc-avatar { background:#c96442 !important; }
+#pyc-overlay.mode-chat [data-feedback-idx] { display:none !important; }
+#pyc-overlay.mode-chat .iram-input-area { background:#f0eee6; border-top:none; }
+#pyc-overlay.mode-chat .iram-textarea { background:#fff; color:#3d3d3a; border:1px solid rgba(0,0,0,.15); border-radius:14px; }
+#pyc-overlay.mode-chat .iram-textarea::placeholder { color:#9a978d; }
+#pyc-overlay.mode-chat .pyc-send { background:#d97757; box-shadow:none; }
+#pyc-overlay.mode-chat .iram-nav { background:#faf9f5; border-top:1px solid rgba(0,0,0,.06); }
+#pyc-overlay.mode-chat .iram-nav-mic, #pyc-overlay.mode-chat #iram-btn-chat { display:none; }
+#pyc-overlay.mode-chat .iram-nav-btn { color:#6b6b68; }
+#pyc-overlay.mode-chat .iram-nav-btn.active { color:#3d3d3a; background:rgba(0,0,0,.04); }
+#pyc-overlay.mode-chat .cl-assist-body { color:#3d3d3a; font-size:15px; line-height:1.6; }
+#pyc-overlay.mode-chat .cl-assist-body p { margin:0 0 10px; }
+</style>
 
 <!-- IRAM pantalla completa -->
 <div class="iram-overlay" id="pyc-overlay">
@@ -13317,18 +13146,19 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="iram-screen active" id="iram-chat">
 
     <!-- Header -->
-    <div class="iram-hdr">
+    <div class="iram-hdr cl-hdr-disguise">
       <div class="iram-hdr-top">
-        <div class="iram-hdr-center">
-          <div class="iram-hdr-name">IRAM</div>
-          <div class="iram-hdr-sub"><div class="iram-hdr-dot"></div><span id="pyc-status">Listo · Groq</span></div>
+        <div class="iram-hdr-center" style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#d97757"><path d="M12 1.5l2.6 6.3 6.3 2.6-6.3 2.6L12 22.5l-2.6-6.3L3.1 13l6.3-2.6L12 1.5z"/></svg>
+          <div class="iram-hdr-name" style="color:#3d3d3a">Claude</div>
+          <span id="pyc-status" style="display:none"></span>
         </div>
-        <button class="iram-close" onclick="pycCerrarChat()" title="Cerrar">✕</button>
+        <button class="iram-close" onclick="pycCerrarChat()" title="Cerrar" style="color:#3d3d3a">✕</button>
       </div>
     </div>
 
-    <!-- Zona voz -->
-    <div class="iram-voice-zone">
+    <!-- Zona voz (oculta en disfraz) -->
+    <div class="iram-voice-zone" style="display:none">
       <div class="iram-voice-status" id="iram-voice-status">Pulsa el micrófono para hablar</div>
     </div>
 
@@ -13795,6 +13625,8 @@ function iramShowMode(mode) {
   if (scr) scr.classList.add('active');
   const btn = document.getElementById('iram-btn-' + mode);
   if (btn) btn.classList.add('active');
+  const ov = document.getElementById('pyc-overlay');
+  if (ov) ov.classList.toggle('mode-chat', mode === 'chat');
   if (mode === 'drive') {
     iramRellenarDrive();
     iramActivarWakeLock(); // Pantalla siempre activa en conducción
@@ -13844,6 +13676,13 @@ function pycRenderMsgs() {
       const col = iaColors[m.ia] || '#7c3aed';
       avStyle = ` style="background:${col}"`;
     }
+    // Mensajes de tabla/resumen → ancho completo, sin burbuja ni feedback
+    if (m.esTabla) {
+      return `<div class="pyc-msg ai pyc-msg-tabla">
+        <div class="pyc-avatar"${avStyle}>${av}</div>
+        <div style="flex:1;min-width:0">${m.text}</div>
+      </div>`;
+    }
     // Botones feedback solo en respuestas de Iram no pensando
     const feedback = (m.role === 'model' && !m.thinking && m.text && m.text.length > 5)
       ? `<div data-feedback-idx="${idx}" style="display:flex;gap:4px;margin-top:4px;opacity:.5">
@@ -13860,7 +13699,7 @@ function pycRenderMsgs() {
     </div>`;
   }).join('');
   el.scrollTop = el.scrollHeight;
-  const last = _pycHist.filter(m => m.role==='model' && !m.thinking).slice(-1)[0];
+  const last = _pycHist.filter(m => m.role==='model' && !m.thinking && !m.esTabla).slice(-1)[0];
   if (last && last.text) {
     const d = document.getElementById('drive-response-txt');
     if (d) d.textContent = last.text;
@@ -13970,21 +13809,22 @@ function iramLimpiarChat() {
 }
 
 function pycAbrirChat() {
-  // Siempre arrancar en modo IRAM (local), nunca en WEB
   _iramIA   = 'groq';
 
   document.getElementById('pyc-overlay').classList.add('open');
-  iramShowMode('drive');
-  iramRellenarDrive();
+  iramShowMode('chat');
   iramRestaurarCrono();
 
   pycCheckKey();
   const tenia = iramCargarHistorial();
   if (!tenia || !_pycHist.length) {
-    const saludo = iramSaludoProactivo();
-    _pycHist.push({ role:'model', text:saludo, ia:'local' });
-    pycRenderMsgs();
-    setTimeout(() => pycHablar(saludo), 300);
+    if (_clPartesActivos().length) {
+      pycMsgIAHtml(claudeGenerarResumenTabla('original'));
+    } else {
+      _pycHist.push({ role:'model', ia:'local', noVoz:true, esTabla:true,
+        text:`<div class="cl-assist-body"><p>Hola 👋 Pega aquí los partes de trabajo y te preparo un resumen y una tabla.</p><p>También puedo ayudarte con lo de siempre: <em>“dime los avisos de Requena”</em>, <em>“crea una tarea…”</em>, <em>“llévame al Cajamar de…”</em>.</p></div>` });
+      pycRenderMsgs();
+    }
   }
   setTimeout(() => document.getElementById('pyc-ta')?.focus(), 350);
 }
@@ -14132,8 +13972,33 @@ async function pycEnviar() {
 
   ta.value = '';
   pycAutoResize(ta);
-  pycMsgUser(txt);
   _pycThinking = true;
+
+  // ── Partes pegados → cargar en Análisis + resumen/tabla estilo Claude ──
+  if (_clEsPartes(txt)) {
+    pycMsgUser(txt.length > 160 ? txt.slice(0,160).trim() + '… (partes)' : txt);
+    const { parseados, nuevos, yaEstaban } = procesarTextoPartes(txt);
+    if (typeof renderizar === 'function') renderizar();
+    if (!parseados) {
+      pycMsgIAHtml('<div class="cl-assist-body"><p>No he reconocido ningún parte en ese texto. Pega el bloque completo tal cual lo copias.</p></div>');
+    } else {
+      let intro = `<p>He procesado <strong>${nuevos} parte${nuevos!==1?'s':''} nuevo${nuevos!==1?'s':''}</strong>`;
+      if (yaEstaban) intro += ` (${yaEstaban} ya estaba${yaEstaban!==1?'n':''})`;
+      intro += `.</p>`;
+      const html = claudeGenerarResumenTabla('original').replace('<div class="cl-assist-body">', `<div class="cl-assist-body">${intro}`);
+      pycMsgIAHtml(html);
+    }
+    _pycThinking = false; return;
+  }
+
+  pycMsgUser(txt);
+
+  // ── Comando de reordenación de la tabla ──
+  const _critOrden = _clComandoOrden(txt);
+  if (_critOrden && _clPartesActivos().length) {
+    pycMsgIAHtml(claudeGenerarResumenTabla(_critOrden));
+    _pycThinking = false; return;
+  }
 
   // ── Diálogo pendiente ──
   if (_iramDialogo) {
