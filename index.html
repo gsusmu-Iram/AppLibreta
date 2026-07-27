@@ -7731,17 +7731,36 @@ function datosImportarExcel(input) {
         }
 
         else if (nl.includes('nota')) {
-          const rows = XLSX.utils.sheet_to_json(ws, {defval:'',raw:false,range:1})
-            .filter(r => r['ID'] && r['ID'] !== 'ID' && (String(r['ID']).startsWith('N_') || String(r['ID']).startsWith('NOTA')));
+          // Fusionar (no reemplazar). Compatible con Excel de PycLibreta y de la app de Notas.
+          const rows = getRows(ws).filter(r =>
+            (r['TEXTO'] || r['TITULO']) &&
+            (!r['ID'] || (String(r['ID']).startsWith('N_') || String(r['ID']).startsWith('NOTA') || String(r['ID']).trim()!=='ID'))
+          );
           if (rows.length > 0) {
-            const parsed = rows.map(r => ({
-              id:        String(r['ID']||'N_'+Date.now()),
-              titulo:    String(r['TITULO']||''),
-              texto:     String(r['TEXTO']||''),
-              fecha:     String(r['FECHA']||''),
-              etiquetas: String(r['ETIQUETAS']||''),
-            })).filter(n => n.texto);
-            save(K_NOTAS, parsed);
+            const existing  = loadArr(K_NOTAS);
+            const existIds  = new Set(existing.map(n => n.id).filter(Boolean));
+            const existKeys = new Set(existing.map(n => (n.fecha||'') + '|' + (n.texto||'')));
+            let añadidas = 0;
+            rows.forEach(r => {
+              const texto = String(r['TEXTO']||'').trim();
+              const titulo= String(r['TITULO']||'').trim();
+              if (!texto && !titulo) return;
+              const rid   = String(r['ID']||'').trim();
+              const fecha = String(r['FECHA']||'');
+              if (rid && existIds.has(rid)) return;
+              const key = fecha + '|' + texto;
+              if (existKeys.has(key)) return;
+              existing.unshift({
+                id:        rid || ('N_' + Date.now() + '_' + Math.floor(Math.random()*10000)),
+                titulo:    titulo,
+                texto:     texto,
+                fecha:     fecha,
+                etiquetas: String(r['ETIQUETAS']||''),
+              });
+              existIds.add(rid); existKeys.add(key); añadidas++;
+            });
+            save(K_NOTAS, existing);
+            if (añadidas) toast(`📝 ${añadidas} nota${añadidas>1?'s':''} importada${añadidas>1?'s':''}`);
           }
         }
 
@@ -7789,7 +7808,7 @@ function datosImportarExcel(input) {
                 sistema:   String(r['SISTEMA']   || r['Sistema/Equipo'] || ''),
                 tipoDato:  String(r['TIPO_DATO'] || r['Tipo de Dato']   || ''),
                 detalle:   detalle,
-                etiquetas: String(r['ETIQUETAS'] || r['Etiquetas'] || '').split(/[\s,]+/).filter(t => t.startsWith('#')),
+                etiquetas: String(r['ETIQUETAS'] || r['Etiquetas'] || '').split(/[\s,]+/).filter(Boolean).map(t => t.startsWith('#') ? t : '#'+t),
               });
             });
             localStorage.setItem(K_INFO_TEC, JSON.stringify(existing));
