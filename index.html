@@ -4728,13 +4728,38 @@ function _clPrioridad(p) {
   return `<span class="cl-badge norm">—</span>`;
 }
 
+function _clRutaCompletadas() {
+  // Cache de claves cliente+código de las paradas completadas en la ruta
+  try {
+    const ruta = loadArr(K_RUTA).filter(r => r.estado === 'completada');
+    const set = new Set();
+    ruta.forEach(r => {
+      const cli = String(r.clienteNorm || r.clienteReal || r.cliente || '').toLowerCase().replace(/\s+/g,'').slice(0,12);
+      const cod = String(r.codigo||'').toLowerCase().replace(/[\s.\-]/g,'').replace(/^0+/,'');
+      if (cod) { set.add(cli_key(cli,cod)); }
+    });
+    return set;
+  } catch(e) { return new Set(); }
+}
+function cli_key(cli, cod) { return cli + '|' + cod; }
+
+let _clRutaFinCache = null;
 function _esFin(p) {
   const e = String(p.estado||'').toLowerCase();
-  return p.finalizado === true || ['completado','completada','cerrado','finalizado','hecho'].includes(e);
+  if (p.finalizado === true || ['completado','completada','cerrado','finalizado','hecho'].includes(e)) return true;
+  // Cruce con la ruta: ¿tiene una parada completada con el mismo cliente+código?
+  if (_clRutaFinCache === null) _clRutaFinCache = _clRutaCompletadas();
+  const cli = String(p.clienteNorm || p.clienteReal || p.cliente || '').toLowerCase().replace(/\s+/g,'').slice(0,12);
+  const cod = String(p.codigo||'').toLowerCase().replace(/[\s.\-]/g,'').replace(/^0+/,'');
+  if (!cod) return false;
+  // probar variantes de código (corto/largo)
+  const vars = (typeof codigoVariantes === 'function') ? codigoVariantes(cod) : [cod];
+  return vars.some(v => _clRutaFinCache.has(cli_key(cli, v)));
 }
 
 function claudeGenerarResumenTabla(criterio) {
   _clCriterio = criterio || 'original';
+  _clRutaFinCache = null; // recalcular finalizados desde la ruta en cada render
   const todos  = cargarPartes();
   const partes = _clOrdenar(todos, _clCriterio);
   if (!partes.length) return `<div class="cl-assist-body"><p>No hay partes ahora mismo. Pega unos cuantos y te los organizo.</p></div>`;
@@ -13182,9 +13207,15 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 .cl-input-foot { text-align:center; font-size:11px; color:#a29e94; padding:0 4px; }
 
+/* Hero saludo estilo Claude (estado vacío) */
+.cl-hero { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:55vh; text-align:center; padding:20px; }
+.cl-hero-star { margin-bottom:16px; }
+.cl-hero-txt { font-family:Georgia,'Times New Roman',serif; font-size:26px; color:#3d3d3a; letter-spacing:-.3px; }
+
 /* Burbujas estilo Claude: asistente sin burbuja, avatar = estrella */
 #pyc-overlay.mode-chat .pyc-msg.ai { align-items:flex-start; }
 #pyc-overlay.mode-chat .pyc-msg.ai .pyc-avatar { display:none; }
+#pyc-overlay.mode-chat .pyc-msg.user .pyc-avatar { display:none; }
 #pyc-overlay.mode-chat .pyc-msg.ai .pyc-bubble { font-size:15px; line-height:1.6; }
 #pyc-overlay.mode-chat .pyc-msg.user .pyc-avatar { width:26px; height:26px; }
 
@@ -13825,9 +13856,39 @@ function pycMsgUser(txt) {
   iramGuardarHistorial();
 }
 
+function _clSaludoHora() {
+  const h = new Date().getHours();
+  const nombre = 'Jes';
+  let base;
+  if (h < 6)       base = ['Aún de madrugada', 'Buenas noches'];
+  else if (h < 12) base = ['Buenos días', 'Buen día'];
+  else if (h < 14) base = ['Buenas', 'Buenos días'];
+  else if (h < 20) base = ['Buenas tardes', 'Buena tarde'];
+  else             base = ['Buenas noches', 'Buenas'];
+  let s = base[Math.floor(Math.random() * base.length)];
+  if ((h === 10 || h === 11 || h === 17) && Math.random() < 0.45) s = '¿Hora del café?';
+  return `${s}, ${nombre}`;
+}
+
 function pycRenderMsgs() {
   const el = document.getElementById('pyc-msgs');
   if (!el) return;
+
+  // Estado vacío → hero estilo Claude
+  const visibles = _pycHist.filter(m => !m.thinking);
+  if (!visibles.length) {
+    el.innerHTML = `<div class="cl-hero">
+      <svg class="cl-hero-star" width="52" height="52" viewBox="0 0 24 24" fill="#d97757">
+        <path d="M12 2 L13.4 8.5 L12 15 L10.6 8.5 Z"/><path d="M12 22 L10.6 15.5 L12 9 L13.4 15.5 Z"/>
+        <path d="M2 12 L8.5 10.6 L15 12 L8.5 13.4 Z"/><path d="M22 12 L15.5 13.4 L9 12 L15.5 10.6 Z"/>
+        <path d="M4.9 4.9 L9.9 8.6 L12 12 L8.6 9.9 Z"/><path d="M19.1 19.1 L14.1 15.4 L12 12 L15.4 14.1 Z"/>
+        <path d="M19.1 4.9 L15.4 9.9 L12 12 L14.1 8.6 Z"/><path d="M4.9 19.1 L8.6 14.1 L12 12 L9.9 15.4 Z"/>
+      </svg>
+      <div class="cl-hero-txt">${escH(_clSaludoHora())}</div>
+    </div>`;
+    return;
+  }
+
   el.innerHTML = _pycHist.map((m, idx) => {
     const cls = m.role === 'user' ? 'user' : 'ai';
     let av = m.role === 'user' ? '👤' : '✦';
@@ -14031,9 +14092,7 @@ function iramNuevaConversacion() {
   if (cargarPartes().length) {
     pycMsgIAHtml(claudeGenerarResumenTabla('original'));
   } else {
-    _pycHist.push({ role:'model', ia:'local', noVoz:true, esTabla:true,
-      text:`<div class="cl-assist-body"><p>Hola 👋 ¿En qué te ayudo? Pega los partes o pregúntame lo que necesites.</p></div>` });
-    pycRenderMsgs();
+    pycRenderMsgs(); // hero vacío estilo Claude
   }
   iramCerrarDrawer();
 }
@@ -14134,9 +14193,7 @@ function pycAbrirChat() {
     if (cargarPartes().length) {
       pycMsgIAHtml(claudeGenerarResumenTabla('original'));
     } else {
-      _pycHist.push({ role:'model', ia:'local', noVoz:true, esTabla:true,
-        text:`<div class="cl-assist-body"><p>Hola 👋 Pega aquí los partes de trabajo y te preparo un resumen y una tabla.</p><p>También puedo ayudarte con lo de siempre: <em>“dime los avisos de Requena”</em>, <em>“crea una tarea…”</em>, <em>“llévame al Cajamar de…”</em>.</p></div>` });
-      pycRenderMsgs();
+      pycRenderMsgs(); // hero vacío estilo Claude
     }
   }
   setTimeout(() => document.getElementById('pyc-ta')?.focus(), 350);
@@ -14295,6 +14352,7 @@ async function pycEnviar() {
     if (!parseados) {
       pycMsgIAHtml('<div class="cl-assist-body"><p>No he reconocido ningún parte en ese texto. Pega el bloque completo tal cual lo copias.</p></div>');
     } else {
+      _clRutaFinCache = null;
       const totalFin = cargarPartes().filter(p => _esFin(p)).length;
       let intro = `<p>He procesado <strong>${nuevos} parte${nuevos!==1?'s':''} nuevo${nuevos!==1?'s':''}</strong>`;
       const extras = [];
@@ -15011,6 +15069,39 @@ function iramClasificar(txt) {
 /* ══════════════════════════════════════════════════════
    IRAM EJECUTAR ACCIÓN
    ══════════════════════════════════════════════════════ */
+/* Limpia el texto del trabajo (quita prefijos de dirección/ruido y recorta) */
+function _iramLimpiaTrab(t) {
+  t = String(t || '').replace(/\s+/g, ' ').trim();
+  t = t.replace(/^[,;:.\-\s]+/, '').trim();
+  // quita "Km. 297 - Requena - Valencia/València161809139" al inicio
+  t = t.replace(/^Km\.?\s*[\d.,]+\s*-[^A-ZÁÉÍÓÚ]*/i, '').trim();
+  t = t.replace(/^[,;:.\-\s]+/, '').trim();
+  return t;
+}
+
+/* Formato natural: resumen (por cliente + urgentes) + listado limpio */
+function _iramResumenListado(partes, zona) {
+  const n = partes.length;
+  const porCli = {};
+  partes.forEach(a => { const c = a.clienteReal || a.clienteNorm || a.cliente || '—'; porCli[c] = (porCli[c] || 0) + 1; });
+  const urg = partes.filter(a => a.urgente);
+  let head = zona ? `En ${zona} tienes ${n} aviso${n !== 1 ? 's' : ''}.` : `Tienes ${n} aviso${n !== 1 ? 's' : ''}.`;
+  if (Object.keys(porCli).length > 1) {
+    const cli = Object.entries(porCli).sort((a, b) => b[1] - a[1]).map(([c, x]) => `${c} (${x})`).join(', ');
+    head += ` ${cli}.`;
+  }
+  if (urg.length) head += ` 🚨 ${urg.length} urgente${urg.length !== 1 ? 's' : ''}.`;
+  const lista = partes.map(a => {
+    const c = a.clienteReal || a.clienteNorm || a.cliente || '—';
+    const cod = a.codigo ? ` · ${a.codigo}` : '';
+    const loc = a.localidad ? ` · ${a.localidad}` : '';
+    const tr = _iramLimpiaTrab(a.trabajo || a.descripcion || '');
+    const trCorto = tr ? ` — ${tr.slice(0, 60)}${tr.length > 60 ? '…' : ''}` : '';
+    return `• ${c}${cod}${loc}${trCorto}`;
+  }).join('\n');
+  return `${head}\n\n${lista}`;
+}
+
 async function iramEjecutarAccion(cl) {
   const hoy    = new Date();
   const hoyISO = hoy.toISOString().slice(0,10);
@@ -15272,14 +15363,15 @@ async function iramEjecutarAccion(cl) {
   if (cl.intento === 'URGENTES_TRABAJO') {
     const analisis = (() => { try { return JSON.parse(localStorage.getItem(K_ANALISIS)||'[]'); } catch{return[];} })();
     const urg = analisis.filter(a=>a.urgente&&a.estado!=='completado'&&a.estado!=='cerrado');
-    if (!urg.length) return 'No hay avisos urgentes en análisis.';
+    if (!urg.length) return 'Ninguna urgencia ahora mismo 👍';
     const lista = urg.map(a => {
-      const cli  = a.clienteReal||a.clienteNorm||a.cliente||'?';
-      const loc  = a.localidad||'';
-      const trab = (a.trabajo||a.descripcion||a.aviso||'').slice(0,90);
-      return `🚨 ${cli} · ${loc}: ${trab}`;
+      const cli  = a.clienteReal||a.clienteNorm||a.cliente||'—';
+      const cod  = a.codigo?` · ${a.codigo}`:'';
+      const loc  = a.localidad?` · ${a.localidad}`:'';
+      const trab = _iramLimpiaTrab(a.trabajo||a.descripcion||a.aviso||'');
+      return `🚨 ${cli}${cod}${loc}${trab?` — ${trab.slice(0,70)}${trab.length>70?'…':''}`:''}`;
     }).join('\n');
-    return `${urg.length} urgente${urg.length>1?'s':''}:\n${lista}`;
+    return `Tienes ${urg.length} aviso${urg.length>1?'s':''} urgente${urg.length>1?'s':''}:\n\n${lista}`;
   }
 
   /* ── RESUMEN DÍA ── */
@@ -15400,9 +15492,11 @@ async function iramEjecutarAccion(cl) {
     const tareas = loadArr(K_TAREAS); // K_TAREAS — solo tareas personales
     const tPend  = tareas.filter(t => t.estado === 'pendiente');
     const tHoy   = tPend.filter(t => t.fecha === hoyISO);
-    if (!tPend.length) return 'No tienes tareas pendientes.';
-    const lista = tPend.map(t => `- ${t.titulo}${t.fecha?' ('+t.fecha+')':''}`).join('\n');
-    return `${tPend.length} tarea${tPend.length>1?'s':''} pendiente${tPend.length>1?'s':''}${tHoy.length?' · '+tHoy.length+' para hoy':''}:\n${lista}`;
+    if (!tPend.length) return 'No tienes tareas pendientes 👍';
+    const lista = tPend.map(t => `• ${t.titulo}${t.fecha?` (${t.fecha})`:''}`).join('\n');
+    let cab = `Tienes ${tPend.length} tarea${tPend.length>1?'s':''} pendiente${tPend.length>1?'s':''}`;
+    cab += tHoy.length ? `, ${tHoy.length} para hoy:` : ':';
+    return `${cab}\n\n${lista}`;
   }
 
   /* ── MTO SEMANA ── */
@@ -16433,10 +16527,9 @@ async function iramEjecutarAccion(cl) {
           const f = filtrados[0];
           _iramOficinaActiva = { cliente:f.clienteReal||f.clienteNorm||f.cliente||'', codigo:f.codigo||'', localidad:f.localidad||'', direccion:f.direccion||'', horario:f.horarioTxt||'' };
         }
-        const lista = filtrados.map((a,i)=>`${i+1}. ${a.clienteReal||a.clienteNorm||a.cliente} · ${a.localidad||'?'}: ${(a.trabajo||a.descripcion||'').slice(0,60)}`).join('\n');
-        return `En ${por} hay ${filtrados.length}:\n${lista}`;
+        return _iramResumenListado(filtrados, por);
       }
-      return `En "${por}" no hay partes pendientes.`;
+      return `En ${por} no tienes ningún aviso pendiente ahora mismo.`;
     }
 
     if (!pend.length) return 'No hay partes cargados. Todo al día ✅';
@@ -16461,34 +16554,29 @@ async function iramEjecutarAccion(cl) {
     const rutaPend = ruta.filter(r => r.estado==='pendiente');
     const rutaHech = ruta.filter(r => r.estado==='completada');
 
-    if (!anPend.length && !ruta.length) return '📊 No hay avisos cargados hoy.';
+    if (!anPend.length && !ruta.length) return 'Ahora mismo no tienes avisos cargados. Pega los partes cuando los tengas.';
 
     // Si no hay ruta pero sí análisis → mostrar análisis directamente
     if (!ruta.length && anPend.length) {
-      const porCliente = {};
-      anPend.forEach(a => { const c=a.clienteReal||a.clienteNorm||a.cliente||'?'; if(!porCliente[c])porCliente[c]=0; porCliente[c]++; });
-      const urgentes = anPend.filter(a=>a.urgente);
-      let r = `📊 Hoy tienes ${anPend.length} aviso${anPend.length!==1?'s':''} en análisis.\n`;
-      r += Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,n])=>`${c} ${n}`).join(' · ');
-      if (urgentes.length) r+=`\n🚨 Urgente${urgentes.length>1?'s':''}: ${urgentes.map(a=>`${a.clienteReal||a.cliente} ${a.localidad||''}`).join(', ')}`;
-      return r;
+      return _iramResumenListado(anPend, '');
     }
 
     let resp = '';
     if (rutaPend.length === 0 && ruta.length > 0) {
-      resp = `📍 Ruta completada ✅ Buen trabajo.`;
+      resp = `Ruta completada 🎉 Buen trabajo.`;
     } else if (rutaPend.length > 0) {
-      resp = `📍 ${rutaPend.length} aviso${rutaPend.length!==1?'s':''} pendiente${rutaPend.length!==1?'s':''}${rutaHech.length?' · '+rutaHech.length+' hecho'+(rutaHech.length!==1?'s':''):''}:\n`;
-      resp += rutaPend.map((p,i) => {
-        const cli  = p.clienteReal||p.clienteNorm||p.cliente||'?';
-        const loc  = p.localidad||'';
-        const trab = (p.trabajo||p.descripcion||'').slice(0,70);
-        return `${i+1}. ${cli}${loc?' · '+loc:''}: ${trab}`;
+      resp = `Te quedan ${rutaPend.length} parada${rutaPend.length!==1?'s':''} en ruta${rutaHech.length?` (${rutaHech.length} ya hecha${rutaHech.length!==1?'s':''})`:''}:\n`;
+      resp += rutaPend.map((p) => {
+        const cli  = p.clienteReal||p.clienteNorm||p.cliente||'—';
+        const cod  = p.codigo?` · ${p.codigo}`:'';
+        const loc  = p.localidad?` · ${p.localidad}`:'';
+        const trab = _iramLimpiaTrab(p.trabajo||p.descripcion||'');
+        return `• ${cli}${cod}${loc}${trab?` — ${trab.slice(0,60)}${trab.length>60?'…':''}`:''}`;
       }).join('\n');
     }
     if (anPend.length) {
       const urgentes = anPend.filter(a=>a.urgente);
-      resp += `${resp?'\n':''}📊 Análisis: ${anPend.length} aviso${anPend.length!==1?'s':''}${urgentes.length?' · 🚨 '+urgentes.length+' urgente'+(urgentes.length!==1?'s':''):''}`;
+      resp += `${resp?'\n\n':''}Y en análisis hay ${anPend.length} aviso${anPend.length!==1?'s':''}${urgentes.length?`, ${urgentes.length} urgente${urgentes.length!==1?'s':''}`:''}.`;
     }
     return resp.trim();
   }
