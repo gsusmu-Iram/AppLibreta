@@ -2575,13 +2575,6 @@ body { font-size: 14px; }
         <div class="mod-title">Análisis</div>
         <div class="mod-sub">Pega los partes · yo hago el resto</div>
       </div>
-      <button onclick="pycAbrirChat()" title="Ver como chat"
-        style="background:#fff;border:1px solid rgba(26,39,68,.12);border-radius:12px;padding:8px 12px;
-               font-size:13px;font-weight:600;color:#3d3d3a;cursor:pointer;display:flex;align-items:center;
-               gap:6px;box-shadow:0 1px 3px rgba(0,0,0,.05);-webkit-tap-highlight-color:transparent">
-        <span style="width:16px;height:16px;border-radius:50%;background:#d97757;display:inline-block;flex-shrink:0"></span>
-        Chat
-      </button>
       </div>
 
     <div class="paste-zone">
@@ -4718,8 +4711,12 @@ function _clOrdenar(partes, criterio) {
     arr.sort((a,b) => (a.urgente===b.urgente ? horas(a)-horas(b) : (a.urgente?-1:1)));
   } else if (criterio === 'fijados') {
     arr.sort((a,b) => (a.fijado===b.fijado ? 0 : (a.fijado?-1:1)));
+  } else if (criterio === 'cliente') {
+    arr.sort((a,b) => (a.clienteReal||a.clienteNorm||'zzz').localeCompare(b.clienteReal||b.clienteNorm||'zzz','es'));
   }
-  return arr; // 'original' → tal cual
+  // Finalizados siempre al final
+  arr.sort((a,b) => (_esFin(a)===_esFin(b) ? 0 : (_esFin(a)?1:-1)));
+  return arr;
 }
 
 function _clPrioridad(p) {
@@ -4731,18 +4728,27 @@ function _clPrioridad(p) {
   return `<span class="cl-badge norm">—</span>`;
 }
 
+function _esFin(p) {
+  const e = String(p.estado||'').toLowerCase();
+  return p.finalizado === true || ['completado','completada','cerrado','finalizado','hecho'].includes(e);
+}
+
 function claudeGenerarResumenTabla(criterio) {
   _clCriterio = criterio || 'original';
-  const partes = _clOrdenar(_clPartesActivos(), _clCriterio);
-  if (!partes.length) return `<div class="cl-assist-body"><p>No hay partes activos ahora mismo. Pega unos cuantos y te los organizo.</p></div>`;
+  const todos  = cargarPartes();
+  const partes = _clOrdenar(todos, _clCriterio);
+  if (!partes.length) return `<div class="cl-assist-body"><p>No hay partes ahora mismo. Pega unos cuantos y te los organizo.</p></div>`;
+
+  const activos = partes.filter(p => !_esFin(p));
+  const fins    = partes.filter(p => _esFin(p));
 
   const grupos = {};
-  partes.forEach(p => { const k = p.clienteReal || p.clienteNorm || '—'; (grupos[k] = grupos[k] || []).push(p); });
+  activos.forEach(p => { const k = p.clienteReal || p.clienteNorm || '—'; (grupos[k] = grupos[k] || []).push(p); });
   const nombresOrden = Object.keys(grupos).sort((a,b) => grupos[b].length - grupos[a].length);
-  const totalUrg = partes.filter(p=>p.urgente).length;
-  const totalFij = partes.filter(p=>p.fijado).length;
+  const totalUrg = activos.filter(p=>p.urgente).length;
+  const totalFij = activos.filter(p=>p.fijado).length;
 
-  let resumen = `<h3>Resumen de ${partes.length} parte${partes.length!==1?'s':''}</h3><ul>`;
+  let resumen = `<h3>Resumen de ${activos.length} parte${activos.length!==1?'s':''} activo${activos.length!==1?'s':''}${fins.length?` · ${fins.length} finalizado${fins.length!==1?'s':''}`:''}</h3><ul>`;
   nombresOrden.forEach(nom => {
     const g = grupos[nom];
     const locs = [...new Set(g.map(p=>p.localidad).filter(Boolean))];
@@ -4760,29 +4766,33 @@ function claudeGenerarResumenTabla(criterio) {
     resumen += `<p style="color:#6b6b68;font-size:14px">Prioridad: ${bits.join(' · ')}.</p>`;
   }
 
-  const etiqOrden = { original:'orden de llegada', localidad:'localidad', urgentes:'urgencia', fijados:'fijados primero' };
+  const etiqOrden = { original:'orden de llegada', localidad:'localidad', urgentes:'urgencia', fijados:'fijados primero', cliente:'cliente' };
   let tabla = `<div class="cl-table-wrap"><table class="cl-table"><thead><tr>
     <th>Fecha</th><th>Cliente</th><th>Código</th><th>Localidad</th><th>Sistema</th><th>Trabajo</th><th>Prioridad</th>
   </tr></thead><tbody>`;
   partes.forEach(p => {
+    const fin = _esFin(p);
     const trab = (p.descripcion || p.aviso || '').replace(/\s+/g,' ').trim();
     const trabCorto = trab.length > 90 ? trab.slice(0,90) + '…' : trab;
-    tabla += `<tr>
+    const prio = fin ? `<span class="cl-badge fin">✓ Hecho</span>` : _clPrioridad(p);
+    tabla += `<tr class="${fin?'cl-row-fin':''}">
       <td style="white-space:nowrap">${escH(p.fecha||'—')}</td>
       <td>${escH(p.clienteReal||p.clienteNorm||'—')}</td>
       <td style="white-space:nowrap">${escH(p.codigo||'—')}</td>
       <td>${escH(p.localidad||'—')}</td>
       <td style="white-space:nowrap">${escH(p.sistema||'SEG')}</td>
       <td class="cl-trab">${escH(trabCorto||'—')}</td>
-      <td>${_clPrioridad(p)}</td>
+      <td>${prio}</td>
     </tr>`;
   });
   tabla += `</tbody></table></div>`;
 
-  const chips = `<div class="cl-chips">
-    <div class="cl-chip" onclick="claudeReordenar('localidad')">Ordenar por localidad</div>
-    <div class="cl-chip" onclick="claudeReordenar('urgentes')">Ordenar por urgentes</div>
-    <div class="cl-chip" onclick="claudeReordenar('fijados')">Ordenar por fijados</div>
+  const chips = `<p style="color:#6b6b68;font-size:13px;margin:8px 0 4px">¿Quieres que la ordene de otra forma?</p>
+  <div class="cl-chips">
+    <div class="cl-chip" onclick="claudeReordenar('cliente')">Por cliente</div>
+    <div class="cl-chip" onclick="claudeReordenar('localidad')">Por localidad</div>
+    <div class="cl-chip" onclick="claudeReordenar('urgentes')">Por urgentes</div>
+    <div class="cl-chip" onclick="claudeReordenar('fijados')">Por fijados</div>
     <div class="cl-chip" onclick="claudeReordenar('original')">Orden original</div>
   </div>`;
 
@@ -4800,7 +4810,7 @@ function pycMsgIAHtml(html) {
 }
 
 function claudeReordenar(criterio) {
-  const etiq = { localidad:'por localidad', urgentes:'por urgentes', fijados:'por fijados', original:'en el orden original' };
+  const etiq = { localidad:'por localidad', urgentes:'por urgentes', fijados:'por fijados', original:'en el orden original', cliente:'por cliente' };
   pycMsgUser(`Ordena ${etiq[criterio] || ''}`.trim());
   pycMsgIAHtml(claudeGenerarResumenTabla(criterio));
 }
@@ -4809,7 +4819,7 @@ function claudeReordenar(criterio) {
 function claudeRefrescarSiAbierto() {
   const ov = document.getElementById('pyc-overlay');
   const chatActivo = document.getElementById('iram-chat')?.classList.contains('active');
-  if (ov && ov.classList.contains('open') && chatActivo && _clPartesActivos().length) {
+  if (ov && ov.classList.contains("open") && chatActivo && cargarPartes().length) {
     pycMsgIAHtml(claudeGenerarResumenTabla('original'));
   }
 }
@@ -4822,6 +4832,7 @@ function _clComandoOrden(txt) {
   const t = txt.toLowerCase();
   if (!/orden|ordena|reordena/.test(t) && !/como estaban|original/.test(t)) return null;
   if (/localidad|poblaci|ruta|ciudad|pueblo/.test(t)) return 'localidad';
+  if (/client|entidad/.test(t)) return 'cliente';
   if (/urgent/.test(t)) return 'urgentes';
   if (/fijad/.test(t)) return 'fijados';
   if (/original|como estaban|llegada|reinicia/.test(t)) return 'original';
@@ -8080,6 +8091,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
     }
+    const renameOpen = document.getElementById('cl-rename-overlay')?.classList.contains('open');
+    if (renameOpen) { iramCerrarRenombrar(); history.pushState(null, '', location.href); return; }
+    if (_clDrawerAbierto) { iramCerrarDrawer(); history.pushState(null, '', location.href); return; }
+
     const iramOpen = document.getElementById('iram-overlay')?.classList.contains('open');
     if (iramOpen) { pycCerrarChat(); history.pushState(null, '', location.href); return; }
 
@@ -12748,10 +12763,10 @@ document.addEventListener('DOMContentLoaded', () => {
 <style>
 /* ── Botón chat en header ── */
 .hdr-chat-btn {
-  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
-  border-radius: 10px; width: 36px; height: 36px;
+  background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.3);
+  border-radius: 13px; width: 48px; height: 48px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 17px; cursor: pointer; flex-shrink: 0;
+  font-size: 24px; cursor: pointer; flex-shrink: 0;
   -webkit-tap-highlight-color: transparent; transition: all .15s;
 }
 .hdr-chat-btn:active { background: rgba(255,255,255,.25); transform: scale(.93); }
@@ -13107,6 +13122,9 @@ document.addEventListener('DOMContentLoaded', () => {
 .cl-badge.urg { background:#fbe4e0; color:#c0392b; }
 .cl-badge.fij { background:#e8e2f5; color:#6c4bb5; }
 .cl-badge.norm { background:#ececec; color:#6b6b68; }
+.cl-badge.fin { background:#dcede0; color:#2e7d4f; }
+.cl-row-fin td { color:#a29e94; text-decoration:line-through; text-decoration-color:rgba(0,0,0,.25); }
+.cl-row-fin td:last-child { text-decoration:none; }
 .cl-chips { display:flex; flex-wrap:wrap; gap:7px; margin:4px 0 2px; }
 .cl-chip { background:#fff; border:1px solid rgba(0,0,0,.15); border-radius:20px; padding:6px 13px; font-size:13px; color:#3d3d3a; cursor:pointer; -webkit-tap-highlight-color:transparent; }
 .cl-chip:active { background:#ece9e0; }
@@ -13132,6 +13150,108 @@ document.addEventListener('DOMContentLoaded', () => {
 #pyc-overlay.mode-chat .iram-nav-btn.active { color:#3d3d3a; background:rgba(0,0,0,.04); }
 #pyc-overlay.mode-chat .cl-assist-body { color:#3d3d3a; font-size:15px; line-height:1.6; }
 #pyc-overlay.mode-chat .cl-assist-body p { margin:0 0 10px; }
+
+/* Barra de entrada estilo Claude */
+#pyc-overlay.mode-chat .iram-input-area { flex-direction:column; gap:6px; padding:8px 12px 12px; }
+.cl-input-pill {
+  display:flex; align-items:flex-end; gap:6px; width:100%;
+  background:#fff; border:1px solid rgba(0,0,0,.12); border-radius:26px;
+  padding:6px 6px 6px 8px; box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+.cl-input-plus {
+  flex-shrink:0; width:38px; height:38px; border-radius:50%; border:1px solid rgba(0,0,0,.1);
+  background:#faf9f5; color:#6b6b68; font-size:22px; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;
+}
+.cl-input-plus:active { background:#efece4; }
+#pyc-overlay.mode-chat .iram-textarea {
+  flex:1; background:transparent; border:none; color:#3d3d3a; border-radius:0;
+  padding:9px 4px; max-height:130px; font-size:15px;
+}
+#pyc-overlay.mode-chat .iram-textarea:focus { border:none; box-shadow:none; outline:none; }
+.cl-input-mic {
+  flex-shrink:0; width:38px; height:38px; border-radius:50%; border:none;
+  background:transparent; color:#8a8781; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;
+}
+.cl-input-mic.listening { color:#d97757; background:rgba(217,119,87,.12); }
+.cl-input-send {
+  flex-shrink:0; width:38px; height:38px; border-radius:50%;
+  background:#d97757 !important; color:#fff; font-size:19px; border:none; box-shadow:none;
+  display:flex; align-items:center; justify-content:center;
+}
+.cl-input-foot { text-align:center; font-size:11px; color:#a29e94; padding:0 4px; }
+
+/* Burbujas estilo Claude: asistente sin burbuja, avatar = estrella */
+#pyc-overlay.mode-chat .pyc-msg.ai { align-items:flex-start; }
+#pyc-overlay.mode-chat .pyc-msg.ai .pyc-avatar { display:none; }
+#pyc-overlay.mode-chat .pyc-msg.ai .pyc-bubble { font-size:15px; line-height:1.6; }
+#pyc-overlay.mode-chat .pyc-msg.user .pyc-avatar { width:26px; height:26px; }
+
+/* Conducción en cabecera + ocultar barra inferior en modo texto */
+.cl-hdr-drive {
+  background:transparent; border:1px solid rgba(0,0,0,.12); border-radius:10px;
+  width:38px; height:38px; color:#6b6b68; cursor:pointer; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent;
+}
+.cl-hdr-drive:active { background:rgba(0,0,0,.04); }
+#pyc-overlay.mode-chat .iram-nav { display:none; }
+
+/* ── Panel lateral de chats ── */
+#cl-drawer-backdrop {
+  position:absolute; inset:0; background:rgba(0,0,0,.35); z-index:60;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+#cl-drawer-backdrop.open { opacity:1; pointer-events:auto; }
+#cl-drawer {
+  position:absolute; top:0; left:0; bottom:0; width:82%; max-width:340px; z-index:61;
+  background:#f5f3ec; transform:translateX(-105%); transition:transform .25s cubic-bezier(.4,0,.2,1);
+  display:flex; flex-direction:column; padding:12px 10px; box-shadow:2px 0 20px rgba(0,0,0,.15);
+}
+#cl-drawer.open { transform:translateX(0); }
+.cl-drawer-top { display:flex; align-items:center; justify-content:space-between; padding:6px 8px 10px; }
+.cl-drawer-brand { display:flex; align-items:center; gap:8px; font-size:17px; font-weight:600; color:#3d3d3a; }
+.cl-drawer-x { background:none; border:none; font-size:20px; color:#6b6b68; cursor:pointer; padding:4px 8px; }
+.cl-drawer-item {
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  background:none; border:none; padding:11px 12px; border-radius:10px; cursor:pointer;
+  font-size:15px; color:#3d3d3a; -webkit-tap-highlight-color:transparent;
+}
+.cl-drawer-item:active { background:rgba(0,0,0,.05); }
+.cl-drawer-sep { height:1px; background:rgba(0,0,0,.08); margin:8px 6px; }
+.cl-drawer-lbl { font-size:12px; color:#9a978d; padding:4px 12px; font-weight:600; }
+.cl-drawer-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.cl-conv {
+  display:flex; align-items:center; gap:6px; padding:10px 12px; border-radius:10px; cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.cl-conv:active { background:rgba(0,0,0,.05); }
+.cl-conv.act { background:rgba(217,119,87,.12); }
+.cl-conv-title { flex:1; font-size:14.5px; color:#3d3d3a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cl-conv-menu { background:none; border:none; color:#9a978d; font-size:17px; cursor:pointer; padding:2px 6px; border-radius:6px; flex-shrink:0; }
+.cl-conv-menu:active { background:rgba(0,0,0,.08); }
+.cl-drawer-new {
+  margin-top:8px; background:#2b2a27; color:#fff; border:none; border-radius:22px;
+  padding:13px; font-size:15px; font-weight:600; cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+.cl-drawer-new:active { background:#1c1b19; }
+
+/* Modal renombrar */
+#cl-rename-overlay {
+  position:absolute; inset:0; z-index:70; background:rgba(0,0,0,.4);
+  display:none; align-items:center; justify-content:center; padding:24px;
+}
+#cl-rename-overlay.open { display:flex; }
+.cl-rename-box { background:#faf9f5; border-radius:16px; padding:18px; width:100%; max-width:340px; }
+.cl-rename-title { font-size:16px; font-weight:700; color:#3d3d3a; margin-bottom:12px; }
+.cl-rename-input {
+  width:100%; border:1px solid rgba(0,0,0,.15); border-radius:10px; padding:11px 12px;
+  font-size:15px; color:#3d3d3a; background:#fff; outline:none; box-sizing:border-box;
+}
+.cl-rename-input:focus { border-color:#d97757; }
+.cl-rename-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:14px; }
+.cl-rename-cancel { background:none; border:none; color:#6b6b68; font-size:15px; padding:9px 14px; cursor:pointer; border-radius:10px; }
+.cl-rename-ok { background:#d97757; color:#fff; border:none; font-size:15px; font-weight:600; padding:9px 18px; border-radius:10px; cursor:pointer; }
 </style>
 
 <!-- IRAM pantalla completa -->
@@ -13148,6 +13268,9 @@ document.addEventListener('DOMContentLoaded', () => {
     <!-- Header -->
     <div class="iram-hdr cl-hdr-disguise">
       <div class="iram-hdr-top">
+        <button class="cl-hdr-drive" onclick="iramAbrirDrawer()" title="Menú">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        </button>
         <div class="iram-hdr-center" style="display:flex;align-items:center;justify-content:center;gap:8px">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="#d97757"><path d="M12 1.5l2.6 6.3 6.3 2.6-6.3 2.6L12 22.5l-2.6-6.3L3.1 13l6.3-2.6L12 1.5z"/></svg>
           <div class="iram-hdr-name" style="color:#3d3d3a">Claude</div>
@@ -13165,16 +13288,25 @@ document.addEventListener('DOMContentLoaded', () => {
     <!-- Mensajes -->
     <div class="iram-msgs" id="pyc-msgs"></div>
 
-    <!-- Input -->
+    <!-- Input estilo Claude -->
     <div class="iram-input-area">
-      <button onclick="iramLimpiarChat()" title="Limpiar chat" style="background:none;border:none;font-size:18px;cursor:pointer;padding:6px 8px;opacity:.5;flex-shrink:0;color:var(--ink-mid)" title="Limpiar">🗑️</button>
-      <textarea class="iram-textarea" id="pyc-ta" rows="1"
-        placeholder="Escribe o pulsa el micrófono…"
-        oninput="pycAutoResize(this)"
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();pycEnviar()}"
-      ></textarea>
-      
-      <button class="pyc-send" id="pyc-send" onclick="pycEnviar()">➤</button>
+      <div class="cl-input-pill">
+        <button class="cl-input-plus" onclick="iramLimpiarChat()" title="Nuevo / limpiar">+</button>
+        <textarea class="iram-textarea" id="pyc-ta" rows="1"
+          placeholder="Escribe a Claude…"
+          oninput="pycAutoResize(this)"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();pycEnviar()}"
+        ></textarea>
+        <button class="cl-input-mic" id="iram-mic-inline" onclick="pycToggleVoz()" title="Dictar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="pyc-send cl-input-send" id="pyc-send" onclick="pycEnviar()" title="Enviar">↑</button>
+      </div>
+      <div class="cl-input-foot">Claude es IA y puede cometer errores. Comprueba las respuestas.</div>
     </div>
 
   </div>
@@ -13353,6 +13485,35 @@ document.addEventListener('DOMContentLoaded', () => {
   </div><!-- /iram-body -->
 
   <!-- Barra inferior -->
+  <!-- ══ PANEL LATERAL DE CHATS (estilo Claude) ══ -->
+  <div id="cl-drawer-backdrop" onclick="iramCerrarDrawer()"></div>
+  <div id="cl-drawer">
+    <div class="cl-drawer-top">
+      <div class="cl-drawer-brand"><svg width="20" height="20" viewBox="0 0 24 24" fill="#d97757"><path d="M12 1.5l2.6 6.3 6.3 2.6-6.3 2.6L12 22.5l-2.6-6.3L3.1 13l6.3-2.6L12 1.5z"/></svg> Claude</div>
+      <button class="cl-drawer-x" onclick="iramCerrarDrawer()">✕</button>
+    </div>
+    <button class="cl-drawer-item cl-drawer-drive" onclick="iramShowMode('drive');iramCerrarDrawer()">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+      Modo conducción
+    </button>
+    <div class="cl-drawer-sep"></div>
+    <div class="cl-drawer-lbl">Recientes</div>
+    <div class="cl-drawer-list" id="cl-drawer-list"></div>
+    <button class="cl-drawer-new" onclick="iramNuevaConversacion()">+ Nueva conversación</button>
+  </div>
+
+  <!-- Modal renombrar chat -->
+  <div id="cl-rename-overlay" onclick="if(event.target===this)iramCerrarRenombrar()">
+    <div class="cl-rename-box">
+      <div class="cl-rename-title">Renombrar conversación</div>
+      <input id="cl-rename-input" class="cl-rename-input" type="text" autocomplete="off" maxlength="60">
+      <div class="cl-rename-actions">
+        <button class="cl-rename-cancel" onclick="iramCerrarRenombrar()">Cancelar</button>
+        <button class="cl-rename-ok" onclick="iramConfirmarRenombrar()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="iram-nav">
     <button class="iram-nav-btn active" id="iram-btn-chat" onclick="iramShowMode('chat')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -13777,35 +13938,187 @@ function iramRellenarDrive() {
 }
 
 /* ── Abrir / cerrar ── */
-const K_IRAM_CHAT = 'pyc_iram_chat';
+const K_IRAM_CHAT   = 'pyc_iram_chat';    // formato antiguo (una sola conversación)
+const K_IRAM_CHATS  = 'pyc_iram_chats';   // lista de conversaciones
+const K_IRAM_ACT    = 'pyc_iram_chat_act';// id de la conversación activa
+let _clDrawerAbierto = false;
+let _clRenombrarId   = null;
+
+function iramCargarChats() { try { return JSON.parse(localStorage.getItem(K_IRAM_CHATS)||'[]'); } catch { return []; } }
+function iramGuardarChats(a) { try { localStorage.setItem(K_IRAM_CHATS, JSON.stringify(a.slice(0,60))); } catch(e){} }
+function iramActId()   { return localStorage.getItem(K_IRAM_ACT) || ''; }
+function iramSetAct(id){ localStorage.setItem(K_IRAM_ACT, id); }
+
+function _clFechaTitulo() {
+  const d = new Date();
+  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const mes  = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${dias[d.getDay()]} ${d.getDate()} ${mes[d.getMonth()]}`;
+}
+
+function _clTituloDeTexto(txt) {
+  const stop = new Set(['dime','dame','di','que','qué','cual','cuál','cuáles','es','el','la','los','las','un','una','de','del','por','favor','me','mi','y','a','en','para','sobre','como','cómo','tengo','puedes','quiero','hay','con']);
+  let words = (txt||'').toLowerCase().replace(/[^\wáéíóúñü\s]/gi,' ').split(/\s+/).filter(Boolean).filter(w=>!stop.has(w));
+  if (!words.length) words = (txt||'').split(/\s+/).filter(Boolean).slice(0,5);
+  let t = words.slice(0,6).join(' ').trim();
+  if (!t) return 'Chat · ' + _clFechaTitulo();
+  t = t.charAt(0).toUpperCase() + t.slice(1);
+  if (t.length > 42) t = t.slice(0,42).trim() + '…';
+  return t;
+}
 
 function iramCargarHistorial() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(K_IRAM_CHAT) || 'null');
-    if (saved && saved.fecha === new Date().toISOString().slice(0,10)) {
-      _pycHist = saved.hist || [];
-      pycRenderMsgs();
-      return true;
-    }
-  } catch(e) {}
+  // Migración del formato antiguo → primera conversación
+  let chats = iramCargarChats();
+  const old = (() => { try { return JSON.parse(localStorage.getItem(K_IRAM_CHAT)||'null'); } catch { return null; } })();
+  if (old && old.hist && old.hist.length && !chats.length) {
+    const id = 'C_' + Date.now();
+    chats = [{ id, titulo: 'Conversación anterior', fecha: old.fecha || new Date().toISOString().slice(0,10), hist: old.hist, updated: Date.now() }];
+    iramGuardarChats(chats); iramSetAct(id);
+  }
+  if (old) localStorage.removeItem(K_IRAM_CHAT);
+
+  const conv = chats.find(c => c.id === iramActId()) || chats[0];
+  if (conv) {
+    iramSetAct(conv.id);
+    _pycHist = conv.hist || [];
+    pycRenderMsgs();
+    return _pycHist.length > 0;
+  }
   return false;
 }
 
 function iramGuardarHistorial() {
   try {
-    const histLimpio = _pycHist.filter(m=>!m.thinking).slice(-50);
-    localStorage.setItem(K_IRAM_CHAT, JSON.stringify({
-      fecha: new Date().toISOString().slice(0,10),
-      hist: histLimpio
-    }));
+    const histLimpio = _pycHist.filter(m => !m.thinking).slice(-80);
+    let chats = iramCargarChats();
+    let actId = iramActId();
+    let conv  = chats.find(c => c.id === actId);
+    if (!conv) {
+      if (!histLimpio.length) return;
+      actId = 'C_' + Date.now(); iramSetAct(actId);
+      conv = { id: actId, titulo: '', fecha: new Date().toISOString().slice(0,10), hist: [], updated: Date.now() };
+      chats.unshift(conv);
+    }
+    conv.hist = histLimpio; conv.updated = Date.now();
+    if (!conv.titulo) {
+      const firstUser = histLimpio.find(m => m.role === 'user');
+      if (firstUser && firstUser.text) conv.titulo = _clTituloDeTexto(firstUser.text);
+    }
+    iramGuardarChats(chats);
+    if (_clDrawerAbierto) iramRenderRecientes();
   } catch(e) {}
 }
 
-function iramLimpiarChat() {
+// Cuando se pegan partes: forzar título "Partes · Lun 27 jul"
+function iramTituloPartes() {
+  let chats = iramCargarChats();
+  const conv = chats.find(c => c.id === iramActId());
+  if (conv && (!conv.titulo || conv.titulo.startsWith('Partes'))) {
+    conv.titulo = 'Partes · ' + _clFechaTitulo();
+    iramGuardarChats(chats);
+    if (_clDrawerAbierto) iramRenderRecientes();
+  }
+}
+
+function iramNuevaConversacion() {
+  iramGuardarHistorial();
+  const id = 'C_' + Date.now(); iramSetAct(id);
+  let chats = iramCargarChats();
+  chats.unshift({ id, titulo:'', fecha:new Date().toISOString().slice(0,10), hist:[], updated:Date.now() });
+  iramGuardarChats(chats);
   _pycHist = [];
-  localStorage.removeItem(K_IRAM_CHAT);
+  if (cargarPartes().length) {
+    pycMsgIAHtml(claudeGenerarResumenTabla('original'));
+  } else {
+    _pycHist.push({ role:'model', ia:'local', noVoz:true, esTabla:true,
+      text:`<div class="cl-assist-body"><p>Hola 👋 ¿En qué te ayudo? Pega los partes o pregúntame lo que necesites.</p></div>` });
+    pycRenderMsgs();
+  }
+  iramCerrarDrawer();
+}
+
+function iramAbrirConversacion(id) {
+  iramGuardarHistorial();
+  const conv = iramCargarChats().find(c => c.id === id);
+  if (!conv) return;
+  iramSetAct(id);
+  _pycHist = conv.hist || [];
   pycRenderMsgs();
-  pycMsgIA('Chat limpiado. ¿En qué te ayudo?');
+  iramCerrarDrawer();
+}
+
+function iramBorrarChat(id, ev) {
+  if (ev) ev.stopPropagation();
+  let chats = iramCargarChats().filter(c => c.id !== id);
+  iramGuardarChats(chats);
+  if (iramActId() === id) {
+    if (chats.length) { iramSetAct(chats[0].id); _pycHist = chats[0].hist || []; }
+    else { iramSetAct(''); _pycHist = []; }
+    pycRenderMsgs();
+  }
+  iramRenderRecientes();
+}
+
+function iramAbrirDrawer() {
+  iramGuardarHistorial();
+  iramRenderRecientes();
+  _clDrawerAbierto = true;
+  document.getElementById('cl-drawer-backdrop')?.classList.add('open');
+  document.getElementById('cl-drawer')?.classList.add('open');
+}
+function iramCerrarDrawer() {
+  _clDrawerAbierto = false;
+  document.getElementById('cl-drawer-backdrop')?.classList.remove('open');
+  document.getElementById('cl-drawer')?.classList.remove('open');
+}
+
+function iramRenderRecientes() {
+  const el = document.getElementById('cl-drawer-list');
+  if (!el) return;
+  const chats = iramCargarChats().slice().sort((a,b) => (b.updated||0)-(a.updated||0));
+  const actId = iramActId();
+  if (!chats.length) {
+    el.innerHTML = '<div style="padding:12px;color:#9a978d;font-size:13px">Aún no hay conversaciones.</div>';
+    return;
+  }
+  el.innerHTML = chats.map(c => `
+    <div class="cl-conv ${c.id===actId?'act':''}" onclick="iramAbrirConversacion('${c.id}')">
+      <span class="cl-conv-title">${escH(c.titulo || 'Sin título')}</span>
+      <button class="cl-conv-menu" onclick="event.stopPropagation();iramMenuChat('${c.id}')">⋯</button>
+    </div>`).join('');
+}
+
+function iramMenuChat(id) {
+  const conv = iramCargarChats().find(c => c.id === id);
+  if (!conv) return;
+  iramAbrirRenombrar(id, conv.titulo || '');
+}
+
+function iramAbrirRenombrar(id, titulo) {
+  _clRenombrarId = id;
+  const ov = document.getElementById('cl-rename-overlay');
+  const inp = document.getElementById('cl-rename-input');
+  if (inp) inp.value = titulo;
+  ov?.classList.add('open');
+  setTimeout(() => inp?.focus(), 100);
+}
+function iramCerrarRenombrar() {
+  _clRenombrarId = null;
+  document.getElementById('cl-rename-overlay')?.classList.remove('open');
+}
+function iramConfirmarRenombrar() {
+  const nuevo = (document.getElementById('cl-rename-input')?.value || '').trim();
+  if (_clRenombrarId && nuevo) {
+    let chats = iramCargarChats();
+    const conv = chats.find(c => c.id === _clRenombrarId);
+    if (conv) { conv.titulo = nuevo; iramGuardarChats(chats); iramRenderRecientes(); }
+  }
+  iramCerrarRenombrar();
+}
+
+function iramLimpiarChat() {
+  iramNuevaConversacion();
 }
 
 function pycAbrirChat() {
@@ -13818,7 +14131,7 @@ function pycAbrirChat() {
   pycCheckKey();
   const tenia = iramCargarHistorial();
   if (!tenia || !_pycHist.length) {
-    if (_clPartesActivos().length) {
+    if (cargarPartes().length) {
       pycMsgIAHtml(claudeGenerarResumenTabla('original'));
     } else {
       _pycHist.push({ role:'model', ia:'local', noVoz:true, esTabla:true,
@@ -13982,11 +14295,16 @@ async function pycEnviar() {
     if (!parseados) {
       pycMsgIAHtml('<div class="cl-assist-body"><p>No he reconocido ningún parte en ese texto. Pega el bloque completo tal cual lo copias.</p></div>');
     } else {
+      const totalFin = cargarPartes().filter(p => _esFin(p)).length;
       let intro = `<p>He procesado <strong>${nuevos} parte${nuevos!==1?'s':''} nuevo${nuevos!==1?'s':''}</strong>`;
-      if (yaEstaban) intro += ` (${yaEstaban} ya estaba${yaEstaban!==1?'n':''})`;
+      const extras = [];
+      if (yaEstaban) extras.push(`${yaEstaban} ya estaba${yaEstaban!==1?'n':''}`);
+      if (totalFin)  extras.push(`${totalFin} finalizado${totalFin!==1?'s':''}`);
+      if (extras.length) intro += ` · ${extras.join(' · ')}`;
       intro += `.</p>`;
       const html = claudeGenerarResumenTabla('original').replace('<div class="cl-assist-body">', `<div class="cl-assist-body">${intro}`);
       pycMsgIAHtml(html);
+      iramTituloPartes();
     }
     _pycThinking = false; return;
   }
@@ -13995,7 +14313,7 @@ async function pycEnviar() {
 
   // ── Comando de reordenación de la tabla ──
   const _critOrden = _clComandoOrden(txt);
-  if (_critOrden && _clPartesActivos().length) {
+  if (_critOrden && cargarPartes().length) {
     pycMsgIAHtml(claudeGenerarResumenTabla(_critOrden));
     _pycThinking = false; return;
   }
@@ -16499,6 +16817,8 @@ function pycToggleVoz() {
     // Botón micrófono — visual activo
     const mic = document.getElementById('iram-nav-mic');
     if (mic) mic.classList.add('active','listening');
+    const micInline = document.getElementById('iram-mic-inline');
+    if (micInline) micInline.classList.add('listening');
   };
 
   _pycRecognition.onresult = e => {
@@ -16527,6 +16847,8 @@ function pycPararVoz() {
   if (_pycRecognition) { try { _pycRecognition.stop(); } catch(e){} _pycRecognition = null; }
   const mic = document.getElementById('iram-nav-mic');
   if (mic) mic.classList.remove('active','listening');
+  const micInline = document.getElementById('iram-mic-inline');
+  if (micInline) micInline.classList.remove('listening');
   const vs = document.getElementById('iram-voice-status');
   if (vs) vs.textContent = 'Pulsa para hablar';
   const st = document.getElementById('pyc-status');
