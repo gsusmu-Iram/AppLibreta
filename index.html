@@ -8116,6 +8116,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
     }
+    const convmenu = document.getElementById('cl-convmenu-overlay');
+    if (convmenu) { convmenu.remove(); history.pushState(null, '', location.href); return; }
+    const confdel = document.getElementById('cl-confdel-overlay');
+    if (confdel) { confdel.remove(); history.pushState(null, '', location.href); return; }
     const renameOpen = document.getElementById('cl-rename-overlay')?.classList.contains('open');
     if (renameOpen) { iramCerrarRenombrar(); history.pushState(null, '', location.href); return; }
     if (_clDrawerAbierto) { iramCerrarDrawer(); history.pushState(null, '', location.href); return; }
@@ -13283,6 +13287,29 @@ document.addEventListener('DOMContentLoaded', () => {
 .cl-rename-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:14px; }
 .cl-rename-cancel { background:none; border:none; color:#6b6b68; font-size:15px; padding:9px 14px; cursor:pointer; border-radius:10px; }
 .cl-rename-ok { background:#d97757; color:#fff; border:none; font-size:15px; font-weight:600; padding:9px 18px; border-radius:10px; cursor:pointer; }
+
+/* Menú de conversación (renombrar / eliminar) */
+#cl-convmenu-overlay, #cl-confdel-overlay {
+  position:absolute; inset:0; z-index:72; background:rgba(0,0,0,.4);
+  display:flex; align-items:flex-end; justify-content:center; padding:0;
+}
+#cl-confdel-overlay { align-items:center; padding:24px; }
+.cl-convmenu-sheet {
+  background:#faf9f5; width:100%; border-radius:18px 18px 0 0; padding:10px 10px 16px;
+  animation:clSheetUp .2s ease;
+}
+@keyframes clSheetUp { from{transform:translateY(30px);opacity:.5} to{transform:translateY(0);opacity:1} }
+.cl-convmenu-titulo { font-size:13px; color:#9a978d; padding:10px 14px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cl-convmenu-item {
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:none; border:none;
+  padding:14px; border-radius:12px; font-size:16px; color:#3d3d3a; cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+.cl-convmenu-item:active { background:rgba(0,0,0,.05); }
+.cl-convmenu-item.danger { color:#c0392b; }
+.cl-convmenu-cancel {
+  width:100%; background:#ece9e0; border:none; padding:14px; border-radius:12px; margin-top:6px;
+  font-size:16px; font-weight:600; color:#3d3d3a; cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
 </style>
 
 <!-- IRAM pantalla completa -->
@@ -14006,7 +14033,13 @@ let _clDrawerAbierto = false;
 let _clRenombrarId   = null;
 
 function iramCargarChats() { try { return JSON.parse(localStorage.getItem(K_IRAM_CHATS)||'[]'); } catch { return []; } }
-function iramGuardarChats(a) { try { localStorage.setItem(K_IRAM_CHATS, JSON.stringify(a.slice(0,60))); } catch(e){} }
+function iramGuardarChats(a) {
+  try {
+    const act = iramActId();
+    const limpio = (a || []).filter(c => (c.hist && c.hist.length) || c.id === act);
+    localStorage.setItem(K_IRAM_CHATS, JSON.stringify(limpio.slice(0,60)));
+  } catch(e){}
+}
 function iramActId()   { return localStorage.getItem(K_IRAM_ACT) || ''; }
 function iramSetAct(id){ localStorage.setItem(K_IRAM_ACT, id); }
 
@@ -14038,6 +14071,11 @@ function iramCargarHistorial() {
     iramGuardarChats(chats); iramSetAct(id);
   }
   if (old) localStorage.removeItem(K_IRAM_CHAT);
+
+  // Limpiar conversaciones vacías acumuladas
+  const antes = chats.length;
+  chats = chats.filter(c => c.hist && c.hist.length);
+  if (chats.length !== antes) { try { localStorage.setItem(K_IRAM_CHATS, JSON.stringify(chats)); } catch(e){} }
 
   const conv = chats.find(c => c.id === iramActId()) || chats[0];
   if (conv) {
@@ -14083,17 +14121,10 @@ function iramTituloPartes() {
 }
 
 function iramNuevaConversacion() {
-  iramGuardarHistorial();
-  const id = 'C_' + Date.now(); iramSetAct(id);
-  let chats = iramCargarChats();
-  chats.unshift({ id, titulo:'', fecha:new Date().toISOString().slice(0,10), hist:[], updated:Date.now() });
-  iramGuardarChats(chats);
+  iramGuardarHistorial();   // guarda la actual solo si tiene contenido
+  iramSetAct('');           // sin conversación activa hasta que se escriba algo
   _pycHist = [];
-  if (cargarPartes().length) {
-    pycMsgIAHtml(claudeGenerarResumenTabla('original'));
-  } else {
-    pycRenderMsgs(); // hero vacío estilo Claude
-  }
+  pycRenderMsgs();          // saludo hero estilo Claude (siempre)
   iramCerrarDrawer();
 }
 
@@ -14135,7 +14166,7 @@ function iramCerrarDrawer() {
 function iramRenderRecientes() {
   const el = document.getElementById('cl-drawer-list');
   if (!el) return;
-  const chats = iramCargarChats().slice().sort((a,b) => (b.updated||0)-(a.updated||0));
+  const chats = iramCargarChats().filter(c => c.hist && c.hist.length).slice().sort((a,b) => (b.updated||0)-(a.updated||0));
   const actId = iramActId();
   if (!chats.length) {
     el.innerHTML = '<div style="padding:12px;color:#9a978d;font-size:13px">Aún no hay conversaciones.</div>';
@@ -14151,11 +14182,48 @@ function iramRenderRecientes() {
 function iramMenuChat(id) {
   const conv = iramCargarChats().find(c => c.id === id);
   if (!conv) return;
-  iramAbrirRenombrar(id, conv.titulo || '');
+  document.getElementById('cl-convmenu-overlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'cl-convmenu-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="cl-convmenu-sheet">
+      <div class="cl-convmenu-titulo">${escH(conv.titulo || 'Sin título')}</div>
+      <button class="cl-convmenu-item" onclick="document.getElementById('cl-convmenu-overlay').remove();iramAbrirRenombrar('${id}')">
+        <span>✏️</span> Renombrar
+      </button>
+      <button class="cl-convmenu-item danger" onclick="iramConfirmarBorrarChat('${id}')">
+        <span>🗑️</span> Eliminar conversación
+      </button>
+      <button class="cl-convmenu-cancel" onclick="document.getElementById('cl-convmenu-overlay').remove()">Cancelar</button>
+    </div>`;
+  document.getElementById('pyc-overlay')?.appendChild(ov);
+}
+
+function iramConfirmarBorrarChat(id) {
+  document.getElementById('cl-convmenu-overlay')?.remove();
+  document.getElementById('cl-confdel-overlay')?.remove();
+  const ov = document.createElement('div');
+  ov.id = 'cl-confdel-overlay';
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="cl-rename-box">
+      <div class="cl-rename-title">¿Eliminar conversación?</div>
+      <div style="color:#6b6b68;font-size:14px;margin-bottom:6px">Esta acción no se puede deshacer.</div>
+      <div class="cl-rename-actions">
+        <button class="cl-rename-cancel" onclick="document.getElementById('cl-confdel-overlay').remove()">Cancelar</button>
+        <button class="cl-rename-ok" style="background:#c0392b" onclick="iramBorrarChat('${id}');document.getElementById('cl-confdel-overlay').remove()">Eliminar</button>
+      </div>
+    </div>`;
+  document.getElementById('pyc-overlay')?.appendChild(ov);
 }
 
 function iramAbrirRenombrar(id, titulo) {
   _clRenombrarId = id;
+  if (titulo === undefined) {
+    const conv = iramCargarChats().find(c => c.id === id);
+    titulo = conv ? (conv.titulo || '') : '';
+  }
   const ov = document.getElementById('cl-rename-overlay');
   const inp = document.getElementById('cl-rename-input');
   if (inp) inp.value = titulo;
