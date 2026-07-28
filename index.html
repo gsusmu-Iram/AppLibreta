@@ -13165,7 +13165,9 @@ document.addEventListener('DOMContentLoaded', () => {
 #pyc-overlay.mode-chat .iram-msgs { background:#f0eee6; }
 #pyc-overlay.mode-chat .pyc-msg { align-items:flex-start; }
 #pyc-overlay.mode-chat .pyc-msg.ai .pyc-bubble { background:transparent; color:#3d3d3a; padding:2px 0; box-shadow:none; }
-#pyc-overlay.mode-chat .pyc-msg.user .pyc-bubble { background:#fff; color:#3d3d3a; border:1px solid rgba(0,0,0,.08); box-shadow:0 1px 2px rgba(0,0,0,.03); }
+#pyc-overlay.mode-chat .pyc-msg.user .pyc-bubble { background:#fff; color:#3d3d3a; border:1px solid rgba(0,0,0,.08); box-shadow:0 1px 2px rgba(0,0,0,.03); max-width:100%; width:100%; text-align:right; box-sizing:border-box; }
+#pyc-overlay.mode-chat .pyc-msg.user { flex-direction:row; width:100%; }
+#pyc-overlay.mode-chat .pyc-msg.user > div { flex:1; min-width:0; }
 #pyc-overlay.mode-chat .pyc-avatar { background:#d97757 !important; color:#fff; }
 #pyc-overlay.mode-chat .pyc-msg.user .pyc-avatar { background:#c96442 !important; }
 #pyc-overlay.mode-chat [data-feedback-idx] { display:none !important; }
@@ -14102,7 +14104,11 @@ function iramGuardarHistorial() {
     conv.hist = histLimpio; conv.updated = Date.now();
     if (!conv.titulo) {
       const firstUser = histLimpio.find(m => m.role === 'user');
-      if (firstUser && firstUser.text) conv.titulo = _clTituloDeTexto(firstUser.text);
+      if (firstUser && firstUser.text) {
+        conv.titulo = (/\(partes\)\s*$/.test(firstUser.text) || _clEsPartes(firstUser.text))
+          ? 'Partes · ' + _clFechaTitulo()
+          : _clTituloDeTexto(firstUser.text);
+      }
     }
     iramGuardarChats(chats);
     if (_clDrawerAbierto) iramRenderRecientes();
@@ -14113,7 +14119,10 @@ function iramGuardarHistorial() {
 function iramTituloPartes() {
   let chats = iramCargarChats();
   const conv = chats.find(c => c.id === iramActId());
-  if (conv && (!conv.titulo || conv.titulo.startsWith('Partes'))) {
+  if (!conv) return;
+  const firstUser = (conv.hist || []).find(m => m.role === 'user');
+  const esPartes = firstUser && (/\(partes\)\s*$/.test(firstUser.text || '') || _clEsPartes(firstUser.text || ''));
+  if (!conv.titulo || conv.titulo.startsWith('Partes') || esPartes) {
     conv.titulo = 'Partes · ' + _clFechaTitulo();
     iramGuardarChats(chats);
     if (_clDrawerAbierto) iramRenderRecientes();
@@ -14428,7 +14437,9 @@ async function pycEnviar() {
       if (totalFin)  extras.push(`${totalFin} finalizado${totalFin!==1?'s':''}`);
       if (extras.length) intro += ` · ${extras.join(' · ')}`;
       intro += `.</p>`;
-      const html = claudeGenerarResumenTabla('original').replace('<div class="cl-assist-body">', `<div class="cl-assist-body">${intro}`);
+      let html = claudeGenerarResumenTabla('original').replace('<div class="cl-assist-body">', `<div class="cl-assist-body">${intro}`);
+      const extra = _clContextoExtra();
+      if (extra) html = html.replace(/<\/div>\s*$/, extra + '</div>');
       pycMsgIAHtml(html);
       iramTituloPartes();
     }
@@ -15168,6 +15179,69 @@ function _iramResumenListado(partes, zona) {
     return `• ${c}${cod}${loc}${trCorto}`;
   }).join('\n');
   return `${head}\n\n${lista}`;
+}
+
+// Contexto extra al pegar partes: fijados de hoy, eventos, tareas e histórico de las oficinas
+function _clContextoExtra() {
+  const hoyISO = new Date().toISOString().slice(0,10);
+  const partes = cargarPartes();
+  const bloques = [];
+
+  // Fijados para hoy
+  const fijHoy = partes.filter(p => p.fijado && p.fechaFijada === hoyISO);
+  if (fijHoy.length) {
+    const items = fijHoy.map(p => `<li>⏰ <strong>${escH(p.clienteReal||p.cliente||'—')}</strong>${p.localidad?' · '+escH(p.localidad):''}${p.horaFijada?' a las '+p.horaFijada:''}</li>`).join('');
+    bloques.push(`<p style="margin:2px 0 4px"><strong>Fijados para hoy:</strong></p><ul style="margin:0 0 8px">${items}</ul>`);
+  }
+
+  // Eventos de hoy
+  try {
+    const eventos = loadArr(K_EVENTOS).filter(e => (e.fecha||e.fechaInicio||'').slice(0,10) === hoyISO);
+    if (eventos.length) {
+      const items = eventos.map(e => `<li>📅 ${escH(e.titulo||'Evento')}${e.hora?' · '+e.hora:''}</li>`).join('');
+      bloques.push(`<p style="margin:2px 0 4px"><strong>Hoy en tu agenda:</strong></p><ul style="margin:0 0 8px">${items}</ul>`);
+    }
+  } catch(e){}
+
+  // Tareas pendientes (hoy o vencidas)
+  try {
+    const tareas = loadArr(K_TAREAS).filter(t => !t.completada && (!t.fecha || t.fecha <= hoyISO));
+    if (tareas.length) {
+      const items = tareas.slice(0,4).map(t => `<li>📋 ${escH(t.titulo||'')}</li>`).join('');
+      bloques.push(`<p style="margin:2px 0 4px"><strong>Tareas pendientes:</strong></p><ul style="margin:0 0 8px">${items}</ul>`);
+    }
+  } catch(e){}
+
+  // Histórico reciente de las oficinas pegadas (2-3 por oficina)
+  try {
+    const hist = loadArr(K_HIST);
+    const nrm  = s => String(s||'').toLowerCase().replace(/\s/g,'');
+    const vistos = new Set();
+    const histBloques = [];
+    partes.forEach(p => {
+      const key = p.codigo ? nrm(p.codigo) : '';
+      const cli = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
+      const idOf = cli + '|' + key;
+      if (vistos.has(idOf)) return; vistos.add(idOf);
+      const vis = hist.filter(hh => {
+        const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
+        if (key) return hKey === key || hKey.endsWith(key) || key.endsWith(hKey);
+        const hCli = nrm(hh.CLIENTE||''); const hLoc = nrm(hh.LOCALIDAD||hh.MUNICIPIO||''); const pLoc = nrm(p.localidad||'');
+        return hCli === cli && (!pLoc || hLoc === pLoc);
+      }).sort((a,b) => (b.FECHA||'').split('/').reverse().join('').localeCompare((a.FECHA||'').split('/').reverse().join(''))).slice(0,3);
+      if (vis.length) {
+        const cab   = `${escH(p.clienteReal||p.cliente||'—')}${p.codigo?' · '+escH(p.codigo):''}`;
+        const items = vis.map(v => `<li>${v.FECHA||'—'} — ${escH((v.TRABAJO||'sin descripción').slice(0,55))}</li>`).join('');
+        histBloques.push(`<div style="margin-bottom:6px"><strong style="font-size:13px">${cab}</strong><ul style="margin:2px 0 0">${items}</ul></div>`);
+      }
+    });
+    if (histBloques.length) {
+      bloques.push(`<p style="margin:2px 0 4px"><strong>🕐 Histórico reciente de estas oficinas:</strong></p>${histBloques.join('')}`);
+    }
+  } catch(e){}
+
+  if (!bloques.length) return '';
+  return `<hr style="border:none;border-top:1px solid rgba(0,0,0,.1);margin:14px 0">` + bloques.join('');
 }
 
 async function iramEjecutarAccion(cl) {
