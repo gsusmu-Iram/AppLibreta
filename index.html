@@ -13349,7 +13349,7 @@ document.addEventListener('DOMContentLoaded', () => {
 #pyc-overlay.mode-chat .pyc-msg.ai { align-items:flex-start; }
 #pyc-overlay.mode-chat .pyc-msg.ai .pyc-avatar { display:none; }
 #pyc-overlay.mode-chat .pyc-msg.user .pyc-avatar { display:none; }
-#pyc-overlay.mode-chat .pyc-msg.ai .pyc-bubble { font-size:15px; line-height:1.6; }
+#pyc-overlay.mode-chat .pyc-msg.ai .pyc-bubble { font-size:15px; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
 #pyc-overlay.mode-chat .pyc-msg.user .pyc-avatar { width:26px; height:26px; }
 
 /* Conducción en cabecera + ocultar barra inferior en modo texto */
@@ -15152,16 +15152,17 @@ function iramClasificar(txt) {
       return { intento:'FICHA_CLIENTE', cliente, localidad, codigo };
     }
 
-    // ── Historial / Histórico — todos los partes, de hoy (ruta hecha), o de una oficina ──
+    // ── Historial / Histórico ──
     if (/^(?:el\s+)?(?:historial|hist[oó]ric[oa])/i.test(r)) {
+      const esHistorial = /^(?:el\s+)?historial/i.test(r);  // "historial" ≠ "histórico"
       const q   = r.replace(/^(?:el\s+)?(?:historial|hist[oó]ric[oa])\s*(?:de[l]?\s+)?/i,'').trim();
-      // "histórico de hoy" → la ruta que ya he hecho
-      if (/^(?:de\s+)?hoy$/i.test(q)) return { intento:'HISTORIAL_HOY' };
+      // "de hoy": historial → finalizados; histórico → paradas de la ruta
+      if (/^(?:de\s+)?hoy$/i.test(q)) return { intento: esHistorial ? 'HISTORIAL_HOY' : 'RUTA_HOY' };
       const mF  = q.match(/\b(viernes\s+pasado|semana\s+pasada|ayer|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i);
       const sinF = mF ? q.replace(mF[0],'').trim() : q;
       const { q: sinCod, codigo } = _extraerCodigo(sinF);
       const { cliente, localidad } = sinCod ? extraerClienteLoc(sinCod) : { cliente:'', localidad:'' };
-      // A secas (sin oficina ni fecha) → histórico de todos los partes pegados
+      // A secas → histórico de todas las oficinas de los partes
       if (!cliente && !localidad && !codigo && !mF) {
         return { intento:'HISTORIAL_TODOS' };
       }
@@ -16055,7 +16056,7 @@ async function iramEjecutarAccion(cl) {
     const partes = cargarPartes().filter(p => !_esFin(p));
     if (!partes.length) return 'No tienes partes activos ahora mismo.';
     const norm = s => String(s||'').toLowerCase();
-    const materialMap = new Map(); // material → Set de motivos
+    const materialMap = new Map(); // material → { sistema, motivos:Set }
     partes.forEach(p => {
       const cli   = norm(p.clienteReal||p.clienteNorm||p.cliente);
       const sis   = norm(p.sistema);
@@ -16066,17 +16067,30 @@ async function iramEjecutarAccion(cl) {
         const sisOk = !dSis || sis === dSis;
         const keyOk = dKey && texto.includes(dKey);
         if (cliOk && sisOk && keyOk) {
-          if (!materialMap.has(d.material)) materialMap.set(d.material, new Set());
-          materialMap.get(d.material).add(`${p.clienteReal||p.cliente||''}${p.localidad?' '+p.localidad:''}`.trim());
+          if (!materialMap.has(d.material)) materialMap.set(d.material, { sistema:(d.sistema||'').toUpperCase(), motivos:new Set() });
+          materialMap.get(d.material).motivos.add(`${p.clienteReal||p.cliente||''}${p.localidad?' '+p.localidad:''}`.trim());
         }
       });
     });
     if (!materialMap.size) return 'No he encontrado material que encaje con estos partes. Amplía el diccionario en Buscar → 🧰 Equipos.';
-    const lineas = [...materialMap.entries()].map(([mat, motivos]) => {
-      const m = [...motivos].slice(0,3).join(', ');
-      return `• ${mat}${m?`  (${m})`:''}`;
+
+    const secciones = {
+      'PCI':  { titulo:'🚨 PCI / Fuego',        items:[] },
+      'SEG':  { titulo:'🔒 Intrusión (SEG)',    items:[] },
+      'INST': { titulo:'🔧 Instalación (INST)', items:[] },
+      'GEN':  { titulo:'🧰 General',            items:[] },
+    };
+    [...materialMap.entries()].forEach(([mat, info]) => {
+      const sec = secciones[info.sistema] ? info.sistema : 'GEN';
+      const mot = [...info.motivos].slice(0,3).join(', ');
+      secciones[sec].items.push(`• ${mat}${mot?`  (${mot})`:''}`);
     });
-    return `🧰 Material para los ${partes.length} partes activos:\n\n${lineas.join('\n')}`;
+
+    let out = `🧰 Material para los ${partes.length} partes activos:`;
+    ['PCI','SEG','INST','GEN'].forEach(k => {
+      if (secciones[k].items.length) out += `\n\n${secciones[k].titulo}\n${secciones[k].items.join('\n')}`;
+    });
+    return out;
   }
 
   /* ── HISTORIAL DE TODOS LOS PARTES PEGADOS ── */
@@ -16086,6 +16100,25 @@ async function iramEjecutarAccion(cl) {
     const bloques = _iramHistoricoOficinas(partes);
     if (!bloques.length) return 'No hay histórico registrado de las oficinas de estos partes.';
     return `Histórico de las oficinas de hoy:\n\n${bloques.join('\n\n')}`;
+  }
+
+  /* ── HISTÓRICO DE HOY (paradas de la ruta) ── */
+  if (cl.intento === 'RUTA_HOY') {
+    const ruta = loadArr(K_RUTA);
+    if (!ruta.length) return 'No tienes ninguna ruta montada hoy.';
+    const pend = ruta.filter(r => r.estado !== 'completada');
+    const hech = ruta.filter(r => r.estado === 'completada');
+    const linea = p => {
+      const cli  = p.clienteReal||p.clienteNorm||p.cliente||'—';
+      const cod  = p.codigo?` · ${p.codigo}`:'';
+      const loc  = p.localidad?` · ${p.localidad}`:'';
+      const urg  = p.urgente?'🚨 ':'';
+      return `• ${urg}${cli}${cod}${loc}`;
+    };
+    let out = '';
+    if (pend.length) out += `Ruta de hoy — ${pend.length} pendiente${pend.length!==1?'s':''}:\n${pend.map(linea).join('\n')}`;
+    if (hech.length) out += `${out?'\n\n':''}Ya cerradas (${hech.length}):\n${hech.map(linea).join('\n')}`;
+    return out || 'La ruta de hoy está vacía.';
   }
 
   /* ── HISTORIAL DE HOY (ruta ya hecha) ── */
