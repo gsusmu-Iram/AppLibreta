@@ -2979,6 +2979,10 @@ body { font-size: 14px; }
                 <span class="qs-ico">📞</span>
                 <span class="qs-lbl" style="color:var(--accent)">Contactos</span>
               </div>
+              <div class="qs-btn" onclick="abrirDiccEquipos()">
+                <span class="qs-ico">🧰</span>
+                <span class="qs-lbl" style="color:var(--purple)">Equipos</span>
+              </div>
               <div class="qs-btn" onclick="cargarFestivosCV()" id="btn-cargar-festivos" style="display:none">
                 <span class="qs-ico">⬇️</span>
                 <span class="qs-lbl" style="color:var(--ok)">Cargar CV</span>
@@ -3908,6 +3912,7 @@ const K_NOTAS='pyc_notas';
 const K_EVENTOS='pyc_eventos';
 const K_MTO_EXT   = 'pyc_mto_ext';      // MTO: extintores caducados
 const K_INFO_TEC  = 'pyc_info_tecnica'; // Módulo Buscar: información técnica
+const K_DICC_EQUIPOS = 'pyc_dicc_equipos'; // Diccionario cliente+sistema+palabra → material
 
 // ── HELPER SEGURO ──
 function setText(id, val) { const el=document.getElementById(id); if(el) el.textContent=String(val); }
@@ -7501,6 +7506,14 @@ function datosExportarExcel() {
       : XLSX.utils.aoa_to_sheet([['NOMBRE','TELEFONO','CATEGORIA']]);
     XLSX.utils.book_append_sheet(wb, contactosSheet, 'Contactos');
 
+    // ── DICCIONARIO EQUIPOS ───────────────────────────────────
+    datosProg('excel', 95, 'Exportando Equipos…');
+    const diccData = diccCargar();
+    const diccSheet = diccData.length > 0
+      ? XLSX.utils.json_to_sheet(diccData.map(d => ({ 'CLIENTE': d.cliente||'', 'SISTEMA': d.sistema||'', 'PALABRA': d.key||'', 'MATERIAL': d.material||'' })))
+      : XLSX.utils.aoa_to_sheet([['CLIENTE','SISTEMA','PALABRA','MATERIAL']]);
+    XLSX.utils.book_append_sheet(wb, diccSheet, 'Equipos');
+
     // ── DESCARGAR ─────────────────────────────────────────────
     datosProg('excel', 96, 'Generando archivo…');
     const fecha = new Date().toISOString().slice(0,10);
@@ -7797,6 +7810,22 @@ function datosImportarExcel(input) {
               CATEGORIA: String(r['CATEGORIA']|| '').trim(),
             }));
             save('pyc_contactos', contactos);
+          }
+        }
+
+        else if (nl.includes('equipo') || nl.includes('diccionario')) {
+          const rows = XLSX.utils.sheet_to_json(ws, { defval:'', raw:false, range:0 })
+            .filter(r => (r['PALABRA'] || r['MATERIAL']));
+          if (rows.length) {
+            const dicc = rows.map(r => ({
+              id: 'D_' + Date.now() + '_' + Math.floor(Math.random()*10000),
+              cliente:  String(r['CLIENTE'] || '').trim(),
+              sistema:  String(r['SISTEMA'] || '').trim(),
+              key:      String(r['PALABRA'] || '').trim(),
+              material: String(r['MATERIAL']|| '').trim(),
+            })).filter(d => d.key && d.material);
+            diccGuardarTodo(dicc);
+            if (dicc.length) toast(`🧰 ${dicc.length} equipos importados`);
           }
         }
 
@@ -8123,6 +8152,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const renameOpen = document.getElementById('cl-rename-overlay')?.classList.contains('open');
     if (renameOpen) { iramCerrarRenombrar(); history.pushState(null, '', location.href); return; }
     if (_clDrawerAbierto) { iramCerrarDrawer(); history.pushState(null, '', location.href); return; }
+
+    const diccOpen = document.getElementById('dicc-overlay')?.classList.contains('open');
+    if (diccOpen) { cerrarDiccEquipos(); history.pushState(null, '', location.href); return; }
 
     const iramOpen = document.getElementById('iram-overlay')?.classList.contains('open');
     if (iramOpen) { pycCerrarChat(); history.pushState(null, '', location.href); return; }
@@ -10970,6 +11002,101 @@ function compartirWA() {
 let _itPageId    = null;   // id del item abierto
 let _itEditMode  = false;  // true = modo edición activo
 
+/* ================================================================
+   🧰 DICCIONARIO DE EQUIPOS (cliente + sistema + palabra → material)
+   ================================================================ */
+let _diccEditId = null;
+
+function diccCargar() { try { return JSON.parse(localStorage.getItem(K_DICC_EQUIPOS)||'[]'); } catch { return []; } }
+function diccGuardarTodo(a) { try { localStorage.setItem(K_DICC_EQUIPOS, JSON.stringify(a)); } catch(e){} }
+
+function abrirDiccEquipos() {
+  _diccEditId = null;
+  const ov = document.getElementById('dicc-overlay');
+  if (!ov) return;
+  // Rellenar datalist de clientes conocidos
+  try {
+    const clientes = [...new Set(loadArr(K_EXCEL).map(c => (c.CLIENTE||c.cliente||'').trim()).filter(Boolean))].sort();
+    const dl = document.getElementById('dicc-cli-list');
+    if (dl) dl.innerHTML = '<option value="Cualquiera">' + clientes.map(c=>`<option value="${escH(c)}">`).join('');
+  } catch(e){}
+  ov.classList.add('open');
+  diccRenderLista();
+}
+function cerrarDiccEquipos() {
+  document.getElementById('dicc-overlay')?.classList.remove('open');
+}
+
+function diccGuardar() {
+  const cli = (document.getElementById('dicc-cli')?.value||'').trim();
+  const sis = (document.getElementById('dicc-sis')?.value||'').trim();
+  const key = (document.getElementById('dicc-key')?.value||'').trim();
+  const mat = (document.getElementById('dicc-mat')?.value||'').trim();
+  if (!key || !mat) { toast('⚠️ Pon al menos la palabra clave y el material'); return; }
+  const lista = diccCargar();
+  const cliN = (/^cualquiera$/i.test(cli) || !cli) ? '' : cli;
+  if (_diccEditId) {
+    const it = lista.find(x => x.id === _diccEditId);
+    if (it) { it.cliente=cliN; it.sistema=sis; it.key=key; it.material=mat; }
+    _diccEditId = null;
+  } else {
+    lista.unshift({ id:'D_'+Date.now(), cliente:cliN, sistema:sis, key, material:mat });
+  }
+  diccGuardarTodo(lista);
+  document.getElementById('dicc-cli').value='';
+  document.getElementById('dicc-sis').value='';
+  document.getElementById('dicc-key').value='';
+  document.getElementById('dicc-mat').value='';
+  document.getElementById('dicc-save').textContent = '💾 Guardar entrada';
+  toast('✅ Guardado');
+  diccRenderLista();
+}
+
+function diccEditar(id) {
+  const it = diccCargar().find(x => x.id === id);
+  if (!it) return;
+  _diccEditId = id;
+  document.getElementById('dicc-cli').value = it.cliente || 'Cualquiera';
+  document.getElementById('dicc-sis').value = it.sistema || '';
+  document.getElementById('dicc-key').value = it.key || '';
+  document.getElementById('dicc-mat').value = it.material || '';
+  document.getElementById('dicc-save').textContent = '💾 Guardar cambios';
+  document.querySelector('#dicc-overlay .dicc-body')?.scrollTo({top:0, behavior:'smooth'});
+}
+
+function diccBorrar(id) {
+  const lista = diccCargar().filter(x => x.id !== id);
+  diccGuardarTodo(lista);
+  diccRenderLista();
+}
+
+function diccRenderLista() {
+  const el = document.getElementById('dicc-lista');
+  if (!el) return;
+  const f = (document.getElementById('dicc-filtro')?.value||'').toLowerCase().trim();
+  let lista = diccCargar();
+  if (f) lista = lista.filter(x => `${x.cliente} ${x.sistema} ${x.key} ${x.material}`.toLowerCase().includes(f));
+  if (!lista.length) {
+    el.innerHTML = `<div class="dicc-empty">${diccCargar().length ? 'Nada coincide con el filtro.' : 'Aún no hay entradas. Añade la primera arriba.'}</div>`;
+    return;
+  }
+  el.innerHTML = lista.map(x => `
+    <div class="dicc-item">
+      <div class="dicc-item-main">
+        <div class="dicc-item-top">
+          <span class="dicc-tag cli">${escH(x.cliente || 'Cualquiera')}</span>
+          ${x.sistema ? `<span class="dicc-tag sis">${escH(x.sistema)}</span>` : ''}
+          <span class="dicc-tag key">${escH(x.key)}</span>
+        </div>
+        <div class="dicc-item-mat">${escH(x.material)}</div>
+      </div>
+      <div class="dicc-item-acts">
+        <button class="dicc-mini" onclick="diccEditar('${x.id}')" title="Editar">✏️</button>
+        <button class="dicc-mini" onclick="diccBorrar('${x.id}')" title="Borrar">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
 function abrirInfoTecPage(id) {
   const item = loadArr(K_INFO_TEC).find(i => String(i.id) === String(id));
   if (!item) { buscarToast('⚠️ Información no encontrada'); return; }
@@ -13314,6 +13441,76 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 </style>
 
+<!-- ══ DICCIONARIO DE EQUIPOS ══ -->
+<style>
+#dicc-overlay { position:fixed; inset:0; z-index:320; background:var(--bg,#f7f4ee); display:none; flex-direction:column; }
+#dicc-overlay.open { display:flex; }
+.dicc-hdr { background:var(--orange,#f97316); color:#fff; padding:14px 16px; display:flex; align-items:center; gap:12px; flex-shrink:0; }
+.dicc-hdr-back { background:rgba(255,255,255,.2); border:none; color:#fff; border-radius:10px; padding:8px 14px; font-size:15px; font-weight:600; cursor:pointer; }
+.dicc-hdr-title { font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; }
+.dicc-body { flex:1; overflow-y:auto; padding:14px; -webkit-overflow-scrolling:touch; }
+.dicc-form { background:#fff; border-radius:14px; padding:14px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+.dicc-form-row { display:flex; gap:8px; margin-bottom:8px; }
+.dicc-form-row > * { flex:1; }
+.dicc-lbl { font-size:11px; font-weight:700; color:#8a8781; text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px; display:block; }
+.dicc-input, .dicc-select { width:100%; border:1px solid rgba(0,0,0,.15); border-radius:9px; padding:9px 10px; font-size:14px; color:#3d3d3a; background:#faf9f5; box-sizing:border-box; outline:none; }
+.dicc-input:focus, .dicc-select:focus { border-color:var(--orange,#f97316); }
+.dicc-save-btn { width:100%; background:var(--navy,#1a2744); color:#fff; border:none; border-radius:11px; padding:12px; font-size:15px; font-weight:700; cursor:pointer; margin-top:4px; }
+.dicc-search { width:100%; border:1px solid rgba(0,0,0,.15); border-radius:11px; padding:11px 14px; font-size:14px; margin-bottom:10px; box-sizing:border-box; outline:none; background:#fff; }
+.dicc-item { background:#fff; border-radius:12px; padding:11px 13px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,.05); display:flex; align-items:flex-start; gap:10px; }
+.dicc-item-main { flex:1; min-width:0; }
+.dicc-item-top { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:3px; }
+.dicc-tag { font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; white-space:nowrap; }
+.dicc-tag.cli { background:rgba(124,58,237,.12); color:var(--purple,#7c3aed); }
+.dicc-tag.sis { background:rgba(249,115,22,.14); color:var(--orange-deep,#c2410c); }
+.dicc-tag.key { background:rgba(26,39,68,.1); color:var(--navy,#1a2744); }
+.dicc-item-mat { font-size:14px; color:#3d3d3a; }
+.dicc-item-acts { display:flex; flex-direction:column; gap:4px; }
+.dicc-mini { background:none; border:none; font-size:16px; cursor:pointer; padding:3px 5px; border-radius:6px; }
+.dicc-empty { text-align:center; color:#9a978d; font-size:13px; padding:24px; }
+</style>
+<div id="dicc-overlay">
+  <div class="dicc-hdr">
+    <button class="dicc-hdr-back" onclick="cerrarDiccEquipos()">← Volver</button>
+    <div class="dicc-hdr-title">🧰 Diccionario de equipos</div>
+  </div>
+  <div class="dicc-body">
+    <div class="dicc-form">
+      <div class="dicc-form-row">
+        <div>
+          <label class="dicc-lbl">Cliente</label>
+          <input class="dicc-input" id="dicc-cli" list="dicc-cli-list" placeholder="Cualquiera / BBVA / Cajamar…" autocomplete="off">
+          <datalist id="dicc-cli-list"></datalist>
+        </div>
+        <div style="flex:0 0 34%">
+          <label class="dicc-lbl">Sistema</label>
+          <select class="dicc-select" id="dicc-sis">
+            <option value="">Cualquiera</option>
+            <option value="SEG">SEG</option>
+            <option value="PCI">PCI</option>
+            <option value="INST">INST</option>
+          </select>
+        </div>
+      </div>
+      <div class="dicc-form-row">
+        <div>
+          <label class="dicc-lbl">Palabra clave (en el parte)</label>
+          <input class="dicc-input" id="dicc-key" placeholder="pulsador, extintor, 4g…" autocomplete="off">
+        </div>
+      </div>
+      <div class="dicc-form-row">
+        <div>
+          <label class="dicc-lbl">Material que me llevo</label>
+          <input class="dicc-input" id="dicc-mat" placeholder="Pulsador Cofem + llave" autocomplete="off">
+        </div>
+      </div>
+      <button class="dicc-save-btn" id="dicc-save" onclick="diccGuardar()">💾 Guardar entrada</button>
+    </div>
+    <input class="dicc-search" id="dicc-filtro" placeholder="🔍 Filtrar por cliente, palabra o material…" oninput="diccRenderLista()">
+    <div id="dicc-lista"></div>
+  </div>
+</div>
+
 <!-- IRAM pantalla completa -->
 <div class="iram-overlay" id="pyc-overlay">
 
@@ -14719,7 +14916,7 @@ function iramSaludoProactivo() {
     const urgentes  = anPend.filter(a => a.urgente);
     const pci       = anPend.filter(a => a.tipo==='PCI'||a.esPCI);
     const rutaPend  = ruta.filter(r => r.estado==='pendiente');
-    const tPend     = tareas.filter(t => !t.completada);
+    const tPend     = tareas.filter(t => t.estado === 'pendiente');
     const tVencidas = tPend.filter(t => t.fecha && t.fecha < hoy);
     const tHoy      = tPend.filter(t => t.fecha === hoy);
     const eventosHoy= eventos.filter(e => (e.fecha||e.fechaInicio||'').slice(0,10) === hoy);
@@ -14955,17 +15152,18 @@ function iramClasificar(txt) {
       return { intento:'FICHA_CLIENTE', cliente, localidad, codigo };
     }
 
-    // ── Historial — con código numérico, con cliente, o sin nada (parada activa) ──
-    if (/^(?:el\s+)?historial/i.test(r)) {
-      const q   = r.replace(/^(?:el\s+)?historial\s+(?:de[l]?\s+)?/i,'').trim();
-      const mF  = q.match(/\b(viernes\s+pasado|semana\s+pasada|ayer|hoy|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i);
+    // ── Historial / Histórico — todos los partes, de hoy (ruta hecha), o de una oficina ──
+    if (/^(?:el\s+)?(?:historial|hist[oó]ric[oa])/i.test(r)) {
+      const q   = r.replace(/^(?:el\s+)?(?:historial|hist[oó]ric[oa])\s*(?:de[l]?\s+)?/i,'').trim();
+      // "histórico de hoy" → la ruta que ya he hecho
+      if (/^(?:de\s+)?hoy$/i.test(q)) return { intento:'HISTORIAL_HOY' };
+      const mF  = q.match(/\b(viernes\s+pasado|semana\s+pasada|ayer|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i);
       const sinF = mF ? q.replace(mF[0],'').trim() : q;
       const { q: sinCod, codigo } = _extraerCodigo(sinF);
       const { cliente, localidad } = sinCod ? extraerClienteLoc(sinCod) : { cliente:'', localidad:'' };
+      // A secas (sin oficina ni fecha) → histórico de todos los partes pegados
       if (!cliente && !localidad && !codigo && !mF) {
-        const activa = iramGetParadaActiva();
-        if (activa) return { intento:'HISTORIAL_CLIENTE', cliente: activa.cliente, localidad: activa.localidad, codigo: activa.codigo, fecha:'' };
-        return { intento:'HISTORIAL_CLIENTE', cliente:'', localidad:'', codigo:'', fecha:'' };
+        return { intento:'HISTORIAL_TODOS' };
       }
       return { intento:'HISTORIAL_CLIENTE', cliente, localidad, codigo, fecha: mF?.[1]||'' };
     }
@@ -15074,6 +15272,15 @@ function iramClasificar(txt) {
   if (/^crea\s+(?:una?\s+)?ruta/i.test(t)) {
     const m = t.match(/\b(\d+)\b/);
     return { intento:'CREAR_RUTA', n: m?.[1]||'' };
+  }
+
+  // ── QUÉ ME LLEVO / MATERIAL / HERRAMIENTAS ──
+  if (/\bqu[eé]\s+me\s+llevo\b/i.test(t)
+      || /\b(?:material|herramientas?|equipos?)\s+(?:necesito|me\s+llevo|para\s+hoy|hoy|de\s+hoy)\b/i.test(t)
+      || /^(?:dime\s+|dame\s+)?(?:el\s+)?material\b/i.test(t)
+      || /^(?:dime\s+|dame\s+)?qu[eé]\s+(?:material|herramientas?|equipos?)\b/i.test(t)
+      || /^(?:dime\s+|dame\s+)?qu[eé]\s+necesito\s+llevar/i.test(t)) {
+    return { intento:'QUE_ME_LLEVO' };
   }
 
   // ── DIME / DAME ──
@@ -15205,43 +15412,41 @@ function _clContextoExtra() {
 
   // Tareas pendientes (hoy o vencidas)
   try {
-    const tareas = loadArr(K_TAREAS).filter(t => !t.completada && (!t.fecha || t.fecha <= hoyISO));
+    const tareas = loadArr(K_TAREAS).filter(t => t.estado === 'pendiente' && (!t.fecha || t.fecha <= hoyISO));
     if (tareas.length) {
       const items = tareas.slice(0,4).map(t => `<li>📋 ${escH(t.titulo||'')}</li>`).join('');
       bloques.push(`<p style="margin:2px 0 4px"><strong>Tareas pendientes:</strong></p><ul style="margin:0 0 8px">${items}</ul>`);
     }
   } catch(e){}
 
-  // Histórico reciente de las oficinas pegadas (2-3 por oficina)
-  try {
-    const hist = loadArr(K_HIST);
-    const nrm  = s => String(s||'').toLowerCase().replace(/\s/g,'');
-    const vistos = new Set();
-    const histBloques = [];
-    partes.forEach(p => {
-      const key = p.codigo ? nrm(p.codigo) : '';
-      const cli = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
-      const idOf = cli + '|' + key;
-      if (vistos.has(idOf)) return; vistos.add(idOf);
-      const vis = hist.filter(hh => {
-        const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
-        if (key) return hKey === key || hKey.endsWith(key) || key.endsWith(hKey);
-        const hCli = nrm(hh.CLIENTE||''); const hLoc = nrm(hh.LOCALIDAD||hh.MUNICIPIO||''); const pLoc = nrm(p.localidad||'');
-        return hCli === cli && (!pLoc || hLoc === pLoc);
-      }).sort((a,b) => (b.FECHA||'').split('/').reverse().join('').localeCompare((a.FECHA||'').split('/').reverse().join(''))).slice(0,3);
-      if (vis.length) {
-        const cab   = `${escH(p.clienteReal||p.cliente||'—')}${p.codigo?' · '+escH(p.codigo):''}`;
-        const items = vis.map(v => `<li>${v.FECHA||'—'} — ${escH((v.TRABAJO||'sin descripción').slice(0,55))}</li>`).join('');
-        histBloques.push(`<div style="margin-bottom:6px"><strong style="font-size:13px">${cab}</strong><ul style="margin:2px 0 0">${items}</ul></div>`);
-      }
-    });
-    if (histBloques.length) {
-      bloques.push(`<p style="margin:2px 0 4px"><strong>🕐 Histórico reciente de estas oficinas:</strong></p>${histBloques.join('')}`);
-    }
-  } catch(e){}
-
   if (!bloques.length) return '';
   return `<hr style="border:none;border-top:1px solid rgba(0,0,0,.1);margin:14px 0">` + bloques.join('');
+}
+
+// Histórico reciente (2-3 últimas visitas) de una lista de partes/oficinas
+function _iramHistoricoOficinas(partes) {
+  const hist = loadArr(K_HIST);
+  const nrm  = s => String(s||'').toLowerCase().replace(/\s/g,'');
+  const vistos = new Set();
+  const bloques = [];
+  partes.forEach(p => {
+    const key = p.codigo ? nrm(p.codigo) : '';
+    const cli = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
+    const idOf = cli + '|' + key;
+    if (vistos.has(idOf)) return; vistos.add(idOf);
+    const vis = hist.filter(hh => {
+      const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
+      if (key) return hKey === key || hKey.endsWith(key) || key.endsWith(hKey);
+      const hCli = nrm(hh.CLIENTE||''); const hLoc = nrm(hh.LOCALIDAD||hh.MUNICIPIO||''); const pLoc = nrm(p.localidad||'');
+      return hCli === cli && (!pLoc || hLoc === pLoc);
+    }).sort((a,b) => (b.FECHA||'').split('/').reverse().join('').localeCompare((a.FECHA||'').split('/').reverse().join(''))).slice(0,3);
+    if (vis.length) {
+      const cab   = `${p.clienteReal||p.cliente||'—'}${p.codigo?' · '+p.codigo:''}${p.localidad?' · '+p.localidad:''}`;
+      const items = vis.map(v => `• ${v.FECHA||'—'} — ${(v.TRABAJO||'sin descripción').slice(0,60)}`).join('\n');
+      bloques.push(`${cab}\n${items}`);
+    }
+  });
+  return bloques;
 }
 
 async function iramEjecutarAccion(cl) {
@@ -15412,7 +15617,7 @@ async function iramEjecutarAccion(cl) {
     const complet= ruta.filter(r=>r.estado==='completada');
     const anPend = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado');
     const urgentes= anPend.filter(a=>a.urgente);
-    const tPend  = tareas.filter(t=>t.estado==='pendiente'&&!t.completada).length;
+    const tPend  = tareas.filter(t=>t.estado==='pendiente').length;
     const evHoy  = eventos.filter(e=>e.fecha===hoyISO);
     const lineas = [`${saludo}. ${diaNom.charAt(0).toUpperCase()+diaNom.slice(1)}.`];
     if (urgentes.length) lineas.push(`🚨 ${urgentes.length} aviso${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''}.`);
@@ -15526,7 +15731,7 @@ async function iramEjecutarAccion(cl) {
     const complet  = ruta.filter(r=>r.estado==='completada').length;
     const pend     = ruta.filter(r=>r.estado==='pendiente').length;
     const anPend   = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado').length;
-    const tareasPend = tareas.filter(t=>!t.completada).length;
+    const tareasPend = tareas.filter(t=>t.estado==='pendiente').length;
     const hoy      = new Date().toISOString().slice(0,10);
     const eventosHoy = eventos.filter(e=>e.fecha===hoy||e.fechaInicio===hoy);
     let r = '';
@@ -15841,6 +16046,60 @@ async function iramEjecutarAccion(cl) {
       const trab = p.trabajo||p.descripcion||'Sin descripción';
       return `${i+1}. ${cli} · ${p.localidad||''}: ${trab}`;
     }).join('\n');
+  }
+
+  /* ── QUÉ ME LLEVO (material según partes + diccionario) ── */
+  if (cl.intento === 'QUE_ME_LLEVO') {
+    const dicc = (typeof diccCargar === 'function') ? diccCargar() : [];
+    if (!dicc.length) return 'Todavía no tienes el diccionario de equipos configurado. Añádelo en Buscar → 🧰 Equipos y te diré qué llevar.';
+    const partes = cargarPartes().filter(p => !_esFin(p));
+    if (!partes.length) return 'No tienes partes activos ahora mismo.';
+    const norm = s => String(s||'').toLowerCase();
+    const materialMap = new Map(); // material → Set de motivos
+    partes.forEach(p => {
+      const cli   = norm(p.clienteReal||p.clienteNorm||p.cliente);
+      const sis   = norm(p.sistema);
+      const texto = norm(`${p.trabajo||''} ${p.descripcion||''} ${p.aviso||''}`);
+      dicc.forEach(d => {
+        const dCli = norm(d.cliente), dSis = norm(d.sistema), dKey = norm(d.key);
+        const cliOk = !dCli || cli.includes(dCli) || dCli.includes(cli);
+        const sisOk = !dSis || sis === dSis;
+        const keyOk = dKey && texto.includes(dKey);
+        if (cliOk && sisOk && keyOk) {
+          if (!materialMap.has(d.material)) materialMap.set(d.material, new Set());
+          materialMap.get(d.material).add(`${p.clienteReal||p.cliente||''}${p.localidad?' '+p.localidad:''}`.trim());
+        }
+      });
+    });
+    if (!materialMap.size) return 'No he encontrado material que encaje con estos partes. Amplía el diccionario en Buscar → 🧰 Equipos.';
+    const lineas = [...materialMap.entries()].map(([mat, motivos]) => {
+      const m = [...motivos].slice(0,3).join(', ');
+      return `• ${mat}${m?`  (${m})`:''}`;
+    });
+    return `🧰 Material para los ${partes.length} partes activos:\n\n${lineas.join('\n')}`;
+  }
+
+  /* ── HISTORIAL DE TODOS LOS PARTES PEGADOS ── */
+  if (cl.intento === 'HISTORIAL_TODOS') {
+    const partes = cargarPartes();
+    if (!partes.length) return 'No tienes partes cargados ahora mismo.';
+    const bloques = _iramHistoricoOficinas(partes);
+    if (!bloques.length) return 'No hay histórico registrado de las oficinas de estos partes.';
+    return `Histórico de las oficinas de hoy:\n\n${bloques.join('\n\n')}`;
+  }
+
+  /* ── HISTORIAL DE HOY (ruta ya hecha) ── */
+  if (cl.intento === 'HISTORIAL_HOY') {
+    const hechas = loadArr(K_RUTA).filter(r => r.estado === 'completada');
+    if (!hechas.length) return 'Todavía no has cerrado ninguna parada hoy.';
+    const lista = hechas.map(p => {
+      const cli  = p.clienteReal||p.clienteNorm||p.cliente||'—';
+      const cod  = p.codigo?` · ${p.codigo}`:'';
+      const loc  = p.localidad?` · ${p.localidad}`:'';
+      const trab = _iramLimpiaTrab(p.trabajoRealizado || p.trabajo || p.descripcion || '');
+      return `• ${cli}${cod}${loc}${trab?` — ${trab.slice(0,60)}${trab.length>60?'…':''}`:''}`;
+    }).join('\n');
+    return `Hoy has cerrado ${hechas.length} parada${hechas.length!==1?'s':''}:\n\n${lista}`;
   }
 
   /* ── HISTORIAL CLIENTE ── */
