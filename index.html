@@ -15372,16 +15372,16 @@ async function iramEjecutarAccion(cl) {
   /* ── QUE_ME_QUEDA ── */
   if (cl.intento === 'QUE_ME_QUEDA') {
     const pend = loadArr(K_RUTA).filter(r=>r.estado==='pendiente');
-    if (!pend.length) return 'Ruta terminada. ¡Buen trabajo!';
+    if (!pend.length) return 'Ruta terminada. ¡Buen trabajo! 👌';
     const lista = pend.map(p => {
-      const cli  = p.clienteReal||p.cliente||'?';
-      const loc  = p.localidad||'';
-      const cod  = p.codigo ? ` (${p.codigo})` : '';
+      const cli  = p.clienteReal||p.cliente||'—';
+      const loc  = p.localidad?` · ${p.localidad}`:'';
+      const cod  = p.codigo ? ` · ${p.codigo}` : '';
       const urg  = p.urgente ? '🚨 ' : '';
-      const dias = p.diasEspera && parseInt(p.diasEspera)>7 ? ` ${p.diasEspera}d` : '';
-      return `${urg}${cli}${cod} · ${loc}${dias}`;
+      const dias = p.diasEspera && parseInt(p.diasEspera)>7 ? ` (${p.diasEspera}d)` : '';
+      return `• ${urg}${cli}${cod}${loc}${dias}`;
     }).join('\n');
-    return `Te quedan ${pend.length}:\n${lista}`;
+    return `Te quedan ${pend.length} parada${pend.length>1?'s':''}:\n\n${lista}`;
   }
 
   /* ── POR_DONDE_EMPIEZO ── */
@@ -15395,13 +15395,15 @@ async function iramEjecutarAccion(cl) {
       return parseInt(b.diasEspera||0) - parseInt(a.diasEspera||0);
     });
     const top = sorted.slice(0,3).map((a,i) => {
-      const cli  = a.clienteReal||a.clienteNorm||a.cliente||'?';
-      const loc  = a.localidad||'';
+      const cli  = a.clienteReal||a.clienteNorm||a.cliente||'—';
+      const loc  = a.localidad?` · ${a.localidad}`:'';
       const urg  = a.urgente ? '🚨 ' : '';
       const dias = a.diasEspera ? ` — ${a.diasEspera}d esperando` : '';
-      return `${i+1}. ${urg}${cli} · ${loc}${dias}`;
+      return `${i+1}. ${urg}${cli}${loc}${dias}`;
     }).join('\n');
-    return `Empieza por:\n${top}`;
+    const hayUrg = sorted[0]?.urgente;
+    const motivo = hayUrg ? 'Yo empezaría por lo urgente' : 'Yo empezaría por lo que lleva más tiempo esperando';
+    return `${motivo}:\n\n${top}`;
   }
 
   /* ── CONTEXTO_OFICINA ── */
@@ -15783,8 +15785,8 @@ async function iramEjecutarAccion(cl) {
       });
       const dStr = target.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
       if (!visitas.length) return `No hay visitas registradas el ${dStr}.`;
-      const lista = visitas.slice(0,5).map(v=>`${v.CLIENTE||v.cliente} · ${v.LOCALIDAD||v.localidad||''} — ${(v.TRABAJO||v.trabajo||'sin descripción').slice(0,60)}`).join('\n');
-      return `${visitas.length>1?visitas.length+' visitas ese día':' El '+dStr}:\n${lista}`;
+      const lista = visitas.slice(0,5).map(v=>`• ${v.CLIENTE||v.cliente} · ${v.LOCALIDAD||v.localidad||''} — ${(v.TRABAJO||v.trabajo||'sin descripción').slice(0,60)}`).join('\n');
+      return `El ${dStr} tienes ${visitas.length} visita${visitas.length>1?'s':''} registrada${visitas.length>1?'s':''}:\n\n${lista}`;
     }
     // Búsqueda por cliente/localidad
     const ofi  = (!cl.cliente && !cl.localidad && !cl.codigo) ? _iramOficinaActiva : null;
@@ -15815,7 +15817,7 @@ async function iramEjecutarAccion(cl) {
       return `• ${v.FECHA||'?'} — ${trab}`;
     }).join('\n');
     const mas = visitas.length > 5 ? `\n(y ${visitas.length-5} más)` : '';
-    return `${nombre}${loc?' de '+loc:''} — ${visitas.length} visita${visitas.length>1?'s':''}:\n${lista}${mas}`;
+    return `En ${nombre}${loc?' de '+loc:''} hay ${visitas.length} visita${visitas.length>1?'s':''}. Las últimas:\n\n${lista}${mas}`;
   }
 
   /* ── FICHA CLIENTE — resumen consolidado ── */
@@ -15860,7 +15862,7 @@ async function iramEjecutarAccion(cl) {
     const mtoData = (typeof iramGetMtoData === 'function') ? iramGetMtoData(nombre, cod, muni, trimAct) : null;
 
     // ── Construir ficha ──
-    let out = `📋 ${nombre}${cod?' · '+cod:''}${muni?' · '+muni:''}`;
+    let out = `Ficha de ${nombre}${cod?' · '+cod:''}${muni?' · '+muni:''}`;
     if (dir) out += `\n📍 ${dir}`;
     if (hor) out += `\n🕐 ${typeof verbalizarHorario==='function'?verbalizarHorario(hor):hor}`;
 
@@ -16075,7 +16077,9 @@ async function iramEjecutarAccion(cl) {
       const r = estimarRuta(kmRecta);
       tiempo = `, a unos ${r.min} minuto${r.min!==1?'s':''} y ${r.km.toFixed(1)} kilómetros`;
     }
-    return `La siguiente es ${cliente}${loc}${tiempo}.`;
+    const trab = _iramLimpiaTrab(sig.trabajo || sig.descripcion || '');
+    const trabTxt = trab ? ` Toca: ${trab.slice(0,70)}${trab.length>70?'…':''}` : '';
+    return `La siguiente es ${cliente}${loc}${tiempo}.${trabTxt}`;
   }
 
   /* ── NAVEGAR ── */
@@ -16187,8 +16191,8 @@ async function iramEjecutarAccion(cl) {
     if (typeof actualizarBavTareas === 'function') actualizarBavTareas();
     const fStr = cl.fecha
       ? new Date(cl.fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})
-      : 'sin fecha';
-    return `✅ Tarea "${cl.titulo}" — ${fStr} · alarma 7:00.`;
+      : null;
+    return `Hecho ✅ Apunté la tarea "${cl.titulo}"${fStr?` para el ${fStr}`:''}, con alarma a las 7:00.`;
   }
 
   /* ── CREAR EVENTO ── */
@@ -16211,7 +16215,7 @@ async function iramEjecutarAccion(cl) {
     save(K_EVENTOS, eventos);
     if (typeof refreshFCEvents === 'function') refreshFCEvents();
     const fStr = new Date(cl.fecha+'T12:00:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
-    return `✅ Evento "${cl.titulo}" el ${fStr}${cl.hora?' a las '+cl.hora:''}.`;
+    return `Listo ✅ Te anoté "${cl.titulo}" el ${fStr}${cl.hora?' a las '+cl.hora:''}.`;
   }
 
   /* ── CONSULTA NOTAS ── */
@@ -16242,29 +16246,30 @@ async function iramEjecutarAccion(cl) {
 
     if (!q) {
       // Sin query → listar todas las notas
-      if (!notas.length) return 'No tienes notas guardadas.';
-      const lista = notas.slice(0,5).map(n => n.titulo||n.texto?.slice(0,30)||'sin título').join(', ');
-      return `${notas.length} nota${notas.length>1?'s':''}: ${lista}.`;
+      if (!notas.length) return 'No tienes notas guardadas todavía.';
+      const lista = notas.slice(0,6).map(n => `• ${n.titulo||(n.texto||'').slice(0,30)||'sin título'}`).join('\n');
+      return `Tienes ${notas.length} nota${notas.length>1?'s':''} guardada${notas.length>1?'s':''}:\n\n${lista}`;
     }
 
     if (!totalResultados) return `No tengo nada anotado sobre "${cl.query}".`;
 
+    const _limpio = t => (typeof stripHTML==='function' ? stripHTML(String(t||'')) : String(t||'').replace(/<[^>]+>/g,' ')).replace(/\s+/g,' ').trim();
     const lineas = [];
 
     // Resultados de notas de usuario
     notasMatch.slice(0,2).forEach(n => {
-      const txt2 = (n.texto||'').slice(0,120);
-      lineas.push(`📝 ${n.titulo||'Nota'}: ${txt2}`);
+      const txt2 = _limpio(n.texto).slice(0,140);
+      lineas.push(`📝 ${n.titulo||'Nota'}: ${txt2}${_limpio(n.texto).length>140?'…':''}`);
     });
 
     // Resultados de info técnica
     infoMatch.slice(0,3).forEach(r => {
       const quien = r.entidad || r.sistema || r.tipoDato || 'Info';
-      const info  = (r.detalle||r.INFORMACION||r.INFO||'');
+      const info  = _limpio(r.detalle||r.INFORMACION||r.INFO||'').slice(0,160);
       lineas.push(`🔧 ${quien}: ${info}`);
     });
 
-    const mas = totalResultados > lineas.length ? ` (${totalResultados} coincidencias total)` : '';
+    const mas = totalResultados > lineas.length ? `\n\n(${totalResultados} coincidencias en total)` : '';
     return lineas.join('\n') + mas;
   }
 
@@ -16319,7 +16324,7 @@ async function iramEjecutarAccion(cl) {
     });
     save(K_NOTAS, notas);
     if (typeof renderNotas === 'function') renderNotas();
-    return `✅ Nota guardada.`;
+    return `Nota guardada ✅`;
   }
 
   /* ── QUITAR AVISO DE RUTA ── */
@@ -16344,7 +16349,7 @@ async function iramEjecutarAccion(cl) {
     if (typeof renderLista === 'function') renderLista();
     iramRellenarDrive();
     const nombres = aquitar.map(p=>`${p.clienteReal||p.cliente} · ${p.localidad||''}`).join(', ');
-    return `✅ ${aquitar.length===1?'Aviso quitado':aquitar.length+' avisos quitados'} de la ruta: ${nombres}.`;
+    return `Hecho, ${aquitar.length===1?'quité':'quité los '+aquitar.length} de la ruta: ${nombres}.`;
   }
 
   /* ── COMPLETAR AVISO ── */
@@ -16377,15 +16382,15 @@ async function iramEjecutarAccion(cl) {
       mtoMan[clave][trim] = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'});
       localStorage.setItem('pyc_mto_manual', JSON.stringify(mtoMan));
       if (typeof renderMTO === 'function') renderMTO();
-      mtoMsg = ` MTO ${trim} registrado.`;
+      mtoMsg = ` Y anoté el MTO ${trim}.`;
     }
     if (typeof renderRuta === 'function') renderRuta();
     _iramOficinaActiva = null; // limpiar contexto al completar el aviso
     const rutaAct = loadArr(K_RUTA);
     const sig2 = rutaAct.find(r => r.estado==='pendiente');
-    let resp = `✅ ${sig.clienteReal||sig.cliente} · ${sig.localidad||''} completado.${mtoMsg}`;
-    if (sig2) resp += ` Siguiente: ${sig2.clienteReal||sig2.clienteNorm||sig2.cliente} · ${sig2.localidad||''}.`;
-    else resp += ' Ruta completada. ¡Buen trabajo!';
+    let resp = `Hecho ✅ ${sig.clienteReal||sig.cliente}${sig.localidad?' · '+sig.localidad:''} queda cerrado.${mtoMsg}`;
+    if (sig2) resp += ` La siguiente: ${sig2.clienteReal||sig2.clienteNorm||sig2.cliente}${sig2.localidad?' · '+sig2.localidad:''}.`;
+    else resp += ' Y con esa, ruta completada. ¡Buen trabajo! 👌';
 
     // buscarCerca — buscar avisos en la misma localidad o zona en análisis
     if (cl.buscarCerca) {
@@ -16443,7 +16448,7 @@ async function iramEjecutarAccion(cl) {
     });
     localStorage.setItem('pyc_mto_manual', JSON.stringify(mtoMan));
     if (typeof renderMTO === 'function') renderMTO();
-    return `✅ MTO ${trim} registrado — ${registradas.join(', ')}.`;
+    return `Anotado ✅ MTO ${trim} en: ${registradas.join(', ')}.`;
   }
 
   /* ── MARCAR TAREA HECHA ── */
@@ -16455,7 +16460,7 @@ async function iramEjecutarAccion(cl) {
     tareas[idx].estado = 'hecha';
     save(K_TAREAS, tareas);
     if (typeof renderTareas === 'function') renderTareas();
-    return `✅ Tarea "${tareas[idx].titulo}" completada.`;
+    return `Hecho ✅ Tacho "${tareas[idx].titulo}".`;
   }
 
   /* ── ANADIR AVISO ── */
@@ -16498,7 +16503,7 @@ async function iramEjecutarAccion(cl) {
     rutaActual.push({ id:'R_'+Date.now(), clienteReal:a.clienteReal||a.clienteNorm||a.cliente, clienteNorm:a.clienteNorm||a.cliente, cliente:a.cliente, codigo:a.codigo||'', localidad:a.localidad||'', direccion:a.direccion||'', trabajo:a.trabajo||a.descripcion||'', horarioTxt:a.horarioTxt||'', urgente:a.urgente||false, estado:'pendiente' });
     save(K_RUTA, rutaActual);
     if (typeof renderRuta === 'function') renderRuta();
-    return `✅ ${a.clienteReal||a.clienteNorm||a.cliente} · ${a.localidad||''} añadido a la ruta.`;
+    return `Añadido a la ruta ✅ ${a.clienteReal||a.clienteNorm||a.cliente}${a.localidad?' · '+a.localidad:''}.`;
   }
 
   /* ── CREAR RUTA ── */
