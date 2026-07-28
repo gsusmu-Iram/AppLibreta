@@ -7306,6 +7306,7 @@ function datosExportarExcel() {
     datosProg('excel', 30, 'Exportando Clientes…');
     const clientes = loadArr(K_EXCEL);
     const mtoMan   = loadObj(K_MTO_MAN);  // fechas marcadas manualmente
+    const mtoExtCli = loadObj(K_MTO_EXT); // extintores caducados por oficina
     const nuevos   = datosClientesNuevos();
     const coordsCli = cargarCoords();      // GPS guardados → se vuelcan en cada fila
 
@@ -7364,11 +7365,13 @@ function datosExportarExcel() {
           'LNG':       _lng,
           'EXT_FECHA_POLVO': String(c.EXT_FECHA_POLVO || ''),
           'EXT_FECHA_CO2':   String(c.EXT_FECHA_CO2   || ''),
+          'EXT_CAD_POLVO': (mtoExtCli[mtoKey(c)] && mtoExtCli[mtoKey(c)].polvo) || 0,
+          'EXT_CAD_CO2':   (mtoExtCli[mtoKey(c)] && mtoExtCli[mtoKey(c)].co2)   || 0,
         });})
       : [{'ZONA':'','CLIENTE':'','CODIGO':'','DIRECCION':'','MUNICIPIO':'','PROVINCIA':'',
           'OBSERVACIONES':'','INT':'','Q1':'','Q2':'','Q3':'','Q4':'',
           'EXT_POLVO':0,'EXT_CO2':0,'HORARIO':'','CENTRAL':'','MOD. CENTRAL':'',
-          'GRABADOR':'','COMUNICACIÓN':'','INCENDIO':'','ACCESO':'','LAT':'','LNG':'','EXT_FECHA_POLVO':'','EXT_FECHA_CO2':''}];
+          'GRABADOR':'','COMUNICACIÓN':'','INCENDIO':'','ACCESO':'','LAT':'','LNG':'','EXT_FECHA_POLVO':'','EXT_FECHA_CO2':'','EXT_CAD_POLVO':0,'EXT_CAD_CO2':0}];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cliRows), 'Clientes');
 
     // ── HISTORIAL ──────────────────────────────────────────────
@@ -7607,6 +7610,21 @@ function datosImportarExcel(input) {
             }
           });
           if (coordsLeidas) save(K_COORDS, coordsExist);
+
+          // ── Extintores caducados desde columnas EXT_CAD_POLVO/CO2 de cada oficina ──
+          try {
+            const mtoExtIn = loadObj(K_MTO_EXT);
+            let extLeidos = 0;
+            clientes.forEach((c, i) => {
+              const polvo = parseInt(rows[i]['EXT_CAD_POLVO']) || 0;
+              const co2   = parseInt(rows[i]['EXT_CAD_CO2'])   || 0;
+              if (polvo > 0 || co2 > 0) {
+                mtoExtIn[mtoKey(c)] = { polvo, co2 };
+                extLeidos++;
+              }
+            });
+            if (extLeidos) { save(K_MTO_EXT, mtoExtIn); toast(`🧯 ${extLeidos} oficina${extLeidos>1?'s':''} con extintores caducados`); }
+          } catch(e){}
         }
 
         else if (nl.includes('historial')) {
