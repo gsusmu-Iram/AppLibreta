@@ -4184,6 +4184,15 @@ function extraerDireccion(bloque) {
 function extraerDescripcion(texto, aviso) {
   let desc = '';
 
+  // Ancla 0: mantenimientos periódicos (cabecera "MANT. … de SEGURIDAD/P.C.I. de sistema")
+  //          Tienen prioridad porque no llevan texto de avería y las anclas de dirección fallan.
+  if (/MANT\.?\s+[^\n]*?\s+DE\s+P\.?C\.?I\.?\s+DE\s+SISTEMA/i.test(texto)) {
+    return /TRIMESTRAL/i.test(texto) ? 'MANT. TRIMESTRAL PCI' : 'MANTENIMIENTO ANUAL PCI';
+  }
+  if (/MANT\.?\s+[^\n]*?\s+DE\s+SEGURIDAD\s+DE\s+SISTEMA/i.test(texto)) {
+    return 'MANTENIMIENTO ANUAL INTRUSIÓN';
+  }
+
   // Ancla 1: después del INC/WO/TASK (no para AL_M ni ABONADO)
   if (aviso.aviso && aviso.tipo !== 'NONE' && aviso.tipo !== 'AL' && aviso.tipo !== 'ABONADO') {
     const idx = texto.indexOf(aviso.aviso);
@@ -4216,9 +4225,11 @@ function extraerDescripcion(texto, aviso) {
   // Ancla 4: mantenimientos sin INC
   if (!desc) {
     const u = texto.toUpperCase();
-    if      (u.includes('MANT. TRIMESTRAL DE P.C.I')||u.includes('MANT. TRIMESTRAL de P.C.I')) desc='MANT. TRIMESTRAL PCI';
-    else if (u.includes('MANT. CAJAMAR DE SEGURIDAD'))  desc='MANTENIMIENTO CAJAMAR SEG';
-    else if (u.includes('MANTENIMIENTO SEGURIDAD'))      desc='MANTENIMIENTO SEGURIDAD';
+    // Regla general: cualquier "MANT. … de SEGURIDAD / P.C.I." = mantenimiento anual/periódico
+    if      (/MANT\.?\s+.*?\s+DE\s+P\.?C\.?I\.?/i.test(texto) && /TRIMESTRAL/i.test(texto)) desc='MANT. TRIMESTRAL PCI';
+    else if (/MANT\.?\s+.*?\s+DE\s+P\.?C\.?I\.?/i.test(texto)) desc='MANTENIMIENTO PCI';
+    else if (/MANT\.?\s+.*?\s+DE\s+SEGURIDAD/i.test(texto))    desc='MANTENIMIENTO ANUAL INTRUSIÓN';
+    else if (u.includes('MANTENIMIENTO SEGURIDAD'))      desc='MANTENIMIENTO ANUAL INTRUSIÓN';
     else if (u.includes('REV TRIM')||u.includes('REV. TRIM')) desc='REVISIÓN TRIMESTRAL';
     else if (u.includes('REVISION ANUAL')||u.includes('REVISIÓN ANUAL')) desc='REVISIÓN ANUAL';
     else if (u.includes('SUSTITUCION VOL')||u.includes('SUSTITUCIÓN VOL')) {
@@ -13435,27 +13446,33 @@ document.addEventListener('DOMContentLoaded', () => {
 .cl-rename-cancel { background:none; border:none; color:#6b6b68; font-size:15px; padding:9px 14px; cursor:pointer; border-radius:10px; }
 .cl-rename-ok { background:#d97757; color:#fff; border:none; font-size:15px; font-weight:600; padding:9px 18px; border-radius:10px; cursor:pointer; }
 
-/* Menú de conversación (renombrar / eliminar) */
-#cl-convmenu-overlay, #cl-confdel-overlay {
+/* Menú de conversación (renombrar / eliminar) — estilo Claude compacto */
+#cl-convmenu-overlay {
+  position:absolute; inset:0; z-index:72; background:rgba(0,0,0,.28);
+  display:flex; align-items:center; justify-content:center; padding:32px;
+}
+#cl-confdel-overlay {
   position:absolute; inset:0; z-index:72; background:rgba(0,0,0,.4);
-  display:flex; align-items:flex-end; justify-content:center; padding:0;
+  display:flex; align-items:center; justify-content:center; padding:24px;
 }
-#cl-confdel-overlay { align-items:center; padding:24px; }
 .cl-convmenu-sheet {
-  background:#faf9f5; width:100%; border-radius:18px 18px 0 0; padding:10px 10px 16px;
-  animation:clSheetUp .2s ease;
+  background:#fbfaf7; width:100%; max-width:290px; border-radius:16px; padding:6px;
+  box-shadow:0 10px 40px rgba(0,0,0,.25); border:1px solid rgba(0,0,0,.06);
+  animation:clSheetUp .16s ease;
 }
-@keyframes clSheetUp { from{transform:translateY(30px);opacity:.5} to{transform:translateY(0);opacity:1} }
-.cl-convmenu-titulo { font-size:13px; color:#9a978d; padding:10px 14px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+@keyframes clSheetUp { from{transform:scale(.96);opacity:0} to{transform:scale(1);opacity:1} }
+.cl-convmenu-titulo { font-size:12px; color:#9a978d; padding:8px 12px 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .cl-convmenu-item {
-  display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:none; border:none;
-  padding:14px; border-radius:12px; font-size:16px; color:#3d3d3a; cursor:pointer; -webkit-tap-highlight-color:transparent;
+  display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; text-align:left; background:none; border:none;
+  padding:12px 12px; border-radius:10px; font-size:15px; color:#3d3d3a; cursor:pointer; -webkit-tap-highlight-color:transparent;
 }
 .cl-convmenu-item:active { background:rgba(0,0,0,.05); }
+.cl-convmenu-item .cl-convmenu-ico { font-size:16px; opacity:.7; }
 .cl-convmenu-item.danger { color:#c0392b; }
+.cl-convmenu-sep { height:1px; background:rgba(0,0,0,.07); margin:4px 8px; }
 .cl-convmenu-cancel {
-  width:100%; background:#ece9e0; border:none; padding:14px; border-radius:12px; margin-top:6px;
-  font-size:16px; font-weight:600; color:#3d3d3a; cursor:pointer; -webkit-tap-highlight-color:transparent;
+  width:100%; background:none; border:none; padding:11px; border-radius:10px; margin-top:2px;
+  font-size:14px; color:#9a978d; cursor:pointer; -webkit-tap-highlight-color:transparent;
 }
 </style>
 
@@ -14414,10 +14431,11 @@ function iramMenuChat(id) {
     <div class="cl-convmenu-sheet">
       <div class="cl-convmenu-titulo">${escH(conv.titulo || 'Sin título')}</div>
       <button class="cl-convmenu-item" onclick="document.getElementById('cl-convmenu-overlay').remove();iramAbrirRenombrar('${id}')">
-        <span>✏️</span> Renombrar
+        <span>Renombrar</span><span class="cl-convmenu-ico">✏️</span>
       </button>
+      <div class="cl-convmenu-sep"></div>
       <button class="cl-convmenu-item danger" onclick="iramConfirmarBorrarChat('${id}')">
-        <span>🗑️</span> Eliminar conversación
+        <span>Eliminar conversación</span><span class="cl-convmenu-ico">🗑️</span>
       </button>
       <button class="cl-convmenu-cancel" onclick="document.getElementById('cl-convmenu-overlay').remove()">Cancelar</button>
     </div>`;
@@ -15392,11 +15410,31 @@ function _iramLimpiaTrab(t) {
 }
 
 /* Formato natural: resumen (por cliente + urgentes) + listado limpio */
-function _iramResumenListado(partes, zona) {
+function _iramResumenListado(partes, zona, html) {
   const n = partes.length;
   const porCli = {};
   partes.forEach(a => { const c = a.clienteReal || a.clienteNorm || a.cliente || '—'; porCli[c] = (porCli[c] || 0) + 1; });
   const urg = partes.filter(a => a.urgente);
+
+  if (html) {
+    let head = zona ? `En ${escH(zona)} tienes <strong>${n} aviso${n!==1?'s':''}</strong>` : `Tienes <strong>${n} aviso${n!==1?'s':''}</strong>`;
+    if (Object.keys(porCli).length > 1) {
+      const cli = Object.entries(porCli).sort((a,b)=>b[1]-a[1]).map(([c,x])=>`${escH(c)} <span style="color:#8a8781">(${x})</span>`).join(', ');
+      head += `. ${cli}`;
+    }
+    if (urg.length) head += `. <span style="color:#c0392b;font-weight:600">🚨 ${urg.length} urgente${urg.length!==1?'s':''}</span>`;
+    const lista = partes.map(a => {
+      const c = escH(a.clienteReal||a.clienteNorm||a.cliente||'—');
+      const cod = a.codigo ? ` · ${escH(a.codigo)}` : '';
+      const loc = a.localidad ? ` · ${escH(a.localidad)}` : '';
+      const tr = _iramLimpiaTrab(a.trabajo||a.descripcion||'');
+      const trCorto = tr ? ` <span style="color:#8a8781">— ${escH(tr.slice(0,70))}${tr.length>70?'…':''}</span>` : '';
+      const u = a.urgente ? '🚨 ' : '';
+      return `<li>${u}<strong>${c}</strong>${cod}${loc}${trCorto}</li>`;
+    }).join('');
+    return _HTML_MARK + `<p>${head}.</p><ul style="margin:6px 0 0">${lista}</ul>`;
+  }
+
   let head = zona ? `En ${zona} tienes ${n} aviso${n !== 1 ? 's' : ''}.` : `Tienes ${n} aviso${n !== 1 ? 's' : ''}.`;
   if (Object.keys(porCli).length > 1) {
     const cli = Object.entries(porCli).sort((a, b) => b[1] - a[1]).map(([c, x]) => `${c} (${x})`).join(', ');
@@ -15412,6 +15450,22 @@ function _iramResumenListado(partes, zona) {
     return `• ${c}${cod}${loc}${trCorto}`;
   }).join('\n');
   return `${head}\n\n${lista}`;
+}
+
+/* Helper: lista HTML de partes con cliente en negrita y trabajo en gris */
+function _htmlLiPartes(partes) {
+  return partes.map(p => {
+    const c = escH(p.clienteReal||p.clienteNorm||p.cliente||'—');
+    const cod = p.codigo ? ` · ${escH(p.codigo)}` : '';
+    const loc = p.localidad ? ` · ${escH(p.localidad)}` : '';
+    const tr = _iramLimpiaTrab(p.trabajo||p.descripcion||p.aviso||'');
+    const trTxt = tr ? ` <span style="color:#8a8781">— ${escH(tr.slice(0,70))}${tr.length>70?'…':''}</span>` : '';
+    const u = p.urgente ? '🚨 ' : '';
+    return `<li>${u}<strong>${c}</strong>${cod}${loc}${trTxt}</li>`;
+  }).join('');
+}
+function _htmlResp(titulo, cuerpo) {
+  return _HTML_MARK + `<p><strong>${titulo}</strong></p>${cuerpo}`;
 }
 
 // Contexto extra al pegar partes: fijados de hoy, eventos, tareas e histórico de las oficinas
@@ -15685,15 +15739,7 @@ async function iramEjecutarAccion(cl) {
   if (cl.intento === 'QUE_ME_QUEDA') {
     const pend = loadArr(K_RUTA).filter(r=>r.estado==='pendiente');
     if (!pend.length) return 'Ruta terminada. ¡Buen trabajo! 👌';
-    const lista = pend.map(p => {
-      const cli  = p.clienteReal||p.cliente||'—';
-      const loc  = p.localidad?` · ${p.localidad}`:'';
-      const cod  = p.codigo ? ` · ${p.codigo}` : '';
-      const urg  = p.urgente ? '🚨 ' : '';
-      const dias = p.diasEspera && parseInt(p.diasEspera)>7 ? ` (${p.diasEspera}d)` : '';
-      return `• ${urg}${cli}${cod}${loc}${dias}`;
-    }).join('\n');
-    return `Te quedan ${pend.length} parada${pend.length>1?'s':''}:\n\n${lista}`;
+    return _htmlResp(`Te quedan ${pend.length} parada${pend.length>1?'s':''}`, `<ul style="margin:6px 0 0">${_htmlLiPartes(pend)}</ul>`);
   }
 
   /* ── POR_DONDE_EMPIEZO ── */
@@ -15746,14 +15792,7 @@ async function iramEjecutarAccion(cl) {
     const analisis = (() => { try { return JSON.parse(localStorage.getItem(K_ANALISIS)||'[]'); } catch{return[];} })();
     const urg = analisis.filter(a=>a.urgente&&a.estado!=='completado'&&a.estado!=='cerrado');
     if (!urg.length) return 'Ninguna urgencia ahora mismo 👍';
-    const lista = urg.map(a => {
-      const cli  = a.clienteReal||a.clienteNorm||a.cliente||'—';
-      const cod  = a.codigo?` · ${a.codigo}`:'';
-      const loc  = a.localidad?` · ${a.localidad}`:'';
-      const trab = _iramLimpiaTrab(a.trabajo||a.descripcion||a.aviso||'');
-      return `🚨 ${cli}${cod}${loc}${trab?` — ${trab.slice(0,70)}${trab.length>70?'…':''}`:''}`;
-    }).join('\n');
-    return `Tienes ${urg.length} aviso${urg.length>1?'s':''} urgente${urg.length>1?'s':''}:\n\n${lista}`;
+    return _htmlResp(`🚨 Tienes ${urg.length} aviso${urg.length>1?'s':''} urgente${urg.length>1?'s':''}`, `<ul style="margin:6px 0 0">${_htmlLiPartes(urg)}</ul>`);
   }
 
   /* ── RESUMEN DÍA ── */
@@ -15875,10 +15914,10 @@ async function iramEjecutarAccion(cl) {
     const tPend  = tareas.filter(t => t.estado === 'pendiente');
     const tHoy   = tPend.filter(t => t.fecha === hoyISO);
     if (!tPend.length) return 'No tienes tareas pendientes 👍';
-    const lista = tPend.map(t => `• ${t.titulo}${t.fecha?` (${t.fecha})`:''}`).join('\n');
+    const lista = tPend.map(t => `<li>📋 ${escH(t.titulo)}${t.fecha?` <span style="color:#8a8781">(${escH(t.fecha)})</span>`:''}</li>`).join('');
     let cab = `Tienes ${tPend.length} tarea${tPend.length>1?'s':''} pendiente${tPend.length>1?'s':''}`;
-    cab += tHoy.length ? `, ${tHoy.length} para hoy:` : ':';
-    return `${cab}\n\n${lista}`;
+    cab += tHoy.length ? `, ${tHoy.length} para hoy` : '';
+    return _htmlResp(cab, `<ul style="margin:6px 0 0">${lista}</ul>`);
   }
 
   /* ── MTO SEMANA ── */
@@ -16142,17 +16181,10 @@ async function iramEjecutarAccion(cl) {
     if (!ruta.length) return 'No tienes ninguna ruta montada hoy.';
     const pend = ruta.filter(r => r.estado !== 'completada');
     const hech = ruta.filter(r => r.estado === 'completada');
-    const linea = p => {
-      const cli  = p.clienteReal||p.clienteNorm||p.cliente||'—';
-      const cod  = p.codigo?` · ${p.codigo}`:'';
-      const loc  = p.localidad?` · ${p.localidad}`:'';
-      const urg  = p.urgente?'🚨 ':'';
-      return `• ${urg}${cli}${cod}${loc}`;
-    };
     let out = '';
-    if (pend.length) out += `Ruta de hoy — ${pend.length} pendiente${pend.length!==1?'s':''}:\n${pend.map(linea).join('\n')}`;
-    if (hech.length) out += `${out?'\n\n':''}Ya cerradas (${hech.length}):\n${hech.map(linea).join('\n')}`;
-    return out || 'La ruta de hoy está vacía.';
+    if (pend.length) out += `<p><strong>Ruta de hoy — ${pend.length} pendiente${pend.length!==1?'s':''}</strong></p><ul style="margin:6px 0 10px">${_htmlLiPartes(pend)}</ul>`;
+    if (hech.length) out += `<p style="color:#8a8781"><strong>Ya cerradas (${hech.length})</strong></p><ul style="margin:6px 0 0">${_htmlLiPartes(hech)}</ul>`;
+    return out ? (_HTML_MARK + out) : 'La ruta de hoy está vacía.';
   }
 
   /* ── HISTORIAL DE HOY (ruta ya hecha) ── */
@@ -16160,13 +16192,13 @@ async function iramEjecutarAccion(cl) {
     const hechas = loadArr(K_RUTA).filter(r => r.estado === 'completada');
     if (!hechas.length) return 'Todavía no has cerrado ninguna parada hoy.';
     const lista = hechas.map(p => {
-      const cli  = p.clienteReal||p.clienteNorm||p.cliente||'—';
-      const cod  = p.codigo?` · ${p.codigo}`:'';
-      const loc  = p.localidad?` · ${p.localidad}`:'';
+      const cli  = escH(p.clienteReal||p.clienteNorm||p.cliente||'—');
+      const cod  = p.codigo?` · ${escH(p.codigo)}`:'';
+      const loc  = p.localidad?` · ${escH(p.localidad)}`:'';
       const trab = _iramLimpiaTrab(p.trabajoRealizado || p.trabajo || p.descripcion || '');
-      return `• ${cli}${cod}${loc}${trab?` — ${trab.slice(0,60)}${trab.length>60?'…':''}`:''}`;
-    }).join('\n');
-    return `Hoy has cerrado ${hechas.length} parada${hechas.length!==1?'s':''}:\n\n${lista}`;
+      return `<li><strong>${cli}</strong>${cod}${loc}${trab?` <span style="color:#8a8781">— ${escH(trab.slice(0,70))}${trab.length>70?'…':''}</span>`:''}</li>`;
+    }).join('');
+    return _htmlResp(`Hoy has cerrado ${hechas.length} parada${hechas.length!==1?'s':''}`, `<ul style="margin:6px 0 0">${lista}</ul>`);
   }
 
   /* ── HISTORIAL CLIENTE ── */
@@ -16211,13 +16243,12 @@ async function iramEjecutarAccion(cl) {
     const nombre = cl.cliente||ofi?.cliente||'ese cliente';
     const loc    = cl.localidad||ofi?.localidad||'';
     if (!visitas.length) return `No hay visitas registradas en ${nombre}${loc?' de '+loc:''}.`;
-    // Mostrar todas las visitas (máx 5) con fecha y trabajo
     const lista = visitas.slice(0,5).map(v => {
       const trab = (v.TRABAJO||v.trabajo||'sin descripción').slice(0,70);
-      return `• ${v.FECHA||'?'} — ${trab}`;
-    }).join('\n');
-    const mas = visitas.length > 5 ? `\n(y ${visitas.length-5} más)` : '';
-    return `En ${nombre}${loc?' de '+loc:''} hay ${visitas.length} visita${visitas.length>1?'s':''}. Las últimas:\n\n${lista}${mas}`;
+      return `<li><span style="color:#8a8781">${escH(v.FECHA||'?')}</span> — ${escH(trab)}</li>`;
+    }).join('');
+    const mas = visitas.length > 5 ? `<p style="color:#8a8781;font-size:13px;margin:4px 0 0">(y ${visitas.length-5} más)</p>` : '';
+    return _htmlResp(`${escH(nombre)}${loc?' · '+escH(loc):''} — ${visitas.length} visita${visitas.length>1?'s':''}`, `<ul style="margin:6px 0 0">${lista}</ul>${mas}`);
   }
 
   /* ── FICHA CLIENTE — resumen consolidado ── */
@@ -17000,7 +17031,7 @@ async function iramEjecutarAccion(cl) {
           const f = filtrados[0];
           _iramOficinaActiva = { cliente:f.clienteReal||f.clienteNorm||f.cliente||'', codigo:f.codigo||'', localidad:f.localidad||'', direccion:f.direccion||'', horario:f.horarioTxt||'' };
         }
-        return _iramResumenListado(filtrados, por);
+        return _iramResumenListado(filtrados, por, true);
       }
       return `En ${por} no tienes ningún aviso pendiente ahora mismo.`;
     }
@@ -17031,7 +17062,7 @@ async function iramEjecutarAccion(cl) {
 
     // Si no hay ruta pero sí análisis → mostrar análisis directamente
     if (!ruta.length && anPend.length) {
-      return _iramResumenListado(anPend, '');
+      return _iramResumenListado(anPend, '', true);
     }
 
     let resp = '';
