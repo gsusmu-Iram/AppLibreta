@@ -7520,13 +7520,13 @@ function datosExportarExcel() {
       : XLSX.utils.aoa_to_sheet([['NOMBRE','TELEFONO','CATEGORIA']]);
     XLSX.utils.book_append_sheet(wb, contactosSheet, 'Contactos');
 
-    // ── DICCIONARIO EQUIPOS ───────────────────────────────────
-    datosProg('excel', 95, 'Exportando Equipos…');
+    // ── DICCIONARIO MATERIAL (qué me llevo) ───────────────────
+    datosProg('excel', 95, 'Exportando Material…');
     const diccData = diccCargar();
     const diccSheet = diccData.length > 0
       ? XLSX.utils.json_to_sheet(diccData.map(d => ({ 'CLIENTE': d.cliente||'', 'SISTEMA': d.sistema||'', 'PALABRA': d.key||'', 'MATERIAL': d.material||'' })))
       : XLSX.utils.aoa_to_sheet([['CLIENTE','SISTEMA','PALABRA','MATERIAL']]);
-    XLSX.utils.book_append_sheet(wb, diccSheet, 'Equipos');
+    XLSX.utils.book_append_sheet(wb, diccSheet, 'Material');
 
     // ── DESCARGAR ─────────────────────────────────────────────
     datosProg('excel', 96, 'Generando archivo…');
@@ -7842,7 +7842,7 @@ function datosImportarExcel(input) {
           }
         }
 
-        else if (nl.includes('equipo') || nl.includes('diccionario')) {
+        else if (nl.includes('material')) {
           const rows = XLSX.utils.sheet_to_json(ws, { defval:'', raw:false, range:0 })
             .filter(r => (r['PALABRA'] || r['MATERIAL']));
           if (rows.length) {
@@ -7854,7 +7854,7 @@ function datosImportarExcel(input) {
               material: String(r['MATERIAL']|| '').trim(),
             })).filter(d => d.key && d.material);
             diccGuardarTodo(dicc);
-            if (dicc.length) toast(`🧰 ${dicc.length} equipos importados`);
+            if (dicc.length) toast(`🧰 ${dicc.length} materiales importados`);
           }
         }
 
