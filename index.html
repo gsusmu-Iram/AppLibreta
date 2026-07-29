@@ -14683,7 +14683,10 @@ async function pycEnviar() {
     const fn = mapa[dialogo.esperando];
     if (fn) {
       const res = await iramEjecutarAccion(fn(dialogo.datos));
-      if (res) pycMsgIA(res, false, 'local');
+      if (res) {
+        if (typeof res === 'string' && res.startsWith(_HTML_MARK)) pycMsgIAHtml('<div class="cl-assist-body">' + res.slice(_HTML_MARK.length) + '</div>');
+        else pycMsgIA(res, false, 'local');
+      }
       _pycThinking = false; return;
     }
   }
@@ -14757,7 +14760,11 @@ async function pycEnviar() {
       const resultado = await iramEjecutarAccion(cl);
       if (resultado === '') { _pycThinking = false; return; }
       if (resultado) {
-        pycMsgIA(resultado, false, 'local');
+        if (typeof resultado === 'string' && resultado.startsWith(_HTML_MARK)) {
+          pycMsgIAHtml('<div class="cl-assist-body">' + resultado.slice(_HTML_MARK.length) + '</div>');
+        } else {
+          pycMsgIA(resultado, false, 'local');
+        }
         _pycThinking = false; return;
       }
     }
@@ -15443,7 +15450,7 @@ function _clContextoExtra() {
 }
 
 // Histórico reciente (2-3 últimas visitas) de una lista de partes/oficinas
-function _iramHistoricoOficinas(partes) {
+function _iramHistoricoOficinas(partes, html) {
   const hist = loadArr(K_HIST);
   const nrm  = s => String(s||'').toLowerCase().replace(/\s/g,'');
   const vistos = new Set();
@@ -15461,12 +15468,19 @@ function _iramHistoricoOficinas(partes) {
     }).sort((a,b) => (b.FECHA||'').split('/').reverse().join('').localeCompare((a.FECHA||'').split('/').reverse().join(''))).slice(0,3);
     if (vis.length) {
       const cab   = `${p.clienteReal||p.cliente||'—'}${p.codigo?' · '+p.codigo:''}${p.localidad?' · '+p.localidad:''}`;
-      const items = vis.map(v => `• ${v.FECHA||'—'} — ${(v.TRABAJO||'sin descripción').slice(0,60)}`).join('\n');
-      bloques.push(`${cab}\n${items}`);
+      if (html) {
+        const items = vis.map(v => `<li><span style="color:#8a8781">${v.FECHA||'—'}</span> — ${escH((v.TRABAJO||'sin descripción').slice(0,70))}</li>`).join('');
+        bloques.push(`<div style="margin-bottom:12px"><strong>${escH(cab)}</strong><ul style="margin:3px 0 0">${items}</ul></div>`);
+      } else {
+        const items = vis.map(v => `• ${v.FECHA||'—'} — ${(v.TRABAJO||'sin descripción').slice(0,60)}`).join('\n');
+        bloques.push(`${cab}\n${items}`);
+      }
     }
   });
   return bloques;
 }
+
+const _HTML_MARK = '@@HTML@@';
 
 async function iramEjecutarAccion(cl) {
   const hoy    = new Date();
@@ -16101,23 +16115,25 @@ async function iramEjecutarAccion(cl) {
     [...materialMap.entries()].forEach(([mat, info]) => {
       const sec = secciones[info.sistema] ? info.sistema : 'GEN';
       const mot = [...info.motivos].slice(0,3).join(', ');
-      secciones[sec].items.push(`• ${mat}${mot?`  (${mot})`:''}`);
+      secciones[sec].items.push(`<li><strong>${escH(mat)}</strong>${mot?` <span style="color:#8a8781;font-size:13px">— ${escH(mot)}</span>`:''}</li>`);
     });
 
-    let out = `🧰 Material para los ${partes.length} partes activos:`;
+    let out = `<p><strong>🧰 Material para los ${partes.length} partes activos</strong></p>`;
     ['PCI','SEG','INST','GEN'].forEach(k => {
-      if (secciones[k].items.length) out += `\n\n${secciones[k].titulo}\n${secciones[k].items.join('\n')}`;
+      if (secciones[k].items.length) {
+        out += `<p style="margin:10px 0 2px"><strong>${secciones[k].titulo}</strong></p><ul style="margin:0 0 4px">${secciones[k].items.join('')}</ul>`;
+      }
     });
-    return out;
+    return _HTML_MARK + out;
   }
 
   /* ── HISTORIAL DE TODOS LOS PARTES PEGADOS ── */
   if (cl.intento === 'HISTORIAL_TODOS') {
     const partes = cargarPartes();
     if (!partes.length) return 'No tienes partes cargados ahora mismo.';
-    const bloques = _iramHistoricoOficinas(partes);
+    const bloques = _iramHistoricoOficinas(partes, true);
     if (!bloques.length) return 'No hay histórico registrado de las oficinas de estos partes.';
-    return `Histórico de las oficinas de hoy:\n\n${bloques.join('\n\n')}`;
+    return _HTML_MARK + `<p><strong>🕐 Histórico de las oficinas de hoy</strong></p>${bloques.join('')}`;
   }
 
   /* ── HISTÓRICO DE HOY (paradas de la ruta) ── */
