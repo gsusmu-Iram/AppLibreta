@@ -4130,8 +4130,20 @@ function extraerCodigo(bloque) {
   const m = bloque.match(/de sistema\s+([\w\.\-]+)/i);
   if (!m) return '';
   let cod = m[1].trim();
-  // Código puramente textual (CAMPSA, SEG…) → vacío
-  if (/^[A-Z]{3,}$/.test(cod) && !cod.match(/^\d/)) return '';
+  // Código puramente textual (cliente sin nº corto: PLENERGY, AQUAE, KUEHNE…)
+  // → usar el NOMBRE de la oficina en vez de dejarlo vacío
+  if (/^[A-Z]{3,}$/.test(cod) && !cod.match(/^\d/)) {
+    // "de sistema CLIENTE - OFICINA (num)"
+    const mOfi = bloque.match(/de sistema\s+[^\n(]*?\s+-\s+([^\n(]+?)\s*\(\d{4,}/i);
+    if (mOfi) return mOfi[1].trim();
+    // "de sistema CLIENTE (OFICINA) (num)"  (ej. KUEHNE&NAGEL (JOSE AGUIRRE))
+    const mOfi2 = bloque.match(/de sistema\s+[^\n(]+?\(([^)\n]+?)\)\s*\(\d{4,}/i);
+    if (mOfi2) return mOfi2[1].trim();
+    // Fallback: todo lo que hay entre "de sistema" y el primer "("
+    const mOfi3 = bloque.match(/de sistema\s+([^\n(]+?)\s*\(/i);
+    if (mOfi3) return mOfi3[1].trim().replace(/\s*-\s*$/,'');
+    return '';
+  }
   // Código alfanumérico (E2024, E2026…): buscar el número real entre paréntesis
   // en la línea del sistema: "E2024 SEDE CAIXA RURAL (66045)"
   if (/^[A-Z]\d+$/i.test(cod)) {
@@ -4174,6 +4186,13 @@ function extraerDireccion(bloque) {
     .replace(/\(\d{4,6}\)/g, '');
   const m4 = bloqueLimpio.match(/([A-ZÁÉÍÓÚÑ\d][^-\n]{5,40}?\d[\w\s]*)\s*-\s*(\d{5})\s*-\s*([^-\n]{3,25}?)\s*-\s*(?:VALENCIA|CUENCA|ALBACETE)/i);
   if (m4) return { direccion:m4[1].trim(), localidad:clean(m4[3]) };
+
+  // Fallback final: coger el pueblo tras el código postal "- 46470 - CATARROJA - VALENCIA"
+  const mCP = bloque.match(/-\s*\d{5}\s*-\s*([^-\n]{2,30}?)\s*-\s*(?:VALENCIA|CUENCA|ALBACETE|CASTELLON|ALICANTE)/i);
+  if (mCP) return { direccion:'', localidad: clean(mCP[1]) };
+  // Fallback sin CP: "… - Sueca - Valencia/València"
+  const mLoc = bloque.match(/-\s*([A-ZÀ-Úa-zà-ú][^-\n]{2,25}?)\s*-\s*Valencia\/Val[eè]ncia/i);
+  if (mLoc) return { direccion:'', localidad: clean(mLoc[1]) };
 
   return { direccion:'', localidad:'' };
 }
