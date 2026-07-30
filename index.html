@@ -4269,8 +4269,8 @@ function parsearBloque(bloque) {
     horario:null, estaAbierta:false, historial:[], ext_polvo:null, ext_co2:null, zona:'',
   };
 
-  const mOT = t.match(/^(\d{2}\/\d{2}\/\d{4})\s*-\s*(OT-[A-Z0-9\/]+>(\d+))\s*-\s*(.+?)(?:\s*\(\d+\))?(?:\s*\(Abonado.+?\))?$/m);
-  if (mOT) { p.fecha=mOT[1]; p.ot=mOT[2]; p.otNum=mOT[3]; p.clienteRaw=mOT[4].trim(); }
+  const mOT = t.match(/^(\d{2}\/\d{2}\/\d{4})\s*-\s*(OT-[A-Z0-9\/]+(?:>(\d+))?)\s*-\s*(.+?)(?:\s*\(\d+\))?(?:\s*\(Abonado.+?\))?$/m);
+  if (mOT) { p.fecha=mOT[1]; p.ot=mOT[2]; p.otNum=mOT[3]||''; p.clienteRaw=mOT[4].trim(); }
   else { const mB=t.match(/^(BANCO.+?|BAO VIZCAYA.+?)\s*\(\d+\)/m); if(mB) p.clienteRaw=mB[1].trim(); }
 
   p.clienteNorm = normalizarCliente(p.clienteRaw);
