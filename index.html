@@ -13541,8 +13541,11 @@ document.addEventListener('DOMContentLoaded', () => {
           <select class="dicc-select" id="dicc-sis">
             <option value="">Cualquiera</option>
             <option value="SEG">SEG</option>
+            <option value="CCTV">CCTV</option>
             <option value="PCI">PCI</option>
             <option value="INST">INST</option>
+            <option value="ACCESOS">ACCESOS</option>
+            <option value="RETARDOS">RETARDOS</option>
           </select>
         </div>
       </div>
@@ -16170,7 +16173,15 @@ async function iramEjecutarAccion(cl) {
     if (!dicc.length) return 'Todavía no tienes el diccionario de equipos configurado. Añádelo en Buscar → 🧰 Equipos y te diré qué llevar.';
     const partes = cargarPartes().filter(p => !_esFin(p));
     if (!partes.length) return 'No tienes partes activos ahora mismo.';
-    const norm = s => String(s||'').toLowerCase();
+    const norm = s => String(s||'').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // quita acentos
+    // ¿aparece la palabra (o su singular/plural) en el texto?
+    const _wordIn = (w, t) => {
+      if (t.includes(w)) return true;
+      const sing = w.replace(/(es|s)$/,'');           // reiterados → reiterado
+      if (sing.length >= 4 && t.includes(sing)) return true;
+      return false;
+    };
     const materialMap = new Map(); // material → { sistema, motivos:Set }
     partes.forEach(p => {
       const cli   = norm(p.clienteReal||p.clienteNorm||p.cliente);
@@ -16179,16 +16190,16 @@ async function iramEjecutarAccion(cl) {
       dicc.forEach(d => {
         const dCli = norm(d.cliente), dSis = norm(d.sistema), dKey = norm(d.key);
         const cliOk = !dCli || cli.includes(dCli) || dCli.includes(cli);
-        const sisOk = !dSis || sis === dSis;
-        // Coincidencia por palabras significativas: casa si CUALQUIER palabra
-        // relevante de la clave aparece en el texto del parte.
+        const _segSub = new Set(['cctv','accesos','retardos','seg']);
+        const sisOk = !dSis || sis === dSis || (sis === 'seg' && _segSub.has(dSis));
+        // Coincidencia: deben aparecer TODAS las palabras significativas de la clave.
         // Ignora palabras vacías y muy cortas (salvo técnicas tipo 4g, cm, ip, poe…).
-        const _STOP = new Set(['de','la','el','los','las','en','con','para','por','y','o','a','al','un','una','del','se','que','es','su','sin','mas','más']);
-        const _TEC  = new Set(['4g','cm','ip','poe','gsm',' up','co2','2g','3g','5g','rj45','bnc']);
+        const _STOP = new Set(['de','la','el','los','las','en','con','para','por','y','o','a','al','un','una','del','se','que','es','su','sin','mas']);
+        const _TEC  = new Set(['4g','cm','ip','poe','gsm','co2','2g','3g','5g','rj45','bnc']);
         const palabras = dKey.split(/[\s,;/]+/).filter(w => w && (w.length >= 3 || _TEC.has(w)) && !_STOP.has(w));
         const keyOk = dKey && (palabras.length
-          ? palabras.some(w => texto.includes(w))
-          : texto.includes(dKey));
+          ? palabras.every(w => _wordIn(w, texto))
+          : _wordIn(dKey, texto));
         if (cliOk && sisOk && keyOk) {
           if (!materialMap.has(d.material)) materialMap.set(d.material, { sistema:(d.sistema||'').toUpperCase(), motivos:new Set() });
           materialMap.get(d.material).motivos.add(`${p.clienteReal||p.cliente||''}${p.localidad?' '+p.localidad:''}`.trim());
@@ -16198,10 +16209,13 @@ async function iramEjecutarAccion(cl) {
     if (!materialMap.size) return 'No he encontrado material que encaje con estos partes. Amplía el diccionario en Buscar → 🧰 Equipos.';
 
     const secciones = {
-      'PCI':  { titulo:'🚨 PCI / Fuego',        items:[] },
-      'SEG':  { titulo:'🔒 Intrusión (SEG)',    items:[] },
-      'INST': { titulo:'🔧 Instalación (INST)', items:[] },
-      'GEN':  { titulo:'🧰 General',            items:[] },
+      'PCI':     { titulo:'🚨 PCI / Fuego',        items:[] },
+      'SEG':     { titulo:'🔒 Intrusión (SEG)',    items:[] },
+      'CCTV':    { titulo:'🎥 CCTV / Cámaras',     items:[] },
+      'ACCESOS': { titulo:'🚪 Accesos',            items:[] },
+      'RETARDOS':{ titulo:'⏱️ Retardos',           items:[] },
+      'INST':    { titulo:'🔧 Instalación (INST)', items:[] },
+      'GEN':     { titulo:'🧰 General',            items:[] },
     };
     [...materialMap.entries()].forEach(([mat, info]) => {
       const sec = secciones[info.sistema] ? info.sistema : 'GEN';
@@ -16210,7 +16224,7 @@ async function iramEjecutarAccion(cl) {
     });
 
     let out = `<p><strong>🧰 Material para los ${partes.length} partes activos</strong></p>`;
-    ['PCI','SEG','INST','GEN'].forEach(k => {
+    ['PCI','SEG','CCTV','ACCESOS','RETARDOS','INST','GEN'].forEach(k => {
       if (secciones[k].items.length) {
         out += `<p style="margin:10px 0 2px"><strong>${secciones[k].titulo}</strong></p><ul style="margin:0 0 4px">${secciones[k].items.join('')}</ul>`;
       }
