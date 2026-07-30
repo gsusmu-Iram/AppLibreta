@@ -15493,6 +15493,31 @@ function _clContextoExtra() {
   const partes = cargarPartes();
   const bloques = [];
 
+  // Mantenimientos programados
+  try {
+    const mto = partes.filter(p => /^MANT|MANTENIMIENTO|REVISI[OÓ]N/i.test(p.descripcion||p.trabajo||''));
+    if (mto.length) {
+      bloques.push(`<p style="margin:2px 0 8px">🔧 <strong>${mto.length} mantenimiento${mto.length>1?'s':''}</strong> entre los partes.</p>`);
+    }
+  } catch(e){}
+
+  // Oficinas cerradas hoy por festivo
+  try {
+    const festivos = JSON.parse(localStorage.getItem('pyc_festivos') || '[]');
+    const cerradasFest = [];
+    const vistas = new Set();
+    partes.forEach(p => {
+      const loc = p.localidad || '';
+      if (!loc || vistas.has(loc.toLowerCase())) return;
+      const horTxt = p.horarioTxt || p.horario || '';
+      const c = checkCerrada(horTxt || 'L-V 08:30-15:00', festivos, loc);
+      if (c && c.motivo === 'festivo') { cerradasFest.push(loc); vistas.add(loc.toLowerCase()); }
+    });
+    if (cerradasFest.length) {
+      bloques.push(`<p style="margin:2px 0 8px">⚠️ <strong>Festivo hoy</strong> en: ${escH(cerradasFest.join(', '))} — oficina${cerradasFest.length>1?'s':''} cerrada${cerradasFest.length>1?'s':''}.</p>`);
+    }
+  } catch(e){}
+
   // Fijados para hoy
   const fijHoy = partes.filter(p => p.fijado && p.fechaFijada === hoyISO);
   if (fijHoy.length) {
@@ -16155,7 +16180,15 @@ async function iramEjecutarAccion(cl) {
         const dCli = norm(d.cliente), dSis = norm(d.sistema), dKey = norm(d.key);
         const cliOk = !dCli || cli.includes(dCli) || dCli.includes(cli);
         const sisOk = !dSis || sis === dSis;
-        const keyOk = dKey && texto.includes(dKey);
+        // Coincidencia por palabras significativas: casa si CUALQUIER palabra
+        // relevante de la clave aparece en el texto del parte.
+        // Ignora palabras vacías y muy cortas (salvo técnicas tipo 4g, cm, ip, poe…).
+        const _STOP = new Set(['de','la','el','los','las','en','con','para','por','y','o','a','al','un','una','del','se','que','es','su','sin','mas','más']);
+        const _TEC  = new Set(['4g','cm','ip','poe','gsm',' up','co2','2g','3g','5g','rj45','bnc']);
+        const palabras = dKey.split(/[\s,;/]+/).filter(w => w && (w.length >= 3 || _TEC.has(w)) && !_STOP.has(w));
+        const keyOk = dKey && (palabras.length
+          ? palabras.some(w => texto.includes(w))
+          : texto.includes(dKey));
         if (cliOk && sisOk && keyOk) {
           if (!materialMap.has(d.material)) materialMap.set(d.material, { sistema:(d.sistema||'').toUpperCase(), motivos:new Set() });
           materialMap.get(d.material).motivos.add(`${p.clienteReal||p.cliente||''}${p.localidad?' '+p.localidad:''}`.trim());
