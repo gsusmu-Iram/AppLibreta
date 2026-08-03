@@ -15583,6 +15583,26 @@ function _iramHistoricoOficinas(partes, html) {
 
 const _HTML_MARK = '@@HTML@@';
 
+// Grupos de clientes: si el diccionario pone un cliente del grupo, vale para todos.
+// (ej. "Cajamar" cubre Cajamar + todas las Caja/Caixa Rural)
+const _GRUPOS_CLIENTE = {
+  cajamar: [/cajamar/i, /caixa\s+rural/i, /caja\s+rural/i, /cajacheste/i],
+};
+// ¿el cliente del diccionario (dCli) cubre al cliente del parte (cli)?
+function _clienteCoincide(dCli, cli) {
+  dCli = String(dCli||'').toLowerCase().trim();
+  cli  = String(cli||'').toLowerCase().trim();
+  if (!dCli) return true;                              // "Cualquiera"
+  if (cli.includes(dCli) || dCli.includes(cli)) return true;  // coincidencia directa
+  // ¿ambos pertenecen al mismo grupo?
+  for (const patrones of Object.values(_GRUPOS_CLIENTE)) {
+    const dEnGrupo = patrones.some(rx => rx.test(dCli));
+    const cEnGrupo = patrones.some(rx => rx.test(cli));
+    if (dEnGrupo && cEnGrupo) return true;
+  }
+  return false;
+}
+
 async function iramEjecutarAccion(cl) {
   const hoy    = new Date();
   const hoyISO = hoy.toISOString().slice(0,10);
@@ -16189,7 +16209,7 @@ async function iramEjecutarAccion(cl) {
       const texto = norm(`${p.trabajo||''} ${p.descripcion||''} ${p.aviso||''}`);
       dicc.forEach(d => {
         const dCli = norm(d.cliente), dSis = norm(d.sistema), dKey = norm(d.key);
-        const cliOk = !dCli || cli.includes(dCli) || dCli.includes(cli);
+        const cliOk = _clienteCoincide(d.cliente, p.clienteReal||p.clienteNorm||p.cliente);
         const _segSub = new Set(['cctv','accesos','retardos','seg']);
         const sisOk = !dSis || sis === dSis || (sis === 'seg' && _segSub.has(dSis));
         // Coincidencia: deben aparecer TODAS las palabras significativas de la clave.
