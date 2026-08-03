@@ -15174,6 +15174,15 @@ function iramClasificar(txt) {
   const t   = iramNorm(txt);
   const raw = txt.toLowerCase().trim();
 
+  // ── APUNTAR / CONSULTA APUNTES (tienen prioridad, van primero) ──
+  {
+    const mAp = txt.trim().match(/^(?:iram[,\s]+)?(?:ap[uú]nta(?:me|te)?|anota|toma\s+nota)(?:\s+que)?\s*[:,]?\s+(.+)/i);
+    if (mAp && mAp[1].trim().length > 1) return { intento:'APUNTAR', texto: mAp[1].trim() };
+  }
+  if (/^(?:dime\s+|dame\s+|ense[ñn]ame\s+|ve[rs]?\s+)?(?:los?\s+|mis\s+)?apuntes?\b/i.test(raw)
+      || /qu[eé]\s+(?:ten[ií]a|hab[ií]a|tengo)\s+apuntad/i.test(raw))
+    return { intento:'CONSULTA_APUNTES' };
+
   // ── Helper: extrae cliente + localidad ──
   const _CLIENTES_RE = /\b(bbva|cajamar|caja\s*rural|caixa\s+rural|repsol|campsa|dia\b|sprinter|plenergy|ibercaja|sabadell|solvia|abanca|banca\s+march|jd\b|aquae)\b/i;
   function extraerClienteLoc(str) {
@@ -15442,6 +15451,15 @@ function iramClasificar(txt) {
     const { cliente, localidad } = extraerClienteLoc(q);
     return { intento:'MTO_ESTADO', cliente, localidad, trim: trimM?.[1]?.toUpperCase()||'' };
   }
+
+  // ── QUÉ MÁS PUEDO HACER / PCI CERCANOS ──
+  if (/qu[eé]\s+m[aá]s\s+(?:puedo|faena|hago|tengo|hay)/i.test(raw)
+      || /(?:pci|mantenimient\w*)\s+(?:cerca|cercan|pendient|que\s+pueda|para\s+adelantar)/i.test(raw)
+      || /(?:cerca|cercan\w*)\s+(?:pci|mantenimient)/i.test(raw)
+      || /qu[eé]\s+(?:pci|mantenimient\w*)\s+(?:me\s+)?(?:pilla|queda|tengo|hay)/i.test(raw)
+      || /adelantar\s+(?:pci|mantenimient)/i.test(raw)
+      || /(?:pci|mantenimient\w*)[^.]*adelantar/i.test(raw))
+    return { intento:'PCI_CERCA' };
 
   // ── HOLA / BUENOS DÍAS ──
   if (/^(hola|buenos\s+dias|buenas\s+tardes|buenas\s+noches)/i.test(t))
@@ -15793,28 +15811,136 @@ async function iramEjecutarAccion(cl) {
   }
 
   /* ── SALUDO ── */
+  /* ── APUNTAR (nota rápida que vive en el chat) ── */
+  if (cl.intento === 'APUNTAR') {
+    return `📌 Apuntado: ${cl.texto}`;
+  }
+
+  /* ── CONSULTA APUNTES (relee la conversación actual) ── */
+  if (cl.intento === 'CONSULTA_APUNTES') {
+    const apuntes = (Array.isArray(_pycHist) ? _pycHist : [])
+      .filter(m => m.role === 'model' && /^📌 Apuntado:/.test(m.text||''))
+      .map(m => m.text.replace(/^📌 Apuntado:\s*/,'').trim())
+      .filter(Boolean);
+    if (!apuntes.length) return 'No tienes nada apuntado en esta conversación. Dime "IRAM apunta ..." y lo dejo escrito aquí.';
+    const lista = apuntes.map(a => `<li>📌 ${escH(a)}</li>`).join('');
+    return _HTML_MARK + `<p><strong>Tus apuntes</strong></p><ul style="margin:6px 0 0">${lista}</ul>`;
+  }
+
+  /* ── PCI CERCANOS QUE PUEDO ADELANTAR (Cajamar + BBVA) ── */
+  if (cl.intento === 'PCI_CERCA') {
+    const excel = loadArr(K_EXCEL);
+    if (!excel.length) return 'No tengo la lista de oficinas cargada. Importa el Excel y te digo qué PCI puedes adelantar.';
+    const _mesAct = new Date().getMonth();
+    const trimAct = _mesAct<3?'Q1':_mesAct<6?'Q2':_mesAct<9?'Q3':'Q4';
+    const mtoMan  = loadObj(K_MTO_MAN);
+    const coords  = cargarCoords();
+
+    // Dónde estoy: última parada completada de la ruta
+    const complet = loadArr(K_RUTA).filter(r=>r.estado==='completada');
+    const actual  = complet.length ? complet[complet.length-1] : null;
+    const miLoc   = actual ? (actual.localidad||'') : '';
+    let miLat=null, miLng=null;
+    if (actual) {
+      const cc = coords[_claveExacta({codigo:actual.codigo, clienteNorm:actual.clienteReal||actual.cliente})];
+      if (cc){ miLat=cc.lat; miLng=cc.lng; }
+    }
+
+    const esObjetivo = cli => /bbva/i.test(cli) || _clienteCoincide('Cajamar', cli);
+    const pend = [];
+    excel.forEach(c => {
+      const cli = c.CLIENTE||c.cliente||'';
+      if (!esObjetivo(cli) || !esBanco(cli)) return;
+      const key    = mtoKey(c);
+      const manual = (mtoMan[key]||{})[trimAct];
+      const excelD = getExcelDate(c, trimAct);
+      const hecho  = (manual && String(manual).trim()) || (excelD && String(excelD).trim() && excelD!=='0');
+      if (hecho) return; // ese PCI ya está hecho
+      const cod = c.CODIGO||c.codigo||'';
+      const cc  = coords[_claveExacta({codigo:cod, clienteNorm:cli})];
+      let dist = null;
+      if (miLat!=null && cc && cc.lat!=null) dist = distanciaKm(miLat, miLng, cc.lat, cc.lng);
+      const muni = c.MUNICIPIO||c.municipio||'';
+      pend.push({ cli, cod, muni, dist, mismaLoc: !!(miLoc && normTopo(muni)===normTopo(miLoc)) });
+    });
+
+    if (!pend.length) return `No te queda ningún ${mtoLabel(trimAct)} pendiente de Cajamar ni BBVA. 👌`;
+    pend.sort((a,b)=>{
+      if (a.mismaLoc!==b.mismaLoc) return a.mismaLoc?-1:1;
+      if (a.dist!=null && b.dist!=null) return a.dist-b.dist;
+      if (a.dist!=null) return -1;
+      if (b.dist!=null) return 1;
+      return (a.muni||'').localeCompare(b.muni||'');
+    });
+    const top = pend.slice(0,8).map(o=>{
+      const d = o.dist!=null ? ` <span style="color:#8a8781">(${o.dist.toFixed(0)} km)</span>`
+              : (o.mismaLoc ? ' <span style="color:#8a8781">(aquí mismo)</span>' : '');
+      return `<li><strong>${escH(o.cli)}</strong> · ${escH(o.cod)} · ${escH(o.muni)}${d}</li>`;
+    }).join('');
+    const desde = miLoc ? ` cerca de ${escH(miLoc)}` : '';
+    const nota  = (miLat==null)
+      ? `<p style="color:#8a8781;font-size:13px;margin:6px 0 0">Sin GPS de tu última parada: ordenado por localidad. Las distancias salen donde hay coordenadas.</p>` : '';
+    return _HTML_MARK + `<p><strong>🔧 ${mtoLabel(trimAct)} que puedes adelantar${desde}:</strong></p><ul style="margin:6px 0 0">${top}</ul>${nota}`;
+  }
+
   if (cl.intento === 'SALUDO') {
     const hora   = new Date().getHours();
-    const saludo = hora < 12 ? 'Buenos días' : hora < 20 ? 'Buenas tardes' : 'Buenas noches';
+    const saludo = hora < 6 ? 'Buenas noches' : hora < 12 ? 'Buenos días' : hora < 20 ? 'Buenas tardes' : 'Buenas noches';
     const diaNom = new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+    const nombre = 'Jes';
     const analisis = (() => { try { return JSON.parse(localStorage.getItem(K_ANALISIS)||'[]'); } catch{return[];} })();
     const ruta   = loadArr(K_RUTA);
-    const tareas = loadArr(K_TAREAS);
-    const eventos= loadArr(K_EVENTOS);
     const hoyISO = new Date().toISOString().slice(0,10);
     const pend   = ruta.filter(r=>r.estado==='pendiente');
     const complet= ruta.filter(r=>r.estado==='completada');
-    const anPend = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado');
-    const urgentes= anPend.filter(a=>a.urgente);
-    const tPend  = tareas.filter(t=>t.estado==='pendiente').length;
-    const evHoy  = eventos.filter(e=>e.fecha===hoyISO);
-    const lineas = [`${saludo}. ${diaNom.charAt(0).toUpperCase()+diaNom.slice(1)}.`];
-    if (urgentes.length) lineas.push(`🚨 ${urgentes.length} aviso${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''}.`);
-    if (pend.length||complet.length) lineas.push(`Ruta: ${complet.length} de ${pend.length+complet.length} hecho${complet.length!==1?'s':''}.`);
-    else if (anPend.length) lineas.push(`${anPend.length} aviso${anPend.length>1?'s':''} disponible${anPend.length>1?'s':''} en análisis.`);
-    if (evHoy.length) lineas.push(`📅 Hoy: ${evHoy.map(e=>e.titulo+(e.hora?' a las '+e.hora:'')).join(', ')}.`);
-    lineas.push(tPend ? `📋 ${tPend} tarea${tPend>1?'s':''} pendiente${tPend>1?'s':''}.` : '✅ Sin tareas pendientes.');
-    return lineas.join('\n');
+    const anPend = analisis.filter(a=>a.estado!=='completado'&&a.estado!=='cerrado'&&!_esFin(a));
+    const urgentes = anPend.filter(a=>a.urgente);
+    const tPend  = loadArr(K_TAREAS).filter(t=>t.estado==='pendiente').length;
+    const evHoy  = loadArr(K_EVENTOS).filter(e=>(e.fecha||'').slice(0,10)===hoyISO);
+    const mto    = anPend.filter(a=>/^MANT|MANTENIMIENTO|REVISI[OÓ]N/i.test(a.descripcion||a.trabajo||''));
+
+    // Top clientes y localidades
+    const porCli = {};
+    anPend.forEach(a => { const c=a.clienteReal||a.clienteNorm||a.cliente||'—'; porCli[c]=(porCli[c]||0)+1; });
+    const topCli = Object.entries(porCli).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([c])=>c);
+    const locs   = [...new Set(anPend.map(a=>a.localidad).filter(Boolean))].slice(0,4);
+
+    // Festivos hoy
+    let festTxt = '';
+    try {
+      const festivos = JSON.parse(localStorage.getItem('pyc_festivos')||'[]');
+      const cerradas = []; const vis = new Set();
+      anPend.forEach(a => { const l=a.localidad||''; if(!l||vis.has(l.toLowerCase()))return;
+        const c=checkCerrada(a.horarioTxt||'L-V 08:30-15:00', festivos, l);
+        if(c&&c.motivo==='festivo'){cerradas.push(l);vis.add(l.toLowerCase());} });
+      if (cerradas.length) festTxt = cerradas.join(', ');
+    } catch(e){}
+
+    let out = `<p><strong>${saludo}, ${nombre}</strong> 👋</p>`;
+    const dcap = diaNom.charAt(0).toUpperCase()+diaNom.slice(1);
+
+    if (!anPend.length && !pend.length && !complet.length) {
+      out += `<p>Hoy es ${dcap}. Aún no has cargado partes — pégalos cuando quieras y te los organizo.</p>`;
+      if (tPend) out += `<p>📋 Tienes ${tPend} tarea${tPend>1?'s':''} pendiente${tPend>1?'s':''}.</p>`;
+      return _HTML_MARK + out;
+    }
+
+    out += `<p>Hoy ${dcap} tienes <strong>${anPend.length} aviso${anPend.length!==1?'s':''}</strong>`;
+    if (topCli.length) out += `. Manda ${topCli.join(', ')}`;
+    if (locs.length) out += ` <span style="color:#8a8781">(${locs.join(', ')})</span>`;
+    out += `.</p>`;
+
+    const bits = [];
+    if (urgentes.length) bits.push(`<li>🚨 <strong>${urgentes.length} urgente${urgentes.length>1?'s':''}</strong></li>`);
+    if (mto.length)      bits.push(`<li>🔧 ${mto.length} mantenimiento${mto.length>1?'s':''}</li>`);
+    if (festTxt)         bits.push(`<li>⚠️ Festivo hoy en ${escH(festTxt)} — oficina${festTxt.includes(',')?'s':''} cerrada${festTxt.includes(',')?'s':''}</li>`);
+    if (pend.length||complet.length) bits.push(`<li>🚗 Ruta: ${complet.length} de ${pend.length+complet.length} hecha${complet.length!==1?'s':''}</li>`);
+    if (evHoy.length)    bits.push(`<li>📅 ${escH(evHoy.map(e=>e.titulo+(e.hora?' a las '+e.hora:'')).join(', '))}</li>`);
+    if (tPend)           bits.push(`<li>📋 ${tPend} tarea${tPend>1?'s':''} pendiente${tPend>1?'s':''}</li>`);
+    if (bits.length) out += `<ul style="margin:6px 0 8px">${bits.join('')}</ul>`;
+
+    out += pend.length ? `<p>¿Seguimos con la ruta?</p>` : `<p>¿Montamos ruta?</p>`;
+    return _HTML_MARK + out;
   }
 
   /* ── COMO_VOY ── */
@@ -15830,11 +15956,13 @@ async function iramEjecutarAccion(cl) {
     }
     const pct  = Math.round(complet.length/total*100);
     const urgP = pend.filter(p=>p.urgente);
-    let resp = `Llevas ${complet.length} de ${total} (${pct}%).`;
-    if (!pend.length) resp += ' ¡Ruta completada!';
-    else if (urgP.length) resp += ` 🚨 ${urgP.length} urgente${urgP.length>1?'s':''} sin hacer.`;
-    else resp += ` ${pend.length} por hacer.`;
-    return resp;
+    if (!pend.length) return `¡Ruta completada, Jes! 👌 Has cerrado las ${total}. Buen trabajo.`;
+    const animo = pct >= 66 ? 'Ya casi está' : pct >= 33 ? 'Vas bien' : 'Al lío';
+    let resp = `${animo}, Jes 💪 Llevas ${complet.length} de ${total} (${pct}%). Te quedan ${pend.length}`;
+    const sig = pend[0];
+    if (sig) resp += `. La siguiente: ${sig.clienteReal||sig.clienteNorm||sig.cliente||'—'}${sig.localidad?' · '+sig.localidad:''}`;
+    if (urgP.length) resp += `. 🚨 ${urgP.length} urgente${urgP.length>1?'s':''} sin hacer`;
+    return resp + '.';
   }
 
   /* ── QUE_ME_QUEDA ── */
@@ -15854,16 +15982,26 @@ async function iramEjecutarAccion(cl) {
       if (!a.urgente && b.urgente) return  1;
       return parseInt(b.diasEspera||0) - parseInt(a.diasEspera||0);
     });
-    const top = sorted.slice(0,3).map((a,i) => {
-      const cli  = a.clienteReal||a.clienteNorm||a.cliente||'—';
-      const loc  = a.localidad?` · ${a.localidad}`:'';
+    const top = sorted.slice(0,3).map(a => {
+      const cli  = escH(a.clienteReal||a.clienteNorm||a.cliente||'—');
+      const loc  = a.localidad?` · ${escH(a.localidad)}`:'';
       const urg  = a.urgente ? '🚨 ' : '';
-      const dias = a.diasEspera ? ` — ${a.diasEspera}d esperando` : '';
-      return `${i+1}. ${urg}${cli}${loc}${dias}`;
-    }).join('\n');
+      const dias = a.diasEspera ? ` <span style="color:#8a8781">— ${a.diasEspera}d esperando</span>` : '';
+      return `<li>${urg}<strong>${cli}</strong>${loc}${dias}</li>`;
+    }).join('');
     const hayUrg = sorted[0]?.urgente;
     const motivo = hayUrg ? 'Yo empezaría por lo urgente' : 'Yo empezaría por lo que lleva más tiempo esperando';
-    return `${motivo}:\n\n${top}`;
+    // Aviso de festivos
+    let festNota = '';
+    try {
+      const festivos = JSON.parse(localStorage.getItem('pyc_festivos')||'[]');
+      const cerradas = []; const vis = new Set();
+      pend.forEach(a => { const l=a.localidad||''; if(!l||vis.has(l.toLowerCase()))return;
+        const c=checkCerrada(a.horarioTxt||'L-V 08:30-15:00', festivos, l);
+        if(c&&c.motivo==='festivo'){cerradas.push(l);vis.add(l.toLowerCase());} });
+      if (cerradas.length) festNota = `<p style="color:#c2410c;margin:8px 0 0">⚠️ Ojo: hoy es festivo en ${escH(cerradas.join(', '))}. Esas déjalas para otro día aunque salgan en la lista.</p>`;
+    } catch(e){}
+    return _HTML_MARK + `<p><strong>${motivo}:</strong></p><ol style="margin:6px 0 0">${top}</ol>${festNota}`;
   }
 
   /* ── CONTEXTO_OFICINA ── */
