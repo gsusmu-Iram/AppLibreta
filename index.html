@@ -14865,7 +14865,7 @@ async function pycEnviar() {
       _pycThinking = false; return;
     }
 
-    pycMsgIA('🤔 No te he pillado. Puedes decir: "dime la ficha de…", "cuánto me queda", "siguiente aviso", "cómo voy" o "qué me queda".', false, 'local');
+    pycMsgIA('🤔 No te he pillado. Prueba con: "hola IRAM", "qué me llevo", "por dónde empiezo", "qué más puedo hacer", "cómo voy", "dime el histórico", "llévame a…", "finaliza…" o "apunta…".', false, 'local');
 
   } catch(e) {
     console.error('IRAM error:', e?.message, e?.stack);
@@ -15183,6 +15183,18 @@ function iramClasificar(txt) {
       || /qu[eé]\s+(?:ten[ií]a|hab[ií]a|tengo)\s+apuntad/i.test(raw))
     return { intento:'CONSULTA_APUNTES' };
 
+  // ── QUÉ MÁS PUEDO HACER / PCI CERCANOS (antes que DIME) ──
+  {
+    const rc = raw.replace(/^(?:dime|dame|ens[eé][ñn]ame|ver?)\s+/i,'');
+    if (/qu[eé]\s+m[aá]s\s+(?:puedo|faena|hago|tengo|hay)/i.test(rc)
+        || /(?:pci|mantenimient\w*)\s+(?:cerca|cercan|pendient|que\s+pueda|para\s+adelantar)/i.test(rc)
+        || /(?:cerca|cercan\w*)\s+(?:pci|mantenimient)/i.test(rc)
+        || /qu[eé]\s+(?:pci|mantenimient\w*)\s+(?:me\s+)?(?:pilla|queda|tengo|hay)/i.test(rc)
+        || /adelantar\s+(?:pci|mantenimient)/i.test(rc)
+        || /(?:pci|mantenimient\w*)[^.]*adelantar/i.test(rc))
+      return { intento:'PCI_CERCA' };
+  }
+
   // ── Helper: extrae cliente + localidad ──
   const _CLIENTES_RE = /\b(bbva|cajamar|caja\s*rural|caixa\s+rural|repsol|campsa|dia\b|sprinter|plenergy|ibercaja|sabadell|solvia|abanca|banca\s+march|jd\b|aquae)\b/i;
   function extraerClienteLoc(str) {
@@ -15451,15 +15463,6 @@ function iramClasificar(txt) {
     const { cliente, localidad } = extraerClienteLoc(q);
     return { intento:'MTO_ESTADO', cliente, localidad, trim: trimM?.[1]?.toUpperCase()||'' };
   }
-
-  // ── QUÉ MÁS PUEDO HACER / PCI CERCANOS ──
-  if (/qu[eé]\s+m[aá]s\s+(?:puedo|faena|hago|tengo|hay)/i.test(raw)
-      || /(?:pci|mantenimient\w*)\s+(?:cerca|cercan|pendient|que\s+pueda|para\s+adelantar)/i.test(raw)
-      || /(?:cerca|cercan\w*)\s+(?:pci|mantenimient)/i.test(raw)
-      || /qu[eé]\s+(?:pci|mantenimient\w*)\s+(?:me\s+)?(?:pilla|queda|tengo|hay)/i.test(raw)
-      || /adelantar\s+(?:pci|mantenimient)/i.test(raw)
-      || /(?:pci|mantenimient\w*)[^.]*adelantar/i.test(raw))
-    return { intento:'PCI_CERCA' };
 
   // ── HOLA / BUENOS DÍAS ──
   if (/^(hola|buenos\s+dias|buenas\s+tardes|buenas\s+noches)/i.test(t))
