@@ -15183,6 +15183,11 @@ function iramClasificar(txt) {
       || /qu[eé]\s+(?:ten[ií]a|hab[ií]a|tengo)\s+apuntad/i.test(raw))
     return { intento:'CONSULTA_APUNTES' };
 
+  // ── DIME CONSEJOS (patrones del histórico) ──
+  if (/^(?:dime\s+|dame\s+)?(?:los?\s+)?consejos?\b/i.test(raw)
+      || /qu[eé]\s+(?:me\s+)?(?:aconsejas|recomiendas|sugieres)/i.test(raw))
+    return { intento:'CONSEJOS' };
+
   // ── QUÉ MÁS PUEDO HACER / PCI CERCANOS (antes que DIME) ──
   {
     const rc = raw.replace(/^(?:dime|dame|ens[eé][ñn]ame|ver?)\s+/i,'');
@@ -15884,6 +15889,84 @@ async function iramEjecutarAccion(cl) {
     const nota  = (miLat==null)
       ? `<p style="color:#8a8781;font-size:13px;margin:6px 0 0">Sin GPS de tu última parada: ordenado por localidad. Las distancias salen donde hay coordenadas.</p>` : '';
     return _HTML_MARK + `<p><strong>🔧 ${mtoLabel(trimAct)} que puedes adelantar${desde}:</strong></p><ul style="margin:6px 0 0">${top}</ul>${nota}`;
+  }
+
+  /* ── DIME CONSEJOS (oficinas con visitas repetidas por la misma causa) ── */
+  if (cl.intento === 'CONSEJOS') {
+    const partes = cargarPartes();
+    if (!partes.length) return 'No tienes partes cargados hoy. Pega los partes y te doy consejos sobre esas oficinas.';
+    const hist = loadArr(K_HIST);
+    if (!hist.length) return 'Aún no tengo histórico suficiente para darte consejos.';
+
+    // Categorías de causa → cómo detectarlas y qué aconsejar
+    const CATS = [
+      { id:'com',  rx:/\b(4g|gsm|gprs|comunicaci|sin\s+comunic|m[oó]dulo|alwon|flex|antena|cobertura)/i, txt:'fallo de comunicación', consejo:'plantéate cambiar el módulo de comunicaciones en vez de reiniciarlo cada vez' },
+      { id:'cam',  rx:/\b(c[aá]mara|cctv|onsafe|grabador|nvr|dvr)/i,       txt:'problemas de cámara',   consejo:'igual toca sustituir la cámara o el grabador de una vez' },
+      { id:'puls', rx:/\bpulsador/i,                                       txt:'el pulsador',           consejo:'cambia el pulsador, sale más a cuenta que ir a rearmarlo' },
+      { id:'bat',  rx:/\b(bater[ií]a|pila)/i,                              txt:'la batería',            consejo:'deja una batería nueva, está dando guerra' },
+      { id:'vol',  rx:/\b(volum[eé]tric|s[ií]smic|enmascar)/i,             txt:'un detector/volumétrico', consejo:'cambia el detector, lleva dando falsas varias veces' },
+      { id:'res',  rx:/\b(resistencia|fin\s+de\s+l[ií]nea|eol)/i,          txt:'resistencias de línea', consejo:'revisa el cableado y deja resistencias nuevas' },
+      { id:'fuego',rx:/\b(fuego|incendio|derivaci[oó]n\s+tierra|central\s+de\s+incendio)/i, txt:'avería de fuego/PCI', consejo:'revisa la zona de incendio a fondo, puede ser derivación a tierra en el bucle' },
+      { id:'acc',  rx:/\b(contacto\s+magn|im[aá]n|puerta\s+emergencia|magn[eé]tic)/i, txt:'el contacto de puerta', consejo:'cambia el contacto magnético, suele acabar soltándose' },
+      { id:'barr', rx:/\bbarrera/i,                                        txt:'la barrera exterior',   consejo:'ajusta o sustituye la barrera, da saltos en falso' },
+      { id:'ret',  rx:/\b(spider|retardo)/i,                               txt:'el retardo/Spider',     consejo:'revisa el Spider de retardos, puede ser la pila o la placa' },
+    ];
+    const esMto = t => /^\s*(MANT|MANTENIMIENTO|REVISI[OÓ]N)/i.test(t||'');
+
+    const nrm = s => String(s||'').toLowerCase().replace(/\s/g,'');
+    const haceUnAno = new Date(); haceUnAno.setFullYear(haceUnAno.getFullYear()-1);
+    const parseFecha = f => { const m=String(f||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m?new Date(+m[3],+m[2]-1,+m[1]):null; };
+
+    const consejos = [];
+    const vistos = new Set();
+    partes.forEach(p => {
+      const key = p.codigo ? nrm(p.codigo) : '';
+      const cli = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
+      const idOf = cli+'|'+key; if (vistos.has(idOf)) return; vistos.add(idOf);
+      // visitas de esta oficina en el último año
+      const visitas = hist.filter(hh => {
+        const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
+        const okOf = key ? (hKey===key||hKey.endsWith(key)||key.endsWith(hKey)) : (nrm(hh.CLIENTE||'')===cli);
+        if (!okOf) return false;
+        const fe = parseFecha(hh.FECHA); return fe && fe >= haceUnAno;
+      });
+      if (visitas.length < 2) return;
+      // contar por categoría de causa
+      CATS.forEach(cat => {
+        const conCausa = visitas.filter(v => {
+          const tr = v.TRABAJO||v.trabajo||'';
+          return !esMto(tr) && cat.rx.test(tr);   // no contar mantenimientos como averías
+        });
+        const n = conCausa.length;
+        if (n < 2) return;
+
+        // Mejora 4: ¿ya se sustituyó/cambió ese componente? → no aconsejar cambiarlo
+        const yaCambiado = conCausa.some(v => /\b(se\s+sustituy|se\s+cambia|se\s+instala|sustituid|cambiad|instalad|nuevo|nueva)\b/i.test(v.TRABAJO||v.trabajo||''));
+
+        // Mejora 3: frecuencia — ¿están las visitas muy juntas?
+        const fechas = conCausa.map(v => parseFecha(v.FECHA)).filter(Boolean).sort((a,b)=>a-b);
+        let reincidente = false, mesesTxt = '';
+        if (fechas.length >= 2) {
+          const diasSpan = (fechas[fechas.length-1] - fechas[0]) / (1000*60*60*24);
+          reincidente = diasSpan <= 90;  // 2+ veces en ≤ 3 meses
+          const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+          mesesTxt = fechas.map(f => MES[f.getMonth()]).join(', ');
+        }
+
+        const nom = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+        const marca  = reincidente ? '⚠️ ' : '';
+        const cuando = mesesTxt ? ` <span style="color:#8a8781">(${mesesTxt})</span>` : '';
+        let consejoTxt = yaCambiado
+          ? 'parece que ya lo sustituiste — si vuelve a fallar, revisa la instalación (cableado, alimentación) porque el recambio no lo ha resuelto'
+          : cat.consejo;
+        consejoTxt = consejoTxt.charAt(0).toUpperCase() + consejoTxt.slice(1);
+        const reincTxt = reincidente ? ' Está siendo muy reincidente.' : '';
+        consejos.push(`<li>${marca}A <strong>${escH(nom)}</strong> has ido <strong>${n} veces</strong> por ${cat.txt}${cuando}. ${consejoTxt}.${reincTxt}</li>`);
+      });
+    });
+
+    if (!consejos.length) return 'No veo ninguna oficina de hoy con visitas repetidas por la misma causa. Todo en orden 👍';
+    return _HTML_MARK + `<p><strong>💡 Consejos del día</strong></p><ul style="margin:6px 0 0">${consejos.join('')}</ul>`;
   }
 
   if (cl.intento === 'SALUDO') {
