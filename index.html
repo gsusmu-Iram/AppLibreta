@@ -4884,6 +4884,21 @@ function claudeRefrescarSiAbierto() {
   }
 }
 
+// Tras finalizar una parada: añadir una tabla actualizada a la conversación de partes
+function _clTablaTrasFinalizar() {
+  try {
+    if (!cargarPartes().length) return;
+    // Solo si la conversación activa ya tiene una tabla de partes (no ensuciar otras)
+    if (!Array.isArray(_pycHist) || !_pycHist.some(m => m.esTabla)) return;
+    _pycHist.push({ role:'model', text:'✅ Parte finalizado. Tabla actualizada:', ia:'local', noVoz:true });
+    _pycHist.push({ role:'model', text: claudeGenerarResumenTabla(_clCriterio || 'original'), ia:'local', noVoz:true, esTabla:true });
+    if (typeof iramGuardarHistorial === 'function') iramGuardarHistorial();
+    const ov = document.getElementById('pyc-overlay');
+    const chatActivo = document.getElementById('iram-chat')?.classList.contains('active');
+    if (ov && ov.classList.contains('open') && chatActivo && typeof pycRenderMsgs === 'function') pycRenderMsgs();
+  } catch(e){}
+}
+
 function _clEsPartes(txt) {
   return /OT-[A-Z0-9]/i.test(txt) && /\d{2}\/\d{2}\/\d{4}/.test(txt);
 }
@@ -6721,6 +6736,26 @@ function guardarFinalizar() {
     if (finActivo) paradas[idx].estado = 'completada';
     save(K_RUTA, paradas);
     paradaActual = paradas[idx];
+  }
+
+  // Marcar el parte del análisis como completado (para que el resumen del chat lo cuente)
+  if (finActivo) {
+    try {
+      const an = loadArr(K_ANALISIS);
+      const nCli = String(p.clienteNorm||p.clienteReal||p.cliente||'').toLowerCase().replace(/\s+/g,'').slice(0,12);
+      const nCod = String(p.codigo||'').toLowerCase().replace(/[\s.\-]/g,'').replace(/^0+/,'');
+      let cambiado = false;
+      an.forEach(a => {
+        const aCli = String(a.clienteNorm||a.clienteReal||a.cliente||'').toLowerCase().replace(/\s+/g,'').slice(0,12);
+        const aCod = String(a.codigo||'').toLowerCase().replace(/[\s.\-]/g,'').replace(/^0+/,'');
+        const otMatch  = p.ot && a.ot && a.ot === p.ot;
+        const codMatch = !p.ot && nCod && aCod === nCod && aCli === nCli;
+        if (otMatch || codMatch) { a.estado = 'completado'; cambiado = true; }
+      });
+      if (cambiado) save(K_ANALISIS, an);
+    } catch(e){}
+    // Añadir tabla actualizada a la conversación de partes del chat
+    if (typeof _clTablaTrasFinalizar === 'function') _clTablaTrasFinalizar();
   }
 
   // ── HISTORIAL: una sola fila por OT (upsert) ──
