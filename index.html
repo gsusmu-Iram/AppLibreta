@@ -15188,6 +15188,17 @@ function iramClasificar(txt) {
       || /qu[eé]\s+(?:me\s+)?(?:aconsejas|recomiendas|sugieres)/i.test(raw))
     return { intento:'CONSEJOS' };
 
+  // ── Referencias a la última oficina ("su histórico", "llévame ahí", "su horario"…) ──
+  if (_iramOficinaActiva) {
+    const ref = /\b(su|sus|esa|esas|ese|esos|esta|estas|es[ae]\s+oficina|ah[ií]|aqu[ií]|all[ií]|mism[ao])(?![a-zñáéíóú])/i;
+    if (ref.test(raw)) {
+      if (/hist[oó]ric/i.test(raw))       return { intento:'HISTORIAL_CLIENTE', refActiva:true };
+      if (/horario/i.test(raw))           return { intento:'HORARIO', refActiva:true };
+      if (/ficha/i.test(raw))             return { intento:'FICHA_CLIENTE', refActiva:true };
+      if (/(ll[eé]vame|vamos|navega|waze|ir\s+a|voy\b)/i.test(raw)) return { intento:'NAVEGAR', refActiva:true };
+    }
+  }
+
   // ── QUÉ MÁS PUEDO HACER / PCI CERCANOS (antes que DIME) ──
   {
     const rc = raw.replace(/^(?:dime|dame|ens[eé][ñn]ame|ver?)\s+/i,'');
@@ -15931,24 +15942,30 @@ async function iramEjecutarAccion(cl) {
         const fe = parseFecha(hh.FECHA); return fe && fe >= haceUnAno;
       });
       if (visitas.length < 2) return;
-      // contar por categoría de causa
-      CATS.forEach(cat => {
-        const conCausa = visitas.filter(v => {
-          const tr = v.TRABAJO||v.trabajo||'';
-          return !esMto(tr) && cat.rx.test(tr);   // no contar mantenimientos como averías
-        });
-        const n = conCausa.length;
+
+      // Bug 2: cada visita cuenta para UNA sola causa (la primera que coincida por prioridad)
+      const porCausa = {};
+      visitas.forEach(v => {
+        const tr = v.TRABAJO||v.trabajo||'';
+        if (esMto(tr)) return;                 // los mantenimientos no cuentan
+        const cat = CATS.find(c => c.rx.test(tr));
+        if (!cat) return;
+        (porCausa[cat.id] = porCausa[cat.id] || { cat, vis:[] }).vis.push(v);
+      });
+
+      Object.values(porCausa).forEach(({ cat, vis }) => {
+        const n = vis.length;
         if (n < 2) return;
 
-        // Mejora 4: ¿ya se sustituyó/cambió ese componente? → no aconsejar cambiarlo
-        const yaCambiado = conCausa.some(v => /\b(se\s+sustituy|se\s+cambia|se\s+instala|sustituid|cambiad|instalad|nuevo|nueva)\b/i.test(v.TRABAJO||v.trabajo||''));
+        // Bug 1: ¿ya se sustituyó/cambió el componente? (sin \b de cierre, casa "sustituye")
+        const yaCambiado = vis.some(v => /(se\s+sustituy|se\s+cambia|se\s+instal|sustitu|cambiad|instalad|nuev[ao])/i.test(v.TRABAJO||v.trabajo||''));
 
-        // Mejora 3: frecuencia — ¿están las visitas muy juntas?
-        const fechas = conCausa.map(v => parseFecha(v.FECHA)).filter(Boolean).sort((a,b)=>a-b);
+        // Frecuencia — ¿están las visitas muy juntas?
+        const fechas = vis.map(v => parseFecha(v.FECHA)).filter(Boolean).sort((a,b)=>a-b);
         let reincidente = false, mesesTxt = '';
         if (fechas.length >= 2) {
           const diasSpan = (fechas[fechas.length-1] - fechas[0]) / (1000*60*60*24);
-          reincidente = diasSpan <= 90;  // 2+ veces en ≤ 3 meses
+          reincidente = diasSpan <= 90;
           const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
           mesesTxt = fechas.map(f => MES[f.getMonth()]).join(', ');
         }
@@ -15957,7 +15974,7 @@ async function iramEjecutarAccion(cl) {
         const marca  = reincidente ? '⚠️ ' : '';
         const cuando = mesesTxt ? ` <span style="color:#8a8781">(${mesesTxt})</span>` : '';
         let consejoTxt = yaCambiado
-          ? 'parece que ya lo sustituiste — si vuelve a fallar, revisa la instalación (cableado, alimentación) porque el recambio no lo ha resuelto'
+          ? 'ya lo sustituiste alguna vez y sigue fallando — revisa la instalación (cableado, alimentación, conexiones), el recambio no lo ha resuelto'
           : cat.consejo;
         consejoTxt = consejoTxt.charAt(0).toUpperCase() + consejoTxt.slice(1);
         const reincTxt = reincidente ? ' Está siendo muy reincidente.' : '';
@@ -16587,6 +16604,7 @@ async function iramEjecutarAccion(cl) {
     }).sort((a,b) => (b.FECHA||'').localeCompare(a.FECHA||''));
     const nombre = cl.cliente||ofi?.cliente||'ese cliente';
     const loc    = cl.localidad||ofi?.localidad||'';
+    if (nombre && nombre !== 'ese cliente') _iramOficinaActiva = { cliente:nombre, codigo:cl.codigo||ofi?.codigo||'', localidad:loc, direccion:ofi?.direccion||'' };
     if (!visitas.length) return `No hay visitas registradas en ${nombre}${loc?' de '+loc:''}.`;
     const lista = visitas.slice(0,5).map(v => {
       const trab = (v.TRABAJO||v.trabajo||'sin descripción').slice(0,70);
@@ -16598,6 +16616,11 @@ async function iramEjecutarAccion(cl) {
 
   /* ── FICHA CLIENTE — resumen consolidado ── */
   if (cl.intento === 'FICHA_CLIENTE') {
+    if (cl.refActiva && _iramOficinaActiva) {
+      cl.cliente   = cl.cliente   || _iramOficinaActiva.cliente;
+      cl.localidad = cl.localidad || _iramOficinaActiva.localidad;
+      cl.codigo    = cl.codigo    || _iramOficinaActiva.codigo;
+    }
     const hist  = loadArr(K_HIST);
     const equip = loadObj(K_EQUIPOS);
 
@@ -16620,10 +16643,12 @@ async function iramEjecutarAccion(cl) {
     // 2. Últimas visitas (por código con variantes)
     const codVisita = nrmCod(cod);
     const varsV = (typeof codigoVariantes === 'function' && codVisita) ? codigoVariantes(codVisita) : (codVisita ? [codVisita] : []);
-    const visitas = hist.filter(v => {
+    const _fkey = f => { const m=String(f||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m?(m[3]+m[2]+m[1]):'00000000'; };
+    const visitasAll = hist.filter(v => {
       const vKey = nrmCod(String(v.KEY||'').replace(/^sis_/,''));
       return varsV.includes(vKey);
-    }).sort((a,b)=>(b.FECHA||'').localeCompare(a.FECHA||'')).slice(0,3);
+    }).sort((a,b)=>_fkey(b.FECHA).localeCompare(_fkey(a.FECHA)));
+    const visitas = visitasAll.slice(0,6);
 
     // 3. Equipos (por código exacto o variantes)
     let eq = equip[cod] || null;
@@ -16643,11 +16668,12 @@ async function iramEjecutarAccion(cl) {
     if (hor) out += `\n🕐 ${typeof verbalizarHorario==='function'?verbalizarHorario(hor):hor}`;
 
     if (visitas.length) {
-      out += `\n\n🔧 Últimas visitas:`;
+      out += `\n\n🔧 Últimas visitas${visitasAll.length>visitas.length?' (de '+visitasAll.length+')':''}:`;
       visitas.forEach(v => {
         const trab = (v.TRABAJO||v.trabajo||'sin descripción').slice(0,70);
         out += `\n  ${v.FECHA||'?'} — ${trab}`;
       });
+      if (visitasAll.length > visitas.length) out += `\n  (y ${visitasAll.length-visitas.length} más)`;
     } else {
       out += `\n\n🔧 Sin visitas registradas.`;
     }
@@ -16860,6 +16886,10 @@ async function iramEjecutarAccion(cl) {
 
   /* ── NAVEGAR ── */
   if (cl.intento === 'NAVEGAR') {
+    if (cl.refActiva && _iramOficinaActiva) {
+      cl.cliente   = cl.cliente   || _iramOficinaActiva.cliente;
+      cl.localidad = cl.localidad || _iramOficinaActiva.localidad;
+    }
     const ruta    = loadArr(K_RUTA);
     const ubics   = loadArr(K_UBICS);
     const analisis= (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
@@ -16886,6 +16916,7 @@ async function iramEjecutarAccion(cl) {
     // 1. Buscar en ruta primero
     const paradaRuta = buscarParada(ruta.filter(r=>r.estado==='pendiente'));
     if (paradaRuta) {
+      _iramOficinaActiva = { cliente:paradaRuta.clienteReal||paradaRuta.clienteNorm||paradaRuta.cliente||'', codigo:paradaRuta.codigo||'', localidad:paradaRuta.localidad||'', direccion:paradaRuta.direccion||'' };
       _iramUltimaAccion = { tipo:'waze', datos: paradaRuta };
       iramConfirmarWaze(paradaRuta);
       return `${paradaRuta.clienteReal||paradaRuta.cliente} · ${paradaRuta.localidad||''} — pulsa para abrir Waze.`;
