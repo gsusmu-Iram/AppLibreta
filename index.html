@@ -3421,17 +3421,6 @@ body { font-size: 14px; }
         <div class="field-lbl">🔧 Trabajo realizado</div>
         <textarea class="field-ta" id="campo-trabajo" rows="3"
           id="campo-trabajo-ph"></textarea>
-        <div id="mat-row" style="display:flex;gap:8px;align-items:center;margin-top:8px">
-          <span style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.4px">MATERIAL</span>
-          <button type="button" id="mat-nuevo" onclick="setMaterial('nuevo')"
-            style="flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid #d8d4cc;background:#fff;
-                   font-size:13px;font-weight:700;color:#6b6862;cursor:pointer;-webkit-tap-highlight-color:transparent">
-            Nuevo</button>
-          <button type="button" id="mat-recuperado" onclick="setMaterial('recuperado')"
-            style="flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid #d8d4cc;background:#fff;
-                   font-size:13px;font-weight:700;color:#6b6862;cursor:pointer;-webkit-tap-highlight-color:transparent">
-            Recuperado</button>
-        </div>
       </div>
 
       <!-- Notas de oficina -->
@@ -3465,14 +3454,6 @@ body { font-size: 14px; }
               <button type="button" class="equip-drop" id="eq-central" onclick="abrirSheet('central')">
                 <span class="equip-drop-ic">🚨</span>
                 <span class="equip-drop-val" id="eq-central-val">— Seleccionar —</span>
-                <span class="equip-drop-arr">▾</span>
-              </button>
-            </div>
-            <div class="equip-item" id="eq-capacidad-item" style="display:none">
-              <span class="equip-lbl">Capacidad</span>
-              <button type="button" class="equip-drop" id="eq-capacidad" onclick="abrirSheet('capacidad')">
-                <span class="equip-drop-ic">📐</span>
-                <span class="equip-drop-val" id="eq-capacidad-val">— Seleccionar —</span>
                 <span class="equip-drop-arr">▾</span>
               </button>
             </div>
@@ -3513,21 +3494,10 @@ body { font-size: 14px; }
               </button>
             </div>
           </div>
-          <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e8e4dc">
-            <span class="equip-lbl" style="display:block;margin-bottom:6px">Spider</span>
-            <label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px;cursor:pointer">
-              <input type="checkbox" id="eq-spider-central" onchange="vals.spiderCentral=this.checked;actualizarBadgeEquipos()"
-                style="width:18px;height:18px;accent-color:var(--green)">
-              <span>Central Spider</span>
-            </label>
-            <label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px;cursor:pointer">
-              <input type="checkbox" id="eq-spider-cerraduras" onchange="vals.spiderCerraduras=this.checked;actualizarBadgeEquipos()"
-                style="width:18px;height:18px;accent-color:var(--green)">
-              <span>Cerraduras Spider a pilas</span>
-            </label>
-          </div>
         </div>
       </div>
+
+      <!-- Últimas visitas -->
       <div>
         <div class="ult-vis-hdr" onclick="toggleUltVisitas()">
           <span class="ult-vis-lbl">🕐 Últimas visitas</span>
@@ -5563,13 +5533,13 @@ const OPTS = {
   },
   grabador: {
     titulo: 'Grabador',
-    grupos: [{items:['Scati','Onsafe','Onsafe IP','Hikvision','Dahua','Otro…']}]
+    grupos: [{items:['Scati','Onsafe','Hikvision','Dahua','Otro…']}]
   },
   com: {
     titulo: 'Comunicación',
     grupos: [
       {label:'2G',  items:['2G con antena','2G sin antena']},
-      {label:'4G',  items:['4G omnidireccional','4G omnidireccional y actualizada','4G antena pequeña','4G antena pequeña y actualizada']},
+      {label:'4G',  items:['4G omnidireccional','4G antena pequeña']},
       {label:'Red', items:['Ethernet','Fibra','ADSL']},
       {label:'Otros',items:['ALWON','Otro…']},
     ]
@@ -5578,17 +5548,9 @@ const OPTS = {
     titulo: 'Central incendio',
     grupos: [{items:['Visión','Morley','Honeywell','Kilsen','Notifier','Otro…']}]
   },
-  capacidad: {
-    titulo: 'Capacidad de la central',
-    grupos: [
-      {label:'Flex',      items:['Flex 20','Flex 50','Flex 100']},
-      {label:'Dimensión', items:['Galaxy 48','Galaxy 96','Galaxy 264','Galaxy 520']},
-      {label:'',          items:['Otro…']},
-    ]
-  },
   acceso: {
     titulo: 'Control acceso',
-    grupos: [{items:['Salto','Myaccess','Honeywell','Otro…']}]
+    grupos: [{items:['Salto','Honeywell','Otro…']}]
   },
 };
 
@@ -5600,8 +5562,7 @@ let finActivo     = false;
 let sheetCampo    = null;
 let paradaActual  = null;
 let paradas       = [];   // cache global — actualizado en renderLista
-let vals          = {central:'', capacidad:'', grabador:'', com:'', incendio:'', acceso:'', modelo:'',
-                     material:'', spiderCentral:false, spiderCerraduras:false};
+let vals          = {central:'', grabador:'', com:'', incendio:'', acceso:'', modelo:''};
 let mapaL         = null;   // instancia Leaflet
 
 /* ================================================================
@@ -6527,8 +6488,7 @@ function abrirFinalizarPara(id) {
       }
 
       // Acordeón equipos — abrir si ya hay alguno relleno
-      const tieneEquipos = !!(eq.central||eq.grabador||eq.com||eq.incendio||eq.acceso||eq.modelo
-                              ||eq.capacidad||eq.spiderCentral||eq.spiderCerraduras);
+      const tieneEquipos = !!(eq.central||eq.grabador||eq.com||eq.incendio||eq.acceso||eq.modelo);
       const equipBody = document.getElementById('equip-body');
       const equipArr  = document.getElementById('equip-arr');
       if (equipBody) equipBody.classList.toggle('open', tieneEquipos);
@@ -6556,13 +6516,8 @@ function abrirFinalizarPara(id) {
       }
 
       // Equipos
-      vals = { central: eq.central||'', capacidad: eq.capacidad||eq.CAPACIDAD||'',
-               grabador: eq.grabador||'', com: eq.com||'',
-               incendio: eq.incendio||'', acceso: eq.acceso||'', modelo: eq.modelo||'',
-               material: '',
-               spiderCentral:    !!(eq.spiderCentral    || eq['SPIDER CENTRAL']    === 'SI'),
-               spiderCerraduras: !!(eq.spiderCerraduras || eq['SPIDER CERRADURAS'] === 'SI') };
-      setMaterial('');
+      vals = { central: eq.central||'', grabador: eq.grabador||'', com: eq.com||'',
+               incendio: eq.incendio||'', acceso: eq.acceso||'', modelo: eq.modelo||'' };
       refrescarSels();
       actualizarBadgeEquipos();
       cargarUltVisitas(p);
@@ -6656,9 +6611,8 @@ function cargarUltVisitas(p) {
 
 
 function actualizarBadgeEquipos() {
-  const rellenos = [vals.central, vals.capacidad, vals.grabador, vals.com, vals.incendio, vals.acceso, vals.modelo]
-    .filter(v => v && v.trim()).length
-    + (vals.spiderCentral ? 1 : 0) + (vals.spiderCerraduras ? 1 : 0);
+  const rellenos = [vals.central, vals.grabador, vals.com, vals.incendio, vals.acceso, vals.modelo]
+    .filter(v => v && v.trim()).length;
   const badge = document.getElementById('equip-badge');
   if (badge) badge.textContent = rellenos ? '(' + rellenos + ' rellenos)' : '';
 }
@@ -6748,20 +6702,8 @@ function onEquipChange(campo, sel) {
   actualizarBadgeEquipos();
 }
 
-function setMaterial(v) {
-  vals.material = (vals.material === v) ? '' : v;
-  ['nuevo','recuperado'].forEach(k => {
-    const b = document.getElementById('mat-' + k);
-    if (!b) return;
-    const on = vals.material === k;
-    b.style.background  = on ? 'var(--green,#16a34a)' : '#fff';
-    b.style.color       = on ? '#fff' : '#6b6862';
-    b.style.borderColor = on ? 'var(--green,#16a34a)' : '#d8d4cc';
-  });
-}
-
 function refrescarSels() {
-  const campos = ['central','capacidad','grabador','com','incendio','acceso'];
+  const campos = ['central','grabador','com','incendio','acceso'];
   campos.forEach(campo => {
     const btn = document.getElementById('eq-' + campo);
     const val = document.getElementById('eq-' + campo + '-val');
@@ -6770,15 +6712,6 @@ function refrescarSels() {
     val.textContent = v || '— Seleccionar —';
     btn.classList.toggle('filled', !!v);
   });
-  // La capacidad sólo aplica a centrales Galaxy
-  const esGalaxy = /galaxy/i.test(vals.central || '');
-  const item = document.getElementById('eq-capacidad-item');
-  if (item) item.style.display = esGalaxy ? '' : 'none';
-  if (!esGalaxy) vals.capacidad = '';
-  const sc = document.getElementById('eq-spider-central');
-  const sk = document.getElementById('eq-spider-cerraduras');
-  if (sc) sc.checked = !!vals.spiderCentral;
-  if (sk) sk.checked = !!vals.spiderCerraduras;
   actualizarBadgeEquipos();
 }
 
@@ -6843,7 +6776,6 @@ function guardarFinalizar() {
     'COMUNICACIÓN':      vals.com      || '',
     'CENTRAL INCENDIO':  vals.incendio || '',
     'CONTROL ACCESO':    vals.acceso   || '',
-    MATERIAL:            vals.material || '',
   };
   // Con OT → solo coincide si es la MISMA OT (dos partes distintos el mismo día no se pisan)
   // Sin OT en ninguno → caer a KEY + fecha + sistema + trabajo (SEG y PCI del mismo día no se pisan)
@@ -6905,9 +6837,6 @@ function guardarFinalizar() {
     CÓDIGO:              p.codigo || '',
     MUNICIPIO:           p.localidad || '',
     'CENTRAL INTRUSIÓN': vals.central  || prev['CENTRAL INTRUSIÓN'] || '',
-    CAPACIDAD:           vals.capacidad|| prev.CAPACIDAD             || '',
-    'SPIDER CENTRAL':    vals.spiderCentral    ? 'SI' : (prev['SPIDER CENTRAL']    || ''),
-    'SPIDER CERRADURAS': vals.spiderCerraduras ? 'SI' : (prev['SPIDER CERRADURAS'] || ''),
     MODELO:              modelo        || prev.MODELO               || '',
     GRABADOR:            vals.grabador || prev.GRABADOR             || '',
     'COMUNICACIÓN':      vals.com      || prev['COMUNICACIÓN']      || '',
@@ -6916,9 +6845,6 @@ function guardarFinalizar() {
     'ÚLTIMA VISITA':     fecha,
     ACTUALIZADO:         fecha,
     central:  vals.central  || prev.central  || '',
-    capacidad: vals.capacidad || prev.capacidad || '',
-    spiderCentral:    vals.spiderCentral    || prev.spiderCentral    || false,
-    spiderCerraduras: vals.spiderCerraduras || prev.spiderCerraduras || false,
     grabador: vals.grabador || prev.grabador || '',
     com:      vals.com      || prev.com      || '',
     incendio: vals.incendio || prev.incendio || '',
@@ -8188,6 +8114,7 @@ function setZoomApp(niv) {
   aplicarZoom();
 }
 let _delKey     = null;    // key de la oficina a borrar
+let _delCli = null, _delCod = null, _delMun = null; // contexto de la oficina a borrar
 let _extKey     = null;    // key de la oficina en edición de extintores
 let _extTemp    = { polvo:0, co2:0 };
 
@@ -8835,30 +8762,57 @@ function sustituirExtintores(key) {
    BORRAR OFICINA
    ================================================================ */
 function pedirBorrar(key, cli, cod, mun) {
-  _delKey = key;
-  setText('confirm-desc', '¿Eliminar ' + cli + ' · ' + cod + ' · ' + mun + '?\n\nSe borrarán también sus fechas MTO guardadas manualmente.');
+  _delKey = key; _delCli = cli||''; _delCod = cod||''; _delMun = mun||'';
+  setText('confirm-desc', '¿Eliminar ' + cli + ' · ' + cod + ' · ' + mun + '?\n\nSe borrará TODO su rastro: cliente, MTO, extintores, historial, equipos, GPS y partes activos. No se puede deshacer.');
   document.getElementById('confirm-overlay').classList.add('open');
 }
 function cerrarConfirm() {
   document.getElementById('confirm-overlay').classList.remove('open');
-  _delKey = null;
+  _delKey = null; _delCli = null; _delCod = null; _delMun = null;
 }
 function confirmarBorrar() {
   if (!_delKey) return;
-  // Borrar del Excel cargado
-  const clientes = loadArr(K_EXCEL).filter(c => mtoKey(c) !== _delKey);
-  save(K_EXCEL, clientes);
-  // Borrar overrides y extintores
+  const cod  = _delCod || '';
+  const codN = nrmCod(cod);
+  const vars = (typeof codigoVariantes === 'function' && cod) ? codigoVariantes(cod).map(nrmCod) : (codN ? [codN] : []);
+
+  // 1. Clientes (Excel cargado)
+  save(K_EXCEL, loadArr(K_EXCEL).filter(c => mtoKey(c) !== _delKey));
+
+  // 2. MTO manual + extintores
   const mtoMan = loadObj(K_MTO_MAN);
   const mtoExt = loadObj(K_MTO_EXT);
   delete mtoMan[_delKey];
   delete mtoExt[_delKey];
   save(K_MTO_MAN, mtoMan);
   save(K_MTO_EXT, mtoExt);
+
+  if (vars.length) {
+    // 3. Historial de visitas
+    save(K_HIST, loadArr(K_HIST).filter(h => {
+      const hk = nrmCod(String(h.KEY||'').replace(/^sis_/,''));
+      return !vars.includes(hk);
+    }));
+    // 4. Equipos (por código o variantes)
+    const equip = loadObj(K_EQUIPOS);
+    Object.keys(equip).forEach(k => { if (vars.includes(nrmCod(k))) delete equip[k]; });
+    save(K_EQUIPOS, equip);
+    // 5. Coordenadas GPS (clave cli__cod → comparar el segmento de código)
+    const coords = loadObj(K_COORDS);
+    Object.keys(coords).forEach(k => {
+      const parts = String(k).split('__');
+      const kc = nrmCod(parts[parts.length-1]||'');
+      if (vars.includes(kc)) delete coords[k];
+    });
+    save(K_COORDS, coords);
+    // 6. Partes activos en el análisis
+    save(K_ANALISIS, loadArr(K_ANALISIS).filter(p => !vars.includes(nrmCod(p.codigo||''))));
+  }
+
   cerrarConfirm();
   popularZonas();
   renderMTO();
-  toast('🗑️ Oficina eliminada');
+  toast('🗑️ Oficina y todo su rastro eliminados');
 }
 
 /* ================================================================
@@ -15977,66 +15931,88 @@ async function iramEjecutarAccion(cl) {
     return _HTML_MARK + `<p><strong>🔧 ${mtoLabel(trimAct)} que puedes adelantar${desde}:</strong></p><ul style="margin:6px 0 0">${top}</ul>${nota}`;
   }
 
-  /* ── DIME CONSEJOS (motor de reglas: R1 escalera · R2 baterías · R3 pilas · R5/R6 comunicaciones · R9 puntuales) ── */
+  /* ── DIME CONSEJOS (oficinas con visitas repetidas por la misma causa) ── */
   if (cl.intento === 'CONSEJOS') {
     const partes = cargarPartes();
     if (!partes.length) return 'No tienes partes cargados hoy. Pega los partes y te doy consejos sobre esas oficinas.';
     const hist = loadArr(K_HIST);
     if (!hist.length) return 'Aún no tengo histórico suficiente para darte consejos.';
-    const equip = loadObj(K_EQUIPOS);
 
-    const nrm = s => String(s || '').toLowerCase().replace(/\s/g, '');
-    const haceUnAno = new Date(); haceUnAno.setFullYear(haceUnAno.getFullYear() - 1);
+    // Categorías de causa → cómo detectarlas y qué aconsejar
+    const CATS = [
+      { id:'com',  rx:/\b(4g|gsm|gprs|comunicaci|sin\s+comunic|m[oó]dulo|alwon|flex|antena|cobertura)/i, txt:'fallo de comunicación', consejo:'plantéate cambiar el módulo de comunicaciones en vez de reiniciarlo cada vez' },
+      { id:'cam',  rx:/\b(c[aá]mara|cctv|onsafe|grabador|nvr|dvr)/i,       txt:'problemas de cámara',   consejo:'igual toca sustituir la cámara o el grabador de una vez' },
+      { id:'puls', rx:/\bpulsador/i,                                       txt:'el pulsador',           consejo:'cambia el pulsador, sale más a cuenta que ir a rearmarlo' },
+      { id:'bat',  rx:/\b(bater[ií]a|pila)/i,                              txt:'la batería',            consejo:'deja una batería nueva, está dando guerra' },
+      { id:'vol',  rx:/\b(volum[eé]tric|s[ií]smic|enmascar)/i,             txt:'un detector/volumétrico', consejo:'cambia el detector, lleva dando falsas varias veces' },
+      { id:'res',  rx:/\b(resistencia|fin\s+de\s+l[ií]nea|eol)/i,          txt:'resistencias de línea', consejo:'revisa el cableado y deja resistencias nuevas' },
+      { id:'fuego',rx:/\b(fuego|incendio|derivaci[oó]n\s+tierra|central\s+de\s+incendio)/i, txt:'avería de fuego/PCI', consejo:'revisa la zona de incendio a fondo, puede ser derivación a tierra en el bucle' },
+      { id:'acc',  rx:/\b(contacto\s+magn|im[aá]n|puerta\s+emergencia|magn[eé]tic)/i, txt:'el contacto de puerta', consejo:'cambia el contacto magnético, suele acabar soltándose' },
+      { id:'barr', rx:/\bbarrera/i,                                        txt:'la barrera exterior',   consejo:'ajusta o sustituye la barrera, da saltos en falso' },
+      { id:'ret',  rx:/\b(spider|retardo)/i,                               txt:'el retardo/Spider',     consejo:'revisa el Spider de retardos, puede ser la pila o la placa' },
+    ];
+    const esMto = t => /^\s*(MANT|MANTENIMIENTO|REVISI[OÓ]N)/i.test(t||'');
 
-    const bloques = [];
-    const vistos  = new Set();
+    const nrm = s => String(s||'').toLowerCase().replace(/\s/g,'');
+    const haceUnAno = new Date(); haceUnAno.setFullYear(haceUnAno.getFullYear()-1);
+    const parseFecha = f => { const m=String(f||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m?new Date(+m[3],+m[2]-1,+m[1]):null; };
 
+    const consejos = [];
+    const vistos = new Set();
     partes.forEach(p => {
       const key = p.codigo ? nrm(p.codigo) : '';
-      const cli = nrm(p.clienteReal || p.clienteNorm || p.cliente || '');
-      const idOf = cli + '|' + key; if (vistos.has(idOf)) return; vistos.add(idOf);
-
-      // Visitas de esta oficina en el último año
-      const filas = hist.filter(hh => {
-        const hKey = nrm(hh.KEY || '').replace(/^sis_/, '');
-        const okOf = key ? (hKey === key || hKey.endsWith(key) || key.endsWith(hKey))
-                         : (nrm(hh.CLIENTE || '') === cli);
+      const cli = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
+      const idOf = cli+'|'+key; if (vistos.has(idOf)) return; vistos.add(idOf);
+      // visitas de esta oficina en el último año
+      const visitas = hist.filter(hh => {
+        const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
+        const okOf = key ? (hKey===key||hKey.endsWith(key)||key.endsWith(hKey)) : (nrm(hh.CLIENTE||'')===cli);
         if (!okOf) return false;
-        const fe = pcFecha(hh.FECHA); return fe && fe >= haceUnAno;
+        const fe = parseFecha(hh.FECHA); return fe && fe >= haceUnAno;
       });
-      if (!filas.length) return;
+      if (visitas.length < 2) return;
 
-      const avisoHoy = String(p.trabajo || p.descripcion || '');
-      const crudos   = filas.map(f => String(f.TRABAJO || f.trabajo || '')).concat([avisoHoy]);
-      const hechos   = [].concat.apply([], filas.map(pcHechos));
+      // Bug 2: cada visita cuenta para UNA sola causa (la primera que coincida por prioridad)
+      const porCausa = {};
+      visitas.forEach(v => {
+        const tr = v.TRABAJO||v.trabajo||'';
+        if (esMto(tr)) return;                 // los mantenimientos no cuentan
+        const cat = CATS.find(c => c.rx.test(tr));
+        if (!cat) return;
+        (porCausa[cat.id] = porCausa[cat.id] || { cat, vis:[] }).vis.push(v);
+      });
 
-      let cons = pcConsejosOficina(hechos, avisoHoy, crudos);
+      Object.values(porCausa).forEach(({ cat, vis }) => {
+        const n = vis.length;
+        if (n < 2) return;
 
-      // Comunicaciones: dependen de la ficha de equipos, no del histórico
-      const eq   = equip[p.codigo || p.id] || {};
-      const comF = eq.com || eq['COMUNICACIÓN'] || '';
-      cons = cons.concat(pcConsejosComunicacion({
-        cliente:    p.clienteReal || p.cliente || '',
-        com:        comF,
-        avisoHoy:   avisoHoy,
-        textosHist: crudos,
-      }));
+        // Bug 1: ¿ya se sustituyó/cambió el componente? (sin \b de cierre, casa "sustituye")
+        const yaCambiado = vis.some(v => /(se\s+sustituy|se\s+cambia|se\s+instal|sustitu|cambiad|instalad|nuev[ao])/i.test(v.TRABAJO||v.trabajo||''));
 
-      if (!cons.length) return;
-      cons.sort((a, b) => (a.prio || 9) - (b.prio || 9));
-      const nom = `${p.clienteReal || p.cliente || '—'}${p.localidad ? ' · ' + p.localidad : ''}`;
-      const items = cons.slice(0, 3).map(c => {
-        const marca = c.juntas ? '⚠️ ' : '';
-        const preg  = c.pregunta
-          ? `<div style="color:#8a8781;font-size:13px;margin-top:2px">↳ ${escH(c.pregunta)}</div>` : '';
-        return `<li>${marca}${c.txt}${preg}</li>`;
-      }).join('');
-      bloques.push(`<p style="margin:10px 0 2px"><strong>${escH(nom)}</strong></p>`
-                 + `<ul style="margin:0">${items}</ul>`);
+        // Frecuencia — ¿están las visitas muy juntas?
+        const fechas = vis.map(v => parseFecha(v.FECHA)).filter(Boolean).sort((a,b)=>a-b);
+        let reincidente = false, mesesTxt = '';
+        if (fechas.length >= 2) {
+          const diasSpan = (fechas[fechas.length-1] - fechas[0]) / (1000*60*60*24);
+          reincidente = diasSpan <= 90;
+          const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+          mesesTxt = fechas.map(f => MES[f.getMonth()]).join(', ');
+        }
+
+        const nom = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+        const marca  = reincidente ? '⚠️ ' : '';
+        const cuando = mesesTxt ? ` <span style="color:#8a8781">(${mesesTxt})</span>` : '';
+        let consejoTxt = yaCambiado
+          ? 'ya lo sustituiste alguna vez y sigue fallando — revisa la instalación (cableado, alimentación, conexiones), el recambio no lo ha resuelto'
+          : cat.consejo;
+        consejoTxt = consejoTxt.charAt(0).toUpperCase() + consejoTxt.slice(1);
+        const reincTxt = reincidente ? ' Está siendo muy reincidente.' : '';
+        consejos.push(`<li>${marca}A <strong>${escH(nom)}</strong> has ido <strong>${n} veces</strong> por ${cat.txt}${cuando}. ${consejoTxt}.${reincTxt}</li>`);
+      });
     });
 
-    if (!bloques.length) return 'No veo nada raro en las oficinas de hoy. Todo en orden 👍';
-    return _HTML_MARK + `<p><strong>💡 Consejos del día</strong></p>${bloques.join('')}`;
+    if (!consejos.length) return 'No veo ninguna oficina de hoy con visitas repetidas por la misma causa. Todo en orden 👍';
+    return _HTML_MARK + `<p><strong>💡 Consejos del día</strong></p><ul style="margin:6px 0 0">${consejos.join('')}</ul>`;
   }
 
   if (cl.intento === 'SALUDO') {
@@ -17532,556 +17508,6 @@ async function iramEjecutarAccion(cl) {
 
 
   return null;
-}
-
-/* ══════════════════════════════════════════════════════
-   MOTOR DE CONSEJOS — normalizador + reglas
-   ══════════════════════════════════════════════════════ */
-/* ══════════════════════════════════════════════════════
-   PYC NORMALIZADOR DE HECHOS (motor de consejos) — tanda 1
-   ══════════════════════════════════════════════════════ */
-
-function pcNorm(s) {
-  return String(s || '').toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ').trim();
-}
-
-/* ── Elementos canónicos (orden = prioridad) ── */
-const PC_ELEMENTOS = [
-  { id:'pila',           label:'pila',                rx:/\bpilas?\b/ , g:'f' },
-  { id:'bateria',        label:'batería',             rx:/\bbater(ia|ias)\b|\bbat\b/ , g:'f' },
-  { id:'spider_central', label:'central Spider',      rx:/\b(spider|retardo)\b/ , g:'f' },
-  { id:'fuente',         label:'fuente',              rx:/\bfuente\b|\balimentador\b/ , g:'f' },
-  { id:'central_pci',    label:'central de incendio', rx:/central\s+(de\s+)?incendio|\bmorley\b|\bkilsen\b|\bnotifier\b|\bvision\b/ , g:'f' },
-  { id:'modulo_com',     label:'módulo de comunicaciones', rx:/\b4g\b|\b2g\b|\bgsm\b|\bgprs\b|comunicaci|modulo\s+ip|\brtu\b|\balwon\b|sin\s+comunic/ , g:'m' },
-  { id:'antena',         label:'antena',              rx:/\bantena\b|omnidireccional/ , g:'f' },
-  { id:'camara',         label:'cámara',              rx:/\bcamaras?\b|\bcctv\b|pinholl?|\bdomo\b/ , g:'f' },
-  { id:'grabador',       label:'grabador',            rx:/\bgrabador\b|\bnvr\b|\bdvr\b|\bscati\b|\bonsafe\b|\bhikvision\b|\bdahua\b/ , g:'m' },
-  { id:'volumetrico',    label:'volumétrico',         rx:/volumetric|\bvol\b|enmascar|antimasking|\b360\b/ , g:'m' },
-  { id:'sismico',        label:'sísmico',             rx:/sismic|\bsis\b|\bgm\s?760\b/ , g:'m' },
-  { id:'contacto',       label:'contacto',            rx:/contacto\s+magn|magnetic|\biman\b/ , g:'m' },
-  { id:'pulsador',       label:'pulsador',            rx:/pulsador|\batraco\b|\batraco\b/ , g:'m' },
-  { id:'teclado',        label:'teclado',             rx:/teclado|consola/ , g:'m' },
-  { id:'cerradura',      label:'cerradura',           rx:/cerradura/ , g:'f' },
-  { id:'resistencia',    label:'resistencia',         rx:/resistencia|fin\s+de\s+linea|\beol\b/ , g:'f' },
-  { id:'detector',       label:'detector',            rx:/detector/ , g:'m' },
-  { id:'sirena',         label:'sirena',              rx:/sirena/ , g:'f' },
-  { id:'peana',          label:'peana',               rx:/\bpeana\b|\bpena\b/ , g:'f' },
-  { id:'extintor',       label:'extintor',            rx:/extintor/ , g:'m' },
-  { id:'bandit',         label:'bandit',              rx:/bandit/ , g:'m' },
-  { id:'barrera',        label:'barrera',             rx:/barrera/ , g:'f' },
-  { id:'conector',       label:'conexionado',         rx:/conector|pulpo\s*bnc|\brj45\b|cableado|\bcable\b|empalme/ , g:'m' },
-  { id:'central',        label:'central',             rx:/\bcentral\b|galaxy|\bspc\b|\bpacom\b|texecom|\bvesta\b/ , g:'f' },
-];
-
-/* ── Ubicaciones canónicas ── */
-const PC_UBIC = [
-  { id:'fuente_rio',   label:'fuente Rio',        rx:/fuente\s+rio|\brio\s*\d/ , g:'m' },
-  { id:'fuente_spc',   label:'fuente SPC',        rx:/fuente\s+spc/ , g:'m' },
-  { id:'fuente',       label:'fuente',            rx:/\bfuente\b|alimentador/ , g:'f' },
-  { id:'incendio',     label:'central de incendio', rx:/central\s+(de\s+)?incendio|\bmorley\b|\bkilsen\b|\bnotifier\b/ , g:'m' },
-  { id:'cajero',       label:'cajero',            rx:/\bcajeros?\b|\bcarga\s+cajero\b/ , g:'m' },
-  { id:'caja_fuerte',  label:'caja fuerte',       rx:/caja\s+fuerte/ , g:'m' },
-  { id:'caja_transito',label:'caja de tránsito',  rx:/caja\s+transito|caja\s+de\s+transito/ },
-  { id:'reciclador',   label:'reciclador',        rx:/reciclador/ , g:'m' },
-  { id:'aseo',         label:'aseo',              rx:/\baseos?\b|señoras|mujeres/ , g:'m' },
-  { id:'archivo',      label:'archivo',           rx:/\barchivo\b/ , g:'m' },
-  { id:'mostrador',    label:'mostrador',         rx:/submostrador|mostrador/ , g:'m' },
-  { id:'sala_form',    label:'sala de formación', rx:/sala\s+(de\s+)?formacion/ , g:'m' },
-  { id:'direccion',    label:'dirección',         rx:/\bdireccion\b/ , g:'m' },
-  { id:'centro',       label:'centro',            rx:/\bcentro\b/ , g:'m' },
-  { id:'puerta',       label:'puerta',            rx:/\bpuertas?\b/ , g:'m' },
-  { id:'surtidor',     label:'surtidores',        rx:/surtidor|\bboca\s*\d/ , g:'m' },
-  { id:'cocina',       label:'cocina',            rx:/\bcocina\b/ , g:'m' },
-  { id:'terraza',      label:'terraza',           rx:/\bterraza\b/ , g:'m' },
-  { id:'techo',        label:'techo',             rx:/\btecho\b/ , g:'m' },
-  { id:'mesa',         label:'mesa',              rx:/\bmesa\s*\d/ , g:'m' },
-  { id:'puesto',       label:'puesto',            rx:/\bpuesto\b/ , g:'m' },
-  { id:'fachada',      label:'fachada',           rx:/\bfachada\b/ , g:'m' },
-  { id:'central',      label:'central',           rx:/\bcentral\b|galaxy|\bspc\b|\bpacom\b/ , g:'f' },
-];
-
-/* ── Acción realizada ── */
-function pcAccion(t) {
-  if (/\bse\s+sustituy|\bsustituy|\bse\s+cambia|\bcambiad/.test(t)) return 'sustituye';
-  if (/\bse\s+instal|\binstalacion\b|\bse\s+da\s+de\s+alta/.test(t)) return 'instala';
-  if (/\bse\s+repara|\brepara|\bse\s+aprieta|\baprietan?\b|\bse\s+suelda|\bsueldan\b|\bsanea|\bse\s+conecta|\bse\s+ancla|\bse\s+atornilla|\bse\s+pasa\s+cable/.test(t)) return 'repara';
-  if (/\bse\s+reinicia|\bse\s+restaura|\brestaurad|\bse\s+rearma|\bse\s+ajusta|\bse\s+reubica|\bse\s+programa/.test(t)) return 'reinicia';
-  if (/\bse\s+comprueba|\bcorrecto\s+funcionamiento|\bya\s+funcionaba|\bya\s+se\s+veia|\bsin\s+intervencion|\bsolucionado\s+por\s+telefono/.test(t)) return 'comprueba';
-  return 'ninguna';
-}
-
-/* ── Flags ── */
-function pcFlags(t, crudo) {
-  return {
-    ohmios:    /\d+\s*(Ω|ohm|ohmios)/i.test(crudo) || /alta\s+resistencia/.test(t),
-    pendiente: /\bpendiente\s+(de\s+|sustituir|cambiar)|hay\s+que\s+|para\s+reparar|se\s+retira\b/.test(t),
-    horaFija:  /\bde\s+madrugada\b|\ba\s+la\s+misma\s+hora\b|\b\d{1,2}:\d{2}\b/.test(t),
-    coste0:    /coste\s*0|vinculado\s+al\s+(mantenimiento\s+)?preventivo/.test(t),
-    falsa:     /falsa|falsas|salta\s+(sin|en\s+falso)|saltos?\s+(en\s+falso|repetitiv)|se\s+dispara|genera\s+(continuas\s+)?alarma|sin\s+motivo|enmascar|antimasking|a\s+menudo/.test(t),
-    cable:     /\bcable|conector|conexion|se\s+aprieta|aprietan|suelda|sueldan|sanea|empalme|pulpo|rj45/.test(t)
-                 || /\d+\s*(Ω|ohm)/i.test(crudo) || /alta\s+resistencia/.test(t),
-  };
-}
-
-/* ── Mantenimiento: detecta y separa la parte útil ── */
-const PC_RX_MTO = /^\s*(mant\.?|manto|mantenimiento|mto\.?|revision|rev\.?)\b[^.]*?(anual|trimestral|q[1-4]|pci\s*\d?|intrusion|\d{4})?[^.]*/i;
-
-function pcEsMto(txt) {
-  const t = pcNorm(txt);
-  return /^(mant|manto|mto|revision|rev)\b/.test(t) || /^(mantenimiento)\b/.test(t);
-}
-
-/* Devuelve la parte del trabajo que NO es el enunciado del mantenimiento.
-   "Mantenimiento Anual Intrusión. Se sustituye batería central" → "Se sustituye batería central"
-   "Mto Q2" → "" */
-function pcTrabajoUtil(txt) {
-  const crudo = String(txt || '');
-  if (!pcEsMto(crudo)) return crudo;
-  // partir por punto o por "Y se ..." / "Se ..."
-  const partes = crudo.split(/\.\s+|\s+y\s+se\s+|(?=\bSe\s+[a-záéíóú])/i);
-  if (partes.length > 1) {
-    const resto = partes.slice(1).join('. ').trim();
-    if (resto && !pcEsMto(resto)) return resto;
-  }
-  return '';
-}
-
-/* ── Fecha ── */
-function pcFecha(f) {
-  const m = String(f || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
-  return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null;
-}
-
-/* ── Construye los "hechos" de una fila del histórico.
-   Un parte puede describir varios elementos: se parte en segmentos. ── */
-function pcHechos(row) {
-  const crudo = String(row.TRABAJO || row.trabajo || '');
-  const util  = pcTrabajoUtil(crudo);
-  if (!pcNorm(util)) return [];              // era mantenimiento puro
-
-  const base = {
-    key:      pcNorm(row.KEY || '').replace(/^sis_/, ''),
-    fecha:    pcFecha(row.FECHA),
-    fechaTxt: row.FECHA || '',
-    ot:       String(row.OT || row.ot || '').trim(),
-    crudo, util,
-  };
-
-  // Segmentar: "se reinicia batería y se restaura cámara centro" → 2 trozos
-  const segs = util.split(/\s+y\s+se\s+|\.\s+|,\s*(?=se\s)|(?:^|\s)\+\s*/i)
-                   .map(s => s.trim()).filter(s => pcNorm(s).length > 2);
-  const trozos = segs.length ? segs : [util];
-
-  const out = [];
-  const yaVisto = new Set();
-  for (const seg of trozos) {
-    const t = pcNorm(seg);
-
-    let elemento = null;
-    for (const e of PC_ELEMENTOS) { if (e.rx.test(t)) { elemento = e; break; } }
-    if (!elemento) continue;
-
-    // Spider: lo que reporta la consola/teclado es siempre la central Spider
-    if (/\bspider\b/.test(t) && /bater|pila/.test(t)) {
-      elemento = PC_ELEMENTOS.find(e => e.id === 'spider_central');
-    }
-
-    let ubic = null;
-    for (const u of PC_UBIC) { if (u.rx.test(t)) { ubic = u; break; } }
-
-    const mz   = t.match(/\b([12]\d{3})\b/);
-    const zona = mz ? mz[1] : '';
-    const grupo = elemento.id + '|' + (zona || (ubic ? ubic.id : ''));
-    if (yaVisto.has(grupo)) continue;
-    yaVisto.add(grupo);
-
-    out.push(Object.assign({}, base, {
-      seg,
-      elemento:  elemento.id,
-      elemLabel: elemento.label,
-      genero:    elemento.g || 'm',
-      ubic:      ubic ? ubic.id : '',
-      ubicLabel: ubic ? ubic.label : '',
-      zona,
-      accion:    pcAccion(t),
-      flags:     pcFlags(t, seg),
-      grupo,
-    }));
-  }
-  return out;
-}
-
-/* ── Dedupe: misma OT, mismo texto, o días consecutivos del mismo elemento ── */
-function pcDedupe(hechos) {
-  const out = [];
-  const vistos = new Set();
-  const orden = hechos.slice().sort((a, b) => (a.fecha || 0) - (b.fecha || 0));
-  for (const h of orden) {
-    // 1) misma OT para el mismo elemento (un parte puede tocar varios elementos)
-    const kOt = 'ot:' + h.ot + '|' + h.grupo;
-    if (h.ot && vistos.has(kOt)) continue;
-    // 2) mismo KEY + fecha + texto + elemento
-    const kTxt = 'tx:' + h.key + '|' + h.fechaTxt + '|' + h.grupo + '|' + pcNorm(h.crudo);
-    if (vistos.has(kTxt)) continue;
-    // 3) días consecutivos con el mismo grupo
-    const prev = out.find(p => p.key === h.key && p.grupo === h.grupo && p.fecha && h.fecha &&
-      Math.abs(h.fecha - p.fecha) <= 2 * 24 * 3600 * 1000);
-    if (prev) continue;
-    if (h.ot) vistos.add(kOt);
-    vistos.add(kTxt);
-    out.push(h);
-  }
-  return out;
-}
-
-/* ══════════════════════════════════════════════════════
-   PYC REGLAS DE CONSEJO — tanda 2 (R1 escalera + R9 puntuales)
-   ══════════════════════════════════════════════════════ */
-
-const PC_MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-
-/* ¿El aviso de hoy habla del mismo elemento que este grupo? */
-function pcAvisoTocaGrupo(textoAviso, grupoHechos, PC_UBIC) {
-  const t = pcNorm(textoAviso);
-  if (!t) return false;
-  const h = grupoHechos[0];
-  const RX = {
-    camara:/camara|cctv|grabador|imagen|sin\s+señal|sin\s+senal/, bateria:/bater|alimenta|fallo\s+electric/,
-    pila:/pila/, fuente:/fuente|alimentador/, modulo_com:/4g|2g|gsm|gprs|comunicac/,
-    antena:/antena|cobertura/, volumetrico:/volumetric|enmascar|antimask/, sismico:/sismic/,
-    pulsador:/pulsador|atraco/, contacto:/contacto|magnetic|iman/, teclado:/teclado|consola/,
-    spider_central:/spider|retardo/, central_pci:/incendio|fuego|pci/, detector:/detector|fuego/,
-    grabador:/grabador|camara/, conector:/cable|conexion/, central:/central|panel/,
-    resistencia:/resistencia/, sirena:/sirena/, barrera:/barrera/, cerradura:/cerradura/,
-    extintor:/extintor/, bandit:/bandit/, peana:/peana/,
-  };
-  const rx = RX[h.elemento];
-  if (!rx || !rx.test(t)) return false;
-
-  // Si el aviso nombra una ubicación y el grupo tiene otra distinta → no es el mismo punto
-  if (h.zona) return t.includes(h.zona);
-  if (h.ubic && PC_UBIC) {
-    const uAviso = PC_UBIC.find(u => u.rx.test(t));
-    if (uAviso && uAviso.id !== h.ubic) return false;
-  }
-  return true;
-}
-
-/* Motor: recibe hechos ya normalizados de UNA oficina + el texto del aviso de hoy */
-function pcConsejosOficina(hechosOficina, textoAvisoHoy, textosCrudos) {
-  const hechos = pcDedupe(hechosOficina);
-  const grupos = {};
-  hechos.forEach(h => { (grupos[h.grupo] = grupos[h.grupo] || []).push(h); });
-
-  const salida = [];
-  const _fix = t => t.replace(/\ba el\b/g,'al').replace(/\bde el\b/g,'del');
-
-  Object.values(grupos).forEach(vis => {
-    vis.sort((a, b) => (a.fecha || 0) - (b.fecha || 0));
-    const h0    = vis[0];
-    const ultima = vis[vis.length - 1];
-    const n     = vis.length;
-    const art   = h0.genero === 'f' ? 'la' : 'el';
-    const pron  = h0.genero === 'f' ? 'la' : 'lo';
-    const donde = h0.zona ? `zona ${h0.zona}` : (h0.ubicLabel || '');
-    const qué   = `${art} ${h0.elemLabel}${donde ? ` de ${donde}` : ''}`;
-    const Qué   = qué.charAt(0).toUpperCase() + qué.slice(1);
-    const fechas = vis.map(v => v.fecha ? `${v.fecha.getDate()} ${PC_MES[v.fecha.getMonth()]}` : '?').join(', ');
-    const span  = (vis[n-1].fecha && vis[0].fecha)
-                    ? (vis[n-1].fecha - vis[0].fecha) / 86400000 : 999;
-    const juntas = n >= 2 && span <= 90;
-    const tocaHoy = pcAvisoTocaGrupo(textoAvisoHoy, vis, PC_UBIC);
-
-    const reales   = vis.filter(v => v.accion !== 'comprueba');
-
-    /* ── R9 · puntuales ── */
-    if (!reales.length) {
-      if (n < 2) return;                                     // una vez sola = alarma puntual, nada
-      return salida.push({
-        prio: 3, juntas,
-        txt: `Has ido <strong>${n} veces</strong> a ${qué} y las ${n} veces estaba correcto (${fechas}). `
-           + `Es un fallo intermitente — déjalo monitorizado en vez de tocar nada.`
-      });
-    }
-
-    /* ── R3 · pilas (vida útil corta, no es avería) ── */
-    if (h0.elemento === 'pila') {
-      const sust = vis.filter(v => v.accion === 'sustituye' && v.fecha);
-      if (!sust.length) return;
-      const ult  = sust[sust.length - 1];
-      const mesesDesde = (Date.now() - ult.fecha) / 86400000 / 30.4;
-      if (sust.length >= 2) {
-        const dur = (sust[sust.length-1].fecha - sust[sust.length-2].fecha) / 86400000;
-        if (dur < 365) return salida.push({ prio: 2, juntas,
-          txt: `${Qué}: la anterior duró sólo ${Math.round(dur/30.4)} meses (${fechas}). `
-             + `Eso no es vida útil normal — mira si el equipo tiene consumo anómalo.` });
-      }
-      if (mesesDesde >= 21) return salida.push({ prio: 3, juntas: false,
-        txt: `${Qué}: la cambiaste hace ${Math.round(mesesDesde)} meses (${fechas}). Le toca — llévate pilas.` });
-      return;
-    }
-
-    /* ── R2 · baterías: si vuelve a caer pronto, el problema es la carga ── */
-    if (h0.elemento === 'bateria' || h0.elemento === 'spider_central') {
-      const sust = vis.filter(v => v.accion === 'sustituye' && v.fecha);
-      if (sust.length) {
-        const ult = sust[sust.length - 1];
-        const recaida = vis.filter(v => v.fecha > ult.fecha)
-                           .concat(tocaHoy ? [{ fecha: new Date() }] : []);
-        if (!recaida.length) return;                      // sustituida y tranquila
-        const dias = (recaida[0].fecha - ult.fecha) / 86400000;
-        if (dias > 365) return;                           // más de un año: vida útil normal
-        if (h0.ubic === 'incendio') return salida.push({ prio: 2, juntas, bat: true,
-          txt: `${Qué}: ha vuelto a caer a los ${Math.round(dias)} días (${fechas}). `
-             + `En incendio suele ser rutina de mantenimiento, pero tan pronto no — comprueba la tensión de carga.` });
-        return salida.push({ prio: 1, juntas, bat: true,
-          txt: `${Qué}: la sustituiste y ha vuelto a fallar en ${Math.round(dias)} días (${fechas}). `
-             + `Una batería dura unos 4 años — si cae tan pronto, la fuente no la está cargando bien. `
-             + `Mide tensión de flotación y revisa el cargador.`,
-          pregunta: '¿La que pusiste era recuperada? Si lo era, descarta primero la batería.' });
-      }
-      // nunca sustituida → sigue por la escalera normal
-    }
-
-    /* ── R7 · PCI: falsas alarmas repetidas = detector sucio o mal ubicado ── */
-    if (h0.elemento === 'extintor') return;            // caducidad, va por MTO_Ext
-    if (['detector','central_pci','sirena'].indexOf(h0.elemento) >= 0) {
-      const falsas = vis.filter(v => v.flags.falsa);
-      const sustPci = vis.some(v => v.accion === 'sustituye');
-      if (falsas.length >= 2 && !sustPci) {
-        return salida.push({ prio: 1, juntas,
-          txt: `${Qué}: <strong>${falsas.length} avisos</strong> de falsa alarma (${fechas}) y aún no lo has cambiado. `
-             + `En incendio antes de sustituir, límpialo y mira dónde está: polvo, cocina o el aire dándole encima. `
-             + `Si el lazo da ohmios raros, es derivación, no el detector.` });
-      }
-    }
-    // Ohmios fuera de nominal → el problema es el lazo, no el equipo
-    if (vis.some(v => v.flags.ohmios) && vis.length >= 2 && !vis.some(v => v.accion === 'sustituye')) {
-      return salida.push({ prio: 1, juntas,
-        txt: `${Qué}: has medido resistencia fuera de nominal (${fechas}). `
-           + `Eso es lazo o conexionado — sanea el cableado antes de tocar el equipo.` });
-    }
-
-    /* ── R1 · escalera de sustitución ── */
-    const sustituciones = vis.filter(v => v.accion === 'sustituye' || v.accion === 'instala');
-    const yaSustituido  = sustituciones.length > 0;
-    // Sólo cuenta como "cable tocado" una REPARACIÓN de conexionado, no una mención de paso
-    // "cable tocado" sólo si fue en el MISMO parte que una visita de este grupo
-    const otsGrupo   = new Set(vis.map(v => v.ot).filter(Boolean));
-    const textoGrupo = new Set(vis.map(v => pcNorm(v.crudo)));
-    const yaCable = vis.some(v => v.accion === 'repara' && v.flags.cable)
-      || hechos.some(v => v.elemento === 'conector' && v.accion === 'repara' &&
-           (otsGrupo.has(v.ot) || textoGrupo.has(pcNorm(v.crudo))));
-    const ultSust = yaSustituido ? sustituciones[sustituciones.length - 1].fecha : null;
-    // ¿Volvió a fallar después de sustituirlo? Cuenta el histórico posterior Y el aviso de hoy
-    const fallosTras = (yaSustituido ? vis.filter(v => v.fecha > ultSust).length : 0)
-                     + (tocaHoy && ultima.accion === 'sustituye' ? 1 : 0);
-
-    // Con una sola visita sólo hay consejo si el aviso de hoy dice que sigue igual
-    if (n < 2 && !(yaSustituido && tocaHoy)) return;
-    // Sustituido, sin recaída y sin aviso hoy → resuelto, no molestar
-    if (yaSustituido && !fallosTras && ultima.accion === 'sustituye') return;
-
-    const veces = n >= 2
-      ? `<strong>${n} veces</strong> (${fechas})`
-      : `una vez (${fechas}) y el aviso de hoy dice que sigue igual`;
-
-    let txt, prio, pregunta = '';
-    if (!yaSustituido) {
-      prio = 2;
-      txt = `Has ido a ${qué} ${veces} y nunca ${pron} has sustituido. `
-          + `Llévate recambio y cámbia${pron} de una vez.`;
-    } else if (!yaCable) {
-      prio = 1;
-      txt = `${Qué}: ya ${pron} sustituiste y sigue fallando — ${veces}. `
-          + `Revisa el cableado, el conexionado y mide el lazo; el recambio no lo ha resuelto.`;
-      pregunta = '¿El que pusiste era material recuperado? Si lo era, prueba con uno nuevo antes de tirar del cable.';
-    } else {
-      prio = 1;
-      txt = `${Qué}: ya ${pron} has sustituido y ya has tocado el conexionado, y sigue dando guerra — ${veces}. `
-          + `Mira alimentación, interferencias o si el equipo está mal ubicado.`;
-    }
-    salida.push({ prio, juntas, txt, pregunta, cam: h0.elemento === 'camara' });
-  });
-
-  /* ── Lazos con resistencia fuera de nominal en toda la oficina ── */
-  const conOhmios = hechos.filter(h => h.flags.ohmios);
-  if (conOhmios.length >= 2) {
-    salida.push({ prio: 2, juntas: false,
-      txt: `En esta oficina has medido resistencia fuera de nominal <strong>${conOhmios.length} veces</strong>. `
-         + `Repasa el conexionado general: conectores flojos, empalmes y resistencias de final de línea.` });
-  }
-
-  /* ── R4 · CCTV: si cada vez cae una cámara distinta, no son las cámaras ── */
-  const gruposCam = [...new Set(hechos.filter(h => h.elemento === 'camara').map(h => h.grupo))];
-  if (gruposCam.length >= 2) {
-    for (let i = salida.length - 1; i >= 0; i--) if (salida[i].cam) salida.splice(i, 1);
-    salida.push({ prio: 1, juntas: true,
-      txt: `Han fallado <strong>${gruposCam.length} cámaras distintas</strong> en esta oficina. `
-         + `Cuando cae una cada vez, el problema no son las cámaras: mira el grabador, `
-         + `la alimentación común o el PoE.` });
-  }
-  const camHora = hechos.find(h => h.elemento === 'camara' &&
-    /de\s+madrugada|a\s+la\s+misma\s+hora|siempre\s+a\s+las/.test(pcNorm(h.crudo)));
-  if (camHora) {
-    salida.push({ prio: 2, juntas: false,
-      txt: `Ojo con la cámara: anotaste que se reinicia siempre a la misma hora. `
-         + `Un fallo con hora fija es programación (reinicio, tarea, corte programado), no avería.` });
-  }
-
-  /* ── R8 · trabajo que quedó a medias ── */
-  const pendientes = hechos.filter(h => h.flags.pendiente);
-  pendientes.forEach(h => {
-    const cerrado = hechos.some(v => v.grupo === h.grupo && v.fecha > h.fecha &&
-      (v.accion === 'sustituye' || v.accion === 'instala' || v.accion === 'repara'));
-    if (cerrado) return;
-    const d = h.fecha ? `${h.fecha.getDate()} ${PC_MES[h.fecha.getMonth()]}` : '';
-    salida.push({ prio: 2, juntas: false,
-      txt: `Quedó pendiente de ${d}: "${(h.seg || h.util || '').slice(0, 70)}". `
-         + `No consta que se cerrara — si estás aquí, aprovecha.` });
-  });
-
-  /* ── R2b · varias baterías de puntos distintos en poco tiempo → instalación ── */
-  const sustBat = hechos.filter(h =>
-    (h.elemento === 'bateria' || h.elemento === 'spider_central') && h.accion === 'sustituye' && h.fecha);
-  const puntos = [...new Set(sustBat.map(h => h.grupo))];
-  if (puntos.length >= 3) {
-    const fs = sustBat.map(h => h.fecha).sort((a, b) => a - b);
-    const span = (fs[fs.length - 1] - fs[0]) / 86400000;
-    if (span <= 180) {
-      // sustituye los consejos sueltos de batería por uno solo, más útil
-      for (let i = salida.length - 1; i >= 0; i--) if (salida[i].bat) salida.splice(i, 1);
-      salida.push({ prio: 1, juntas: true,
-        txt: `Han caído <strong>${sustBat.length} baterías</strong> en ${puntos.length} puntos distintos `
-           + `en ${Math.round(span)} días. Eso ya no es la batería — mira la instalación: `
-           + `tensión de red, cortes de luz o una fuente común.` });
-    }
-  }
-
-  /* ── R2c · oficina que se come las baterías por cortes de luz ── */
-  const RX_ELEC = /fallo\s+electric|corte\s+de\s+luz|se\s+va\s+la\s+luz|fallo\s+de\s+red|fallo\s+de\s+alimentacion/;
-  const fuentesElec = (textosCrudos && textosCrudos.length)
-    ? textosCrudos : hechos.map(h => h.crudo);
-  const electrico = [...new Set(fuentesElec.filter(t => RX_ELEC.test(pcNorm(t))))];
-  if (electrico.length >= 2 && sustBat.length) {
-    for (let i = salida.length - 1; i >= 0; i--) if (salida[i].bat) salida.splice(i, 1);
-    salida.push({ prio: 2, juntas: false,
-      txt: `Esta oficina tiene fallos eléctricos repetidos (${electrico.length} avisos). `
-         + `Aquí la batería es consumible y dura la mitad — no busques avería, `
-         + `llévate una de repuesto y da parte del problema de red.` });
-  }
-
-  salida.forEach(c => { c.txt = _fix(c.txt); });
-  salida.sort((a, b) => a.prio - b.prio || (b.juntas - a.juntas));
-  return salida;
-}
-
-/* ══════════════════════════════════════════════════════
-   PYC REGLAS DE COMUNICACIÓN — tanda 4 (R5 Cajamar · R6 BBVA)
-   ══════════════════════════════════════════════════════ */
-
-const RX_AVISO_COM = /4g|2g|gsm|gprs|comunicac|sin\s+comunic|fallo\s+rtu|sin\s+linea|modulo\s+en\s+fallo/;
-const RX_ELEC      = /fallo\s+electric|corte\s+de\s+luz|se\s+va\s+la\s+luz/;
-const RX_SANCION   = /coste\s*0|vinculado\s+al\s+(mantenimiento\s+)?preventivo|n[º°o]\s*de\s*orden/;
-const RX_REITERADO = /reiterad|sigue\s+igual|continua|de\s+nuevo|otra\s+vez/;
-
-/* Lee el estado de comunicación desde la ficha de equipos */
-function pcEstadoCom(comFicha, textosHist) {
-  const c = pcNorm(comFicha || '');
-  const h = pcNorm((textosHist || []).join(' '));
-  // La ficha manda; el histórico sólo corrige el "actualizada"
-  const actualizada = /actualizad/.test(c) ||
-    (/actualizad/.test(h) && !/sin\s+actualizar|no\s+me\s+deja\s+actualizar|pendiente\s+.{0,20}actualiz/.test(h));
-  const sinActualizar = /sin\s+actualizar|no\s+me\s+deja\s+actualizar|pendiente\s+.{0,20}actualiz/.test(c + ' ' + h);
-
-  if (/\b2g\b/.test(c) || (/\b2g\b/.test(h) && !/\b4g\b/.test(c))) return { gen:'2G', antena:/con\s+antena/.test(c) ? 'con' : 'sin', actualizada:false };
-  if (/omnidireccional/.test(c)) return { gen:'4G', antena:'omni', actualizada: actualizada && !sinActualizar };
-  if (/antena\s+peque/.test(c) || /\b4g\b/.test(c)) return { gen:'4G', antena:'pequeña', actualizada: actualizada && !sinActualizar };
-  if (/ethernet|fibra|adsl/.test(c)) return { gen:'RED', antena:'', actualizada:true };
-  return null;   // sin ficha
-}
-
-/* ctx = { cliente, com, avisoHoy, textosHist, hechos } */
-function pcConsejosComunicacion(ctx) {
-  const out = [];
-  const cli   = pcNorm(ctx.cliente || '');
-  const aviso = pcNorm(ctx.avisoHoy || '');
-  const est   = pcEstadoCom(ctx.com, ctx.textosHist);
-  const esCajamar = /cajamar|caja\s*rural|caixa/.test(cli);
-  const esBBVA    = /bbva|bilbao\s+vizcaya/.test(cli);
-  const avisoEsCom = RX_AVISO_COM.test(aviso);
-  const reiterado  = RX_REITERADO.test(aviso);
-
-  // Cuántas veces ha fallado la comunicación en el histórico
-  const fallosCom = (ctx.textosHist || []).filter(t => RX_AVISO_COM.test(pcNorm(t))).length;
-  const hayElec   = (ctx.textosHist || []).concat([ctx.avisoHoy || ''])
-                      .some(t => RX_ELEC.test(pcNorm(t)));
-
-  /* ── R6 · BBVA: la antena omnidireccional debería estar puesta ── */
-  if (esBBVA) {
-    if (RX_SANCION.test(aviso)) {
-      out.push({ prio: 0, txt:
-        `⚠️ Este parte va <strong>a coste 0 vinculado al preventivo</strong>: es de los de sanción. ` +
-        `Ciérralo bien documentado, no con un apaño.` });
-    }
-    if (est && !(est.gen === '4G' && est.antena === 'omni')) {
-      out.push({ prio: 1, txt:
-        `Para la CRA esta oficina debería tener <strong>4G con antena omnidireccional</strong>, y en la ficha pone ` +
-        `"${ctx.com || 'nada'}". En cuanto se vaya la luz saltará el parte — ` +
-        `si puedes, deja la antena puesta hoy y te ahorras la sanción.` });
-    } else if (avisoEsCom && hayElec) {
-      out.push({ prio: 1, txt:
-        `El fallo de comunicación viene detrás de un corte de luz: al perder la red tira de vía radio ` +
-        `y ahí no llega. Comprueba la cobertura de la omnidireccional, no el módulo.` });
-    }
-    return out;
-  }
-
-  /* ── R5 · Cajamar y cajas rurales: escalera 2G → 4G → actualizar → antena ── */
-  if (!esCajamar) return out;
-
-  if (!est) {
-    if (avisoEsCom) out.push({ prio: 2, txt:
-      `No tengo la comunicación en la ficha de esta oficina. Apúntala al finalizar — ` +
-      `sin eso no puedo decirte si le falta actualizar o si es cobertura.` });
-    return out;
-  }
-
-  if (est.gen === '2G') {
-    out.push({ prio: avisoEsCom ? 1 : 2, txt:
-      `Sigue con <strong>módulo 2G</strong>${est.antena === 'sin' ? ' y sin antena' : ''}. ` +
-      `Esto va a dar fallo de comunicación sí o sí — plantea el cambio a 4G. ` +
-      `Ojo: el cambio lleva actualizar la central, y eso <strong>no es media hora</strong>: ` +
-      `se desprograma, hay que reprogramar y probar la alarma con la CRA.` });
-    return out;
-  }
-
-  if (est.gen === '4G' && !est.actualizada) {
-    out.push({ prio: avisoEsCom ? 1 : 2, txt:
-      `Tiene <strong>4G pero la central sin actualizar</strong>. Por eso sigue fallando: ` +
-      `no lleves antena, lo que falta es la actualización. ` +
-      `Reserva tiempo — se desprograma la central y hay que reprogramar y probar con la CRA.` });
-    return out;
-  }
-
-  if (est.gen === '4G' && est.antena === 'pequeña' && (avisoEsCom || fallosCom >= 1)) {
-    out.push({ prio: 1, txt:
-      `4G actualizada pero con la <strong>antena pequeña</strong> que trae el módulo, y sigue fallando` +
-      `${fallosCom >= 2 ? ` (${fallosCom} avisos)` : ''}. Toca ponerle la ` +
-      `<strong>omnidireccional en fachada</strong>: es cobertura, no equipo.` });
-    return out;
-  }
-
-  if (est.gen === '4G' && est.antena === 'omni' && (avisoEsCom && (reiterado || fallosCom >= 2))) {
-    out.push({ prio: 1, txt:
-      `Ya tiene 4G actualizada y omnidireccional en fachada, y aun así sigue fallando` +
-      `${fallosCom >= 2 ? ` (${fallosCom} avisos)` : ''}. ` +
-      `Ahí ya no es la instalación: mira SIM y operador, o el módulo defectuoso.` });
-  }
-
-  return out;
 }
 
 /* ══════════════════════════════════════════════════════
