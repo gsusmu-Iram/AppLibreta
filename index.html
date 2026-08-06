@@ -15986,28 +15986,48 @@ async function iramEjecutarAccion(cl) {
         const n = vis.length;
         if (n < 2) return;
 
-        // Bug 1: ¿ya se sustituyó/cambió el componente? (sin \b de cierre, casa "sustituye")
+        const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+        const ELEM = { com:'comunicación', cam:'cámara', puls:'pulsador', bat:'batería', vol:'detector', res:'resistencia', fuego:'zona de fuego', acc:'contacto', barr:'barrera', ret:'retardo' };
+        const ZONAS = ['cajero','recicladora','reciclador','centro','patio','entrada','acceso','oficina','sótano','sotano','fachada','calle','pasillo','aseo','caja fuerte','almacén','almacen','trastero','sala','vestíbulo','vestibulo','tejado','cubierta'];
+        const _zonaDe = t => { t=String(t||'').toLowerCase(); for(const z of ZONAS){ if(t.includes(z)) return z.replace('sotano','sótano').replace('almacen','almacén').replace('vestibulo','vestíbulo'); } return ''; };
+
+        // Detalle: elemento + zona + mes de cada visita
+        const detalles = vis.map(v => {
+          const fe = parseFecha(v.FECHA); const mes = fe ? MES[fe.getMonth()] : '';
+          const z = _zonaDe(v.TRABAJO||v.trabajo||'');
+          return `${ELEM[cat.id]||cat.txt}${z?' '+z:''}${mes?` <span style="color:#8a8781">(${mes})</span>`:''}`;
+        });
+        const detalleTxt = detalles.join(', ');
+
+        // ¿mismo elemento (misma zona) o elementos distintos?
+        const zonas = [...new Set(vis.map(v => _zonaDe(v.TRABAJO||v.trabajo||'')).filter(Boolean))];
+        const distintas = zonas.length >= 2;
+
         const yaCambiado = vis.some(v => /(se\s+sustituy|se\s+cambia|se\s+instal|sustitu|cambiad|instalad|nuev[ao])/i.test(v.TRABAJO||v.trabajo||''));
 
-        // Frecuencia — ¿están las visitas muy juntas?
+        // Frecuencia
         const fechas = vis.map(v => parseFecha(v.FECHA)).filter(Boolean).sort((a,b)=>a-b);
-        let reincidente = false, mesesTxt = '';
+        let reincidente = false;
         if (fechas.length >= 2) {
           const diasSpan = (fechas[fechas.length-1] - fechas[0]) / (1000*60*60*24);
           reincidente = diasSpan <= 90;
-          const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-          mesesTxt = fechas.map(f => MES[f.getMonth()]).join(', ');
         }
 
-        const nom = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
-        const marca  = reincidente ? '⚠️ ' : '';
-        const cuando = mesesTxt ? ` <span style="color:#8a8781">(${mesesTxt})</span>` : '';
-        let consejoTxt = yaCambiado
-          ? 'ya lo sustituiste alguna vez y sigue fallando — revisa la instalación (cableado, alimentación, conexiones), el recambio no lo ha resuelto'
-          : cat.consejo;
+        // Consejo según el caso
+        let consejoTxt;
+        if (distintas) {
+          consejoTxt = `han fallado elementos distintos (no siempre el mismo), así que probablemente el problema es común: mira el grabador/red/PoE o la alimentación, no un elemento suelto`;
+        } else if (yaCambiado) {
+          consejoTxt = `ya lo sustituiste alguna vez y sigue fallando — revisa la instalación (cableado, alimentación, conexiones), el recambio no lo ha resuelto`;
+        } else {
+          consejoTxt = cat.consejo;
+        }
         consejoTxt = consejoTxt.charAt(0).toUpperCase() + consejoTxt.slice(1);
+
+        const nom = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+        const marca   = reincidente ? '⚠️ ' : '';
         const reincTxt = reincidente ? ' Está siendo muy reincidente.' : '';
-        consejos.push(`<li>${marca}A <strong>${escH(nom)}</strong> has ido <strong>${n} veces</strong> por ${cat.txt}${cuando}. ${consejoTxt}.${reincTxt}</li>`);
+        consejos.push(`<li>${marca}En <strong>${escH(nom)}</strong> ya tuviste problemas con: ${detalleTxt}. ${consejoTxt}.${reincTxt}</li>`);
       });
     });
 
