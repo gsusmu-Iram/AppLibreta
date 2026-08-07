@@ -15305,6 +15305,10 @@ function iramClasificar(txt) {
       || /qu[eé]\s+(?:me\s+)?(?:aconsejas|recomiendas|sugieres)/i.test(raw))
     return { intento:'CONSEJOS' };
 
+  // ── CERRAR Y LIMPIAR DÍA (mismo efecto que el botón de Buscar) ──
+  if (/^(?:iram[,\s]+)?(?:fin\s+(?:de|del)\s+(?:la\s+)?(?:d[ií]a|jornada)|jornada\s+(?:terminada|acabada|finalizada)|(?:he\s+)?(?:terminado|acabado)(?:\s+(?:por\s+hoy|la\s+jornada|el\s+d[ií]a))?|cierra\s+(?:el\s+)?d[ií]a|cerrar\s+(?:el\s+)?d[ií]a|cerrar\s+y\s+limpiar(?:\s+(?:el\s+)?d[ií]a)?|limpiar?\s+(?:el\s+)?d[ií]a)\s*[.!]?$/i.test(raw))
+    return { intento:'CERRAR_DIA' };
+
   // ── Referencias a la última oficina ("su histórico", "llévame ahí", "su horario"…) ──
   if (_iramOficinaActiva) {
     const ref = /\b(su|sus|esa|esas|ese|esos|esta|estas|es[ae]\s+oficina|ah[ií]|aqu[ií]|all[ií]|mism[ao])(?![a-zñáéíóú])/i;
@@ -16462,6 +16466,21 @@ async function iramEjecutarAccion(cl) {
     return `Material pendiente: ${mat.slice(0,5).map(t=>t.titulo).join(', ')}.`;
   }
 
+  /* ── CERRAR Y LIMPIAR DÍA ── */
+  if (cl.intento === 'CERRAR_DIA') {
+    const partes = (typeof cargarPartes === 'function') ? cargarPartes() : [];
+    const ruta   = loadArr(K_RUTA);
+    const fin    = ruta.filter(r => r.estado === 'completada').length;
+    const pend   = ruta.filter(r => r.estado === 'pendiente').length;
+    _iramUltimaAccion = { tipo:'cerrar_dia' };
+    return _htmlResp('🌙 Cerrar y limpiar el día',
+      `<ul style="margin:6px 0 0">` +
+      `<li>📋 Partes en análisis: <strong>${partes.length}</strong></li>` +
+      `<li>✅ Paradas completadas: <strong>${fin}</strong></li>` +
+      `<li>⏳ Paradas pendientes: <strong>${pend}</strong></li>` +
+      `</ul><div style="margin-top:6px">Se borra análisis y ruta · el historial queda guardado.<br><strong>¿Lo cierro?</strong></div>`);
+  }
+
   /* ── CONFIRMAR / CANCELAR ── */
   if (cl.intento === 'CONFIRMAR') {
     if (!_iramUltimaAccion) return '🤔 ¿Confirmar qué? No hay nada pendiente.';
@@ -16481,8 +16500,14 @@ async function iramEjecutarAccion(cl) {
       if (typeof renderMTO === 'function') renderMTO();
       return `✅ ${ua.datos?.trim||'Q2'} registrado en ${reg} parada${reg!==1?'s':''} (${fecha})`;
     }
-    if (ua.tipo === 'waze') { iramConfirmarWaze(ua.datos); return ''; }
-    if (ua.tipo === 'llamar') { iramConfirmarLlamar(ua.datos); return ''; }
+    if (ua.tipo === 'cerrar_dia') {
+      if (typeof ejecutarCerrarDia === 'function') {
+        try { ejecutarCerrarDia(); } catch(e) { return '⚠️ No he podido cerrar el día: ' + e.message; }
+        return '🌙 Día cerrado · Análisis y ruta limpios. El historial queda guardado.';
+      }
+      return '⚠️ No he encontrado la función de cerrar el día.';
+    }
+    if (ua.tipo === 'waze') { iramConfirmarWaze(ua.datos); return ''; }    if (ua.tipo === 'llamar') { iramConfirmarLlamar(ua.datos); return ''; }
     return '✅ Confirmado';
   }
 
