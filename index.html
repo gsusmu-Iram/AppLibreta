@@ -15789,10 +15789,28 @@ const _GRUPOS_CLIENTE = {
   cajamar: [/cajamar/i, /caixa\s+rural/i, /caja\s+rural/i, /cajacheste/i],
 };
 // ¿el cliente del diccionario (dCli) cubre al cliente del parte (cli)?
-function _clienteCoincide(dCli, cli) {
+// dCli admite: vacío (cualquiera), un nombre, un código de oficina, o varios
+// separados por coma mezclando nombres y códigos ("23640, 22040", "Cajamar, 6887")
+function _clienteCoincide(dCli, cli, cod) {
+  const bruto = String(dCli||'').trim();
+  if (!bruto) return true;                             // "Cualquiera"
+  const partes = bruto.split(/[,;]+/).map(x => x.trim()).filter(Boolean);
+  return partes.some(t => _cliCoincideUno(t, cli, cod));
+}
+
+function _cliCoincideUno(dCli, cli, cod) {
   dCli = String(dCli||'').toLowerCase().trim();
   cli  = String(cli||'').toLowerCase().trim();
-  if (!dCli) return true;                              // "Cualquiera"
+  if (!dCli) return true;
+
+  // ¿Es un código de oficina? Entonces se compara contra el código del parte
+  if (/^[\d.\-]+$/.test(dCli)) {
+    if (!cod) return false;
+    const varsD = (typeof codigoVariantes === 'function') ? codigoVariantes(dCli) : [dCli];
+    const varsP = (typeof codigoVariantes === 'function') ? codigoVariantes(cod)  : [String(cod)];
+    return varsD.some(a => varsP.includes(a));
+  }
+
   if (cli.includes(dCli) || dCli.includes(cli)) return true;  // coincidencia directa
   // ¿ambos pertenecen al mismo grupo?
   for (const patrones of Object.values(_GRUPOS_CLIENTE)) {
@@ -16039,8 +16057,8 @@ async function iramEjecutarAccion(cl) {
 
     // Categorías de causa → cómo detectarlas y qué aconsejar
     const CATS = [
-      { id:'com',  rx:/\b(4g|gsm|gprs|comunicaci|sin\s+comunic|m[oó]dulo|alwon|flex|antena|cobertura)/i, txt:'fallo de comunicación', consejo:'plantéate cambiar el módulo de comunicaciones en vez de reiniciarlo cada vez' },
-      { id:'cam',  rx:/\b(c[aá]mara|cctv|onsafe|grabador|nvr|dvr)/i,       txt:'problemas de cámara',   consejo:'igual toca sustituir la cámara o el grabador de una vez' },
+      { id:'cam',  rx:/\b(c[aá]mara|cctv|onsafe|grabador|nvr|dvr|lanaccess)/i, txt:'problemas de cámara', consejo:'igual toca sustituir la cámara o el grabador de una vez' },
+      { id:'com',  rx:/\b(4g|2g|gsm|gprs|comunicaci|incomunicad|cobertura|alwon)\b|m[oó]dulo\s*(?:ip|4g|2g)|antena/i, txt:'fallo de comunicación', consejo:'plantéate cambiar el módulo de comunicaciones en vez de reiniciarlo cada vez' },
       { id:'puls', rx:/\bpulsador/i,                                       txt:'el pulsador',           consejo:'cambia el pulsador, sale más a cuenta que ir a rearmarlo' },
       { id:'bat',  rx:/\b(bater[ií]a|pila)/i,                              txt:'la batería',            consejo:'deja una batería nueva, está dando guerra' },
       { id:'vol',  rx:/\b(volum[eé]tric|s[ií]smic|enmascar)/i,             txt:'un detector/volumétrico', consejo:'cambia el detector, lleva dando falsas varias veces' },
@@ -16148,9 +16166,19 @@ async function iramEjecutarAccion(cl) {
         (porCausa[cat.id] = porCausa[cat.id] || { cat, vis:[] }).vis.push(v);
       });
 
-      Object.values(porCausa).forEach(({ cat, vis }) => {
+      // ── Causa del aviso de HOY: va primera y se marca. Las demás siguen saliendo debajo.
+      const txtHoyCat = `${p.trabajo||''} ${p.descripcion||''}`;
+      const catHoy = esMto(p.trabajo||'') ? null : (CATS.find(c => c.rx.test(txtHoyCat)) || null);
+      const causasOrd = Object.values(porCausa).sort((a, b) => {
+        const pa = (catHoy && a.cat.id === catHoy.id) ? 0 : 1;
+        const pb = (catHoy && b.cat.id === catHoy.id) ? 0 : 1;
+        return pa - pb || b.vis.length - a.vis.length;
+      });
+
+      causasOrd.forEach(({ cat, vis }) => {
         const n = vis.length;
         if (n < 2) return;
+        const esDeHoy = !!(catHoy && cat.id === catHoy.id);
 
         const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
         const ELEM = { com:'comunicación', cam:'cámara', puls:'pulsador', bat:'batería', vol:'detector', res:'resistencia', fuego:'zona de fuego', acc:'contacto', barr:'barrera', ret:'retardo' };
@@ -16211,7 +16239,9 @@ async function iramEjecutarAccion(cl) {
         const reincTxt = reincidente ? ' Está siendo muy reincidente.' : '';
         const nuevaTxt = centralNueva ? ` <span style="color:#8a8781">(solo cuento desde el cambio de central)</span>` : '';
         const cab = `${marca}En <strong>${escH(nom)}</strong>${codTxt}`;
-        const cuerpo = ` ya tuviste problemas con: ${detalleTxt}. ${consejoTxt}.${reincTxt}${nuevaTxt}`;
+        const cuerpo = esDeHoy
+          ? ` <strong>lo de hoy ya te ha pasado</strong>: ${detalleTxt}. ${consejoTxt}.${reincTxt}${nuevaTxt}`
+          : ` ya tuviste problemas con: ${detalleTxt}. ${consejoTxt}.${reincTxt}${nuevaTxt}`;
         if (porOficina[idOf]) porOficina[idOf].extras.push(`${detalleTxt} → ${consejoTxt}.`);
         else porOficina[idOf] = { cab, cuerpo, extras: [] };
       });
@@ -16971,17 +17001,21 @@ async function iramEjecutarAccion(cl) {
       const texto = norm(`${p.trabajo||''} ${p.descripcion||''} ${p.aviso||''}`);
       dicc.forEach(d => {
         const dCli = norm(d.cliente), dSis = norm(d.sistema), dKey = norm(d.key);
-        const cliOk = _clienteCoincide(d.cliente, p.clienteReal||p.clienteNorm||p.cliente);
+        const cliOk = _clienteCoincide(d.cliente, p.clienteReal||p.clienteNorm||p.cliente, p.codigo);
         const _segSub = new Set(['cctv','accesos','retardos','seg']);
         const sisOk = !dSis || sis === dSis || (sis === 'seg' && _segSub.has(dSis));
         // Coincidencia: deben aparecer TODAS las palabras significativas de la clave.
         // Ignora palabras vacías y muy cortas (salvo técnicas tipo 4g, cm, ip, poe…).
         const _STOP = new Set(['de','la','el','los','las','en','con','para','por','y','o','a','al','un','una','del','se','que','es','su','sin','mas']);
         const _TEC  = new Set(['4g','cm','ip','poe','gsm','co2','2g','3g','5g','rj45','bnc']);
-        const palabras = dKey.split(/[\s,;/]+/).filter(w => w && (w.length >= 3 || _TEC.has(w)) && !_STOP.has(w));
-        const keyOk = dKey && (palabras.length
-          ? palabras.every(w => _wordIn(w, texto))
-          : _wordIn(dKey, texto));
+        // La coma separa ALTERNATIVAS ("fallo zona 1002, 1001" = una u otra).
+        // Dentro de cada alternativa, los espacios siguen siendo "y".
+        const alternativas = dKey.split(/[,;]+/).map(x => x.trim()).filter(Boolean);
+        const _altOk = alt => {
+          const palabras = alt.split(/[\s/]+/).filter(w => w && (w.length >= 3 || _TEC.has(w)) && !_STOP.has(w));
+          return palabras.length ? palabras.every(w => _wordIn(w, texto)) : _wordIn(alt, texto);
+        };
+        const keyOk = dKey && (alternativas.length ? alternativas.some(_altOk) : _wordIn(dKey, texto));
         if (cliOk && sisOk && keyOk) {
           if (!materialMap.has(d.material)) materialMap.set(d.material, { sistema:(d.sistema||'').toUpperCase(), motivos:new Set() });
           materialMap.get(d.material).motivos.add(`${p.clienteReal||p.cliente||''}${p.localidad?' '+p.localidad:''}`.trim());
