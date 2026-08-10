@@ -9705,6 +9705,15 @@ function mostrarEstadoVacio() {
   document.getElementById('buscar-results').classList.remove('vis');
 }
 
+// Recorta sin partir palabras y marca con … que hay más texto (el original se guarda entero)
+function _cortaTxt(t, max) {
+  t = String(t||'').replace(/\s+/g,' ').trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > max * 0.6 ? cut.slice(0, sp) : cut).trim() + '…';
+}
+
 function ejecutarBusqueda(q) {
   const clientes  = loadArr(K_EXCEL_B);
   const historial = loadArr(K_HIST_B);
@@ -9859,10 +9868,10 @@ function ejecutarBusqueda(q) {
     hint: hintHis(h),
     equipo: [h['CENTRAL INTRUSIÓN'],h.GRABADOR,h['COMUNICACIÓN'],h['CENTRAL INCENDIO'],h['CONTROL ACCESO']].filter(Boolean).join(' · '),
     title:   `${h.CLIENTE||'—'} · ${h.SISTEMA||'—'} · ${h.LOCALIDAD||'—'}`,
-    sub:     `${h.FECHA||'—'} — ${(h.TRABAJO||'').slice(0,90)}`,
+    sub:     `${h.FECHA||'—'} — ${_cortaTxt(h.TRABAJO||'', 200)}`,
     meta:    h.OT||'',
     titleHL: `${hl(h.CLIENTE||'')} · ${hl(h.SISTEMA||'')} · ${hl(h.LOCALIDAD||'')}`,
-    subHL:   `${h.FECHA||'—'} — ${hl((h.TRABAJO||'').slice(0,90))}`,
+    subHL:   `${h.FECHA||'—'} — ${hl(_cortaTxt(h.TRABAJO||'', 200))}`,
   }));
 
   // INFO TÉCNICA
@@ -10031,7 +10040,7 @@ function renderResultadosFiltrados() {
       g += `
         <div class="res-card his-grp-card">
           <div class="res-top"><span class="res-title">${hl(cliente)}</span><span class="res-badge rb-his">HISTORIAL</span></div>
-          <div class="res-sub">${escH(last.fecha)} — ${hl((last.trabajo||'').slice(0,80))}</div>
+          <div class="res-sub">${escH(last.fecha)} — ${hl(_cortaTxt(last.trabajo||'', 200))}</div>
           <div class="res-meta">${escH(last.sistema||'')}${last.localidad?' · '+escH(last.localidad):''}</div>
           ${last.equipo?`<div class="res-meta" style="color:var(--cyan)">⚙️ ${escH(last.equipo)}</div>`:''}
           ${hintHtml(last.hint||'')}
@@ -16235,10 +16244,29 @@ async function iramEjecutarAccion(cl) {
 
     const ZONAS_G = ['cajero','recicladora','reciclador','centro','patio','entrada','acceso','oficina','sótano','sotano','fachada','calle','pasillo','aseo','caja fuerte','almacén','almacen','trastero','sala','vestíbulo','vestibulo','tejado','cubierta','mostrador','archivo','direccion','dirección','mesa'];
     const _zonaDeG = t => { t = String(t||'').toLowerCase(); for (const z of ZONAS_G) { if (t.includes(z)) return z; } return ''; };
+    // Nº de zona explícito: "zona 14", "Z.33"
     const _zonasNum = t => {
       const out = [];
       const re = /(?:zona|z)\s*\.?\s*(\d{1,4})/gi;
       let m; while ((m = re.exec(String(t||'')))) out.push(m[1]);
+      return [...new Set(out)];
+    };
+    // Nº pegado al elemento: "detector óptico 10", "Detector 9", "cámara 7", "sismico cajero 2"
+    // Se ignora si el número es en realidad una zona ("zona 14") o una medida ("12v", "760")
+    const _numsElem = (t, rxTipo) => {
+      const txt = String(t||'');
+      const out = [];
+      // Los rx de TIPOS llevan grupos de captura: se pasan a no-captura para no descolocar índices
+      const fuente = rxTipo.source.replace(/^\\b/,'').replace(/\((?!\?)/g, '(?:');
+      const re = new RegExp('(' + fuente + ')((?:\\s+[a-zá-úñ]+){0,3})\\s+(\\d{1,3})\\b', 'gi');
+      let m;
+      while ((m = re.exec(txt))) {
+        const medio = m[2] || '';
+        if (/\b(zona|z)\b/i.test(medio)) continue;          // ya lo coge _zonasNum
+        const idx = m.index + m[0].length;
+        if (/^\s*(v|va|w|a|ω|Ω|mm|m\b)/i.test(txt.slice(idx))) continue;  // "12v", "8A"…
+        out.push(m[3]);
+      }
       return [...new Set(out)];
     };
     const _diasDesde = f => f ? Math.round((Date.now() - f.getTime()) / 86400000) : null;
@@ -16246,6 +16274,8 @@ async function iramEjecutarAccion(cl) {
     const escalera  = [];
     const pendMat   = [];
     const vistosE   = new Set();
+    const ofConPend = new Set();   // material en el proveedor → calla la reincidencia
+    const ofConEsc  = new Set();   // ya tiene escalera concreta → sobra la línea genérica
 
     partes.forEach(p => {
       const keyE = nrm(p.codigo||'');
@@ -16282,6 +16312,7 @@ async function iramEjecutarAccion(cl) {
         const zs   = _zonasNum(tr);
         const qu   = `${tipo?tipo.nom:'el material'}${zs.length?' zona '+zs.join('/'):''}`;
         const dias = _diasDesde(fe);
+        ofConPend.add(idOfE);
         pendMat.push(`<li>📦 <strong>${escH(nomOf)}</strong>${codOf} — el ${escH(v.FECHA||'')} retiraste ${qu} para reparar y no consta que haya vuelto`
           + (dias!=null ? `. <strong>${dias} días</strong> esperando` : '')
           + `: reclama el recambio al proveedor antes de volver a ir.</li>`);
@@ -16294,7 +16325,8 @@ async function iramEjecutarAccion(cl) {
         if (esMto(tr)) return;
         const tipo = TIPOS.find(t => t.rx.test(tr));
         if (!tipo) return;
-        const zs = _zonasNum(tr);
+        let zs = _zonasNum(tr);
+        if (!zs.length) zs = _numsElem(tr, tipo.rx);          // "detector 10" cuenta como elemento propio
         const claves = zs.length ? zs.map(z => `${tipo.id}#${z}`) : [`${tipo.id}#${_zonaDeG(tr)||'—'}`];
         claves.forEach(k => {
           (porElem[k] = porElem[k] || { tipo, zona: zs.length ? k.split('#')[1] : _zonaDeG(tr), vis: [] }).vis.push(v);
@@ -16328,6 +16360,7 @@ async function iramEjecutarAccion(cl) {
         else                          paso = `revisa el conexionado a fondo; si vuelve, sustituye el equipo`;
 
         const marca = n >= 3 ? '⚠️ ' : '';
+        ofConEsc.add(idOfE);
         escalera.push(`<li>${marca}🪜 <strong>${escH(nomOf)}</strong>${codOf} — <strong>${escH(quien)}</strong>, ${n} veces ya: ${paso}.</li>`);
       });
     });
@@ -16336,7 +16369,11 @@ async function iramEjecutarAccion(cl) {
     escalera.forEach(x => consejos.push(x));
 
     // Volcar: una línea por oficina, con las causas extra anidadas
-    Object.values(porOficina).forEach(o => {
+    Object.entries(porOficina).forEach(([idOf, o]) => {
+      // Si el material está en el proveedor, no tiene sentido mandarle a revisar cableado
+      if (ofConPend.has(idOf)) return;
+      // Si ya hay escalera para esa oficina, la línea genérica sobra
+      if (ofConEsc.has(idOf)) return;
       const extra = o.extras.length
         ? `<ul style="margin:2px 0 0">${o.extras.map(e => `<li>${e}</li>`).join('')}</ul>`
         : '';
