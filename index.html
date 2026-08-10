@@ -4694,11 +4694,12 @@ const guardarOtsVistos= s=>localStorage.setItem(OTS_VISTOS_KEY,JSON.stringify([.
    ================================================================ */
 function procesarTextoPartes(texto) {
   texto = (texto || '').trim();
-  if (!texto) return { parseados:0, nuevos:0, yaEstaban:0, dupPegado:0 };
+  if (!texto) return { parseados:0, nuevos:0, yaEstaban:0, dupPegado:0, listaNuevos:[] };
   const partes=cargarPartes(), otsExist=new Set(partes.map(p=>p.ot).filter(Boolean)), otsVistos=cargarOtsVistos();
   const otsPrevias = new Set(otsExist);
   const otsPegado  = new Set();
   let nuevos=0, yaEstaban=0, dupPegado=0, parseados=0;
+  const listaNuevos=[];
   for (const np of parsearTexto(texto)) {
     parseados++;
     if (np.ot && otsPrevias.has(np.ot))  { yaEstaban++; continue; }
@@ -4707,6 +4708,7 @@ function procesarTextoPartes(texto) {
     enriquecerConExcel(np);
     partes.unshift(np);
     if(np.ot) { otsExist.add(np.ot); otsPegado.add(np.ot); }
+    listaNuevos.push(np);
     nuevos++;
   }
   partes.sort((a, b) => {
@@ -4722,7 +4724,7 @@ function procesarTextoPartes(texto) {
   });
   const todos=cargarOtsVistos(); partes.forEach(p=>todos.add(p.ot||p.id)); guardarOtsVistos(todos);
   guardarPartes(partes);
-  return { parseados, nuevos, yaEstaban, dupPegado };
+  return { parseados, nuevos, yaEstaban, dupPegado, listaNuevos };
 }
 
 function analizar() {
@@ -14804,7 +14806,7 @@ async function pycEnviar() {
   // ── Partes pegados → cargar en Análisis + resumen/tabla estilo Claude ──
   if (_clEsPartes(txt)) {
     pycMsgUser(txt.length > 160 ? txt.slice(0,160).trim() + '… (partes)' : txt);
-    const { parseados, nuevos, yaEstaban } = procesarTextoPartes(txt);
+    const { parseados, nuevos, yaEstaban, listaNuevos } = procesarTextoPartes(txt);
     if (typeof renderizar === 'function') renderizar();
     if (!parseados) {
       pycMsgIAHtml('<div class="cl-assist-body"><p>No he reconocido ningún parte en ese texto. Pega el bloque completo tal cual lo copias.</p></div>');
@@ -14817,6 +14819,22 @@ async function pycEnviar() {
       if (totalFin)  extras.push(`${totalFin} finalizado${totalFin!==1?'s':''}`);
       if (extras.length) intro += ` · ${extras.join(' · ')}`;
       intro += `.</p>`;
+      if (nuevos && listaNuevos && listaNuevos.length) {
+        const _corta = t => { t = String(t||'').replace(/\s+/g,' ').trim(); return t.length > 70 ? t.slice(0,70).trim() + '…' : t; };
+        intro += `<p style="margin-bottom:2px"><strong>Los nuevos:</strong></p><ul style="margin:0 0 8px">`
+          + listaNuevos.map(n => {
+              const nom  = n.clienteReal || n.clienteNorm || n.cliente || '—';
+              const cod  = n.codigo ? ' · ' + n.codigo : '';
+              const loc  = n.localidad ? ' · ' + n.localidad : '';
+              const tra  = _corta(n.trabajo || n.descripcion || '');
+              const urg  = n.urgente ? '🔴 ' : '';
+              return `<li>${urg}<strong>${escH(nom)}</strong>${escH(cod + loc)}`
+                   + (tra ? ` — <span style="color:#8a8781">${escH(tra)}</span>` : '')
+                   + (n.urgente ? ` <em style="color:#c0392b">(urgente)</em>` : '')
+                   + `</li>`;
+            }).join('')
+          + `</ul>`;
+      }
       let html = claudeGenerarResumenTabla('original').replace('<div class="cl-assist-body">', `<div class="cl-assist-body">${intro}`);
       const extra = _clContextoExtra();
       if (extra) html = html.replace(/<\/div>\s*$/, extra + '</div>');
@@ -16031,16 +16049,83 @@ async function iramEjecutarAccion(cl) {
 
     const consejos = [];
     const vistos = new Set();
+    const porOficina = {};   // 6) una entrada por oficina, aunque tenga varias causas
+
+    // ── 1) Patrón del día: mismo tipo de fallo en varias oficinas distintas ──
+    const PATRONES = [
+      { id:'gsm', rx:/\b(gsm|4g|2g|gprs|sin\s+comunicaci|fallo\s+comunicaci|incomunicad)/i,
+        txt:'fallo de comunicación (GSM/4G)',
+        consejo:'llévate módulos de comunicación de repuesto. Si son tantas a la vez, mira también si es caída de la operadora antes de tocar central por central' },
+      { id:'fuego', rx:/\b(fuego|incendio|pci)\b/i, txt:'avería de fuego/PCI',
+        consejo:'revisa si comparten central de incendio o modelo, puede ser un patrón común' },
+      { id:'cam', rx:/\b(c[aá]mara|cctv|grabador|nvr|dvr|onsafe|im[aá]gen)/i, txt:'problema de cámara/grabador',
+        consejo:'agrupa las visitas de CCTV, y comprueba si comparten grabador o versión' },
+    ];
+    const _ofDe = p => `${p.clienteReal||p.clienteNorm||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+    PATRONES.forEach(pt => {
+      const afectadas = [];
+      const yaVista = new Set();
+      partes.forEach(p => {
+        const t = `${p.trabajo||''} ${p.descripcion||''}`;
+        if (esMto(p.trabajo||'')) return;
+        if (!pt.rx.test(t)) return;
+        const idOf = nrm(p.clienteReal||p.clienteNorm||p.cliente||'') + '|' + nrm(p.codigo||'');
+        if (yaVista.has(idOf)) return; yaVista.add(idOf);
+        afectadas.push(p);
+      });
+      if (afectadas.length < 3) return;   // con 1 o 2 no es patrón
+      const lista = afectadas.map(p => `${escH(_ofDe(p))}${p.codigo?` <span style="color:#8a8781">(${escH(p.codigo)})</span>`:''}`).join(', ');
+      consejos.push(`<li>🔁 <strong>${afectadas.length} oficinas hoy con ${pt.txt}</strong>: ${lista}. ${pt.consejo}.</li>`);
+    });
+
     partes.forEach(p => {
       const key = p.codigo ? nrm(p.codigo) : '';
       const cli = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
       const idOf = cli+'|'+key; if (vistos.has(idOf)) return; vistos.add(idOf);
       // visitas de esta oficina en el último año
-      const visitas = hist.filter(hh => {
+      let visitas = hist.filter(hh => {
         const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
         const okOf = key ? (hKey===key||hKey.endsWith(key)||key.endsWith(hKey)) : (nrm(hh.CLIENTE||'')===cli);
         if (!okOf) return false;
         const fe = parseFecha(hh.FECHA); return fe && fe >= haceUnAno;
+      });
+
+      // ── 2) Si se cambió la central, el histórico anterior ya no vale ──
+      const RX_NUEVA_CENTRAL = /(nueva\s+central|central\s+nueva|se\s+(?:sustituye|cambia|instala)\s+(?:la\s+)?central\b|cambio\s+de\s+central)/i;
+      const _fechaTexto = t => {
+        const m = String(t||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+        if (!m) return null;
+        let a = +m[3]; if (a < 100) a += 2000;
+        const d = new Date(a, +m[2]-1, +m[1]);
+        return isNaN(d) ? null : d;
+      };
+      let fechaCorte = null;
+      const txtHoy = `${p.trabajo||''} ${p.descripcion||''}`;
+      if (RX_NUEVA_CENTRAL.test(txtHoy)) fechaCorte = _fechaTexto(txtHoy) || new Date();
+      visitas.forEach(v => {
+        const tr = v.TRABAJO || v.trabajo || '';
+        if (!RX_NUEVA_CENTRAL.test(tr)) return;
+        const fe = _fechaTexto(tr) || parseFecha(v.FECHA);
+        if (fe && (!fechaCorte || fe > fechaCorte)) fechaCorte = fe;
+      });
+      let centralNueva = false;
+      if (fechaCorte) {
+        const antes = visitas.length;
+        visitas = visitas.filter(v => { const fe = parseFecha(v.FECHA); return fe && fe >= fechaCorte; });
+        centralNueva = visitas.length < antes;
+      }
+
+      if (visitas.length < 2) return;
+
+      // ── 4) Duplicado = misma OT Y misma fecha. Una OT abierta puede tener
+      //    varias visitas reales en fechas distintas (el cliente no cierra el aviso).
+      const vistasOT = new Set();
+      visitas = visitas.filter(v => {
+        const ot = String(v.OT || v.ot || '').trim();
+        const firma = ot ? 'ot:' + nrm(ot) + '|' + nrm(v.FECHA||'')
+                         : 'txt:' + nrm(v.FECHA||'') + '|' + nrm((v.TRABAJO||v.trabajo||'').slice(0,40));
+        if (vistasOT.has(firma)) return false;
+        vistasOT.add(firma); return true;
       });
       if (visitas.length < 2) return;
 
@@ -16071,11 +16156,20 @@ async function iramEjecutarAccion(cl) {
         });
         const detalleTxt = detalles.join(', ');
 
-        // ¿mismo elemento (misma zona) o elementos distintos?
-        const zonas = [...new Set(vis.map(v => _zonaDe(v.TRABAJO||v.trabajo||'')).filter(Boolean))];
-        const distintas = zonas.length >= 2;
+        // ── 5) Zona dominante: si una se repite, manda ella (no "elementos distintos") ──
+        const zonasTodas = vis.map(v => _zonaDe(v.TRABAJO||v.trabajo||''));
+        const cuenta = {};
+        zonasTodas.filter(Boolean).forEach(z => { cuenta[z] = (cuenta[z]||0) + 1; });
+        const orden = Object.entries(cuenta).sort((a,b) => b[1]-a[1]);
+        const zonaTop  = orden.length ? orden[0][0] : '';
+        const nTop     = orden.length ? orden[0][1] : 0;
+        // Sólo es "elementos distintos" si ninguna zona se repite dos o más veces
+        const distintas = orden.length >= 2 && nTop < 2;
 
-        const yaCambiado = vis.some(v => /(se\s+sustituy|se\s+cambia|se\s+instal|sustitu|cambiad|instalad|nuev[ao])/i.test(v.TRABAJO||v.trabajo||''));
+        // Ojo: instalar algo nuevo (una mejora) NO es lo mismo que sustituir un elemento averiado
+        const RX_SUSTITUIDO = /(se\s+sustituy|se\s+cambia|sustitu[iy]d|cambiad[oa]|se\s+repone|reemplaz)/i;
+        const yaCambiado = vis.some(v => RX_SUSTITUIDO.test(v.TRABAJO||v.trabajo||''));
+        const soloInstalado = !yaCambiado && vis.some(v => /(se\s+instal|instalad[oa])/i.test(v.TRABAJO||v.trabajo||''));
 
         // Frecuencia
         const fechas = vis.map(v => parseFecha(v.FECHA)).filter(Boolean).sort((a,b)=>a-b);
@@ -16089,57 +16183,232 @@ async function iramEjecutarAccion(cl) {
         let consejoTxt;
         if (distintas) {
           consejoTxt = `han fallado elementos distintos (no siempre el mismo), así que probablemente el problema es común: mira el grabador/red/PoE o la alimentación, no un elemento suelto`;
+        } else if (nTop >= 2 && yaCambiado) {
+          consejoTxt = `siempre es lo mismo (${zonaTop}) y ya lo sustituiste — revisa la instalación (cableado, alimentación, conexiones), el recambio no lo ha resuelto`;
+        } else if (nTop >= 2) {
+          consejoTxt = `siempre falla lo mismo (${zonaTop}), ${nTop} veces ya — céntrate en ese elemento en vez de ir restaurándolo`;
         } else if (yaCambiado) {
           consejoTxt = `ya lo sustituiste alguna vez y sigue fallando — revisa la instalación (cableado, alimentación, conexiones), el recambio no lo ha resuelto`;
+        } else if (soloInstalado) {
+          consejoTxt = `${cat.consejo}. Ojo: lo que consta es una instalación, no un recambio por avería, así que el elemento original sigue ahí`;
         } else {
           consejoTxt = cat.consejo;
         }
         consejoTxt = consejoTxt.charAt(0).toUpperCase() + consejoTxt.slice(1);
 
         const nom = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+        const codTxt = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
         const marca   = reincidente ? '⚠️ ' : '';
         const reincTxt = reincidente ? ' Está siendo muy reincidente.' : '';
-        consejos.push(`<li>${marca}En <strong>${escH(nom)}</strong> ya tuviste problemas con: ${detalleTxt}. ${consejoTxt}.${reincTxt}</li>`);
+        const nuevaTxt = centralNueva ? ` <span style="color:#8a8781">(solo cuento desde el cambio de central)</span>` : '';
+        const cab = `${marca}En <strong>${escH(nom)}</strong>${codTxt}`;
+        const cuerpo = ` ya tuviste problemas con: ${detalleTxt}. ${consejoTxt}.${reincTxt}${nuevaTxt}`;
+        if (porOficina[idOf]) porOficina[idOf].extras.push(`${detalleTxt} → ${consejoTxt}.`);
+        else porOficina[idOf] = { cab, cuerpo, extras: [] };
       });
+    });
+
+    // ══════════════════════════════════════════════════════════════════
+    //  ESCALERA DE AVERÍA POR ELEMENTO  +  MATERIAL PENDIENTE DE VOLVER
+    //  La identidad de un elemento es TIPO + Nº DE ZONA: el sísmico de la
+    //  zona 14 no es el mismo aparato que el de la zona 13.
+    // ══════════════════════════════════════════════════════════════════
+    const TIPOS = [
+      { id:'sismico', rx:/\bs[ií]smic/i,                         nom:'sísmico' },
+      { id:'volum',   rx:/\bvolum[eé]tric/i,                     nom:'volumétrico' },
+      { id:'camara',  rx:/\bc[aá]mara/i,                         nom:'cámara' },
+      { id:'puls',    rx:/\bpulsador/i,                          nom:'pulsador' },
+      { id:'contact', rx:/\b(contacto|im[aá]n|magn[eé]tic)/i,    nom:'contacto' },
+      { id:'barrera', rx:/\bbarrera/i,                           nom:'barrera' },
+      { id:'teclado', rx:/\btecla(do|r)/i,                       nom:'teclado' },
+      { id:'bandit',  rx:/\bbandit/i,                            nom:'bandit' },
+      { id:'detfuego',rx:/\b(detector|[oó]ptico|t[eé]rmico)/i,   nom:'detector de fuego' },
+    ];
+    // Qué escalón consta ya hecho en el histórico
+    const RX_CONEX   = /(conexionad|se\s+aprietan|se\s+aprieta|se\s+sanea|conector|borne|se\s+ajusta|se\s+reaprieta|estaba\s+suelto|casi\s+suelto)/i;
+    const RX_SUSTIT  = /(se\s+sustituy|se\s+cambia|sustitu[iy]d|cambiad[oa]|reemplaz|se\s+repone|por\s+un\s+\d)/i;
+    const RX_CABLE   = /(se\s+sanea\s+cable|cableado|se\s+tira\s+cable|nueva\s+tirada|manguera|se\s+repasa\s+l[ií]nea)/i;
+    const RX_LEVE    = /(se\s+reinicia|se\s+restaura|se\s+rearma|se\s+comprueba|se\s+inhabilita|se\s+aisla|falsa)/i;
+    // Material que se llevó a reparar y no consta que haya vuelto
+    const RX_RETIRA  = /(se\s+retira[^.]{0,40}(para\s+reparar|a\s+reparar|reparaci[oó]n)|se\s+env[ií]a[^.]{0,30}reparar|pendiente\s+de\s+(recambio|material|reparaci[oó]n|proveedor)|en\s+garant[ií]a)/i;
+    const RX_VUELVE  = /(se\s+monta[^.]{0,30}reparad|se\s+instala[^.]{0,30}reparad|se\s+coloca[^.]{0,30}reparad|vuelve\s+reparad|ya\s+reparad)/i;
+
+    const ZONAS_G = ['cajero','recicladora','reciclador','centro','patio','entrada','acceso','oficina','sótano','sotano','fachada','calle','pasillo','aseo','caja fuerte','almacén','almacen','trastero','sala','vestíbulo','vestibulo','tejado','cubierta','mostrador','archivo','direccion','dirección','mesa'];
+    const _zonaDeG = t => { t = String(t||'').toLowerCase(); for (const z of ZONAS_G) { if (t.includes(z)) return z; } return ''; };
+    const _zonasNum = t => {
+      const out = [];
+      const re = /(?:zona|z)\s*\.?\s*(\d{1,4})/gi;
+      let m; while ((m = re.exec(String(t||'')))) out.push(m[1]);
+      return [...new Set(out)];
+    };
+    const _diasDesde = f => f ? Math.round((Date.now() - f.getTime()) / 86400000) : null;
+
+    const escalera  = [];
+    const pendMat   = [];
+    const vistosE   = new Set();
+
+    partes.forEach(p => {
+      const keyE = nrm(p.codigo||'');
+      const cliE = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
+      const idOfE = cliE + '|' + keyE;
+      if (vistosE.has(idOfE)) return; vistosE.add(idOfE);
+
+      let filas = hist.filter(hh => {
+        const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
+        const ok = keyE ? (hKey===keyE||hKey.endsWith(keyE)||keyE.endsWith(hKey)) : (nrm(hh.CLIENTE||'')===cliE);
+        if (!ok) return false;
+        const fe = parseFecha(hh.FECHA); return fe && fe >= haceUnAno;
+      });
+      // Mismo criterio de duplicados que arriba: OT + fecha
+      const vs = new Set();
+      filas = filas.filter(v => {
+        const ot = String(v.OT||v.ot||'').trim();
+        const f = ot ? 'ot:'+nrm(ot)+'|'+nrm(v.FECHA||'') : 'txt:'+nrm(v.FECHA||'')+'|'+nrm((v.TRABAJO||v.trabajo||'').slice(0,40));
+        if (vs.has(f)) return false; vs.add(f); return true;
+      });
+      filas.sort((a,b) => (parseFecha(a.FECHA)||0) - (parseFecha(b.FECHA)||0));
+
+      const nomOf = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+      const codOf = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
+
+      // ── A) Material retirado que no ha vuelto ──
+      filas.forEach((v, i) => {
+        const tr = v.TRABAJO||v.trabajo||'';
+        if (!RX_RETIRA.test(tr)) return;
+        const fe = parseFecha(v.FECHA);
+        const volvio = filas.slice(i+1).some(w => RX_VUELVE.test(w.TRABAJO||w.trabajo||''));
+        if (volvio) return;
+        const tipo = TIPOS.find(t => t.rx.test(tr));
+        const zs   = _zonasNum(tr);
+        const qu   = `${tipo?tipo.nom:'el material'}${zs.length?' zona '+zs.join('/'):''}`;
+        const dias = _diasDesde(fe);
+        pendMat.push(`<li>📦 <strong>${escH(nomOf)}</strong>${codOf} — el ${escH(v.FECHA||'')} retiraste ${qu} para reparar y no consta que haya vuelto`
+          + (dias!=null ? `. <strong>${dias} días</strong> esperando` : '')
+          + `: reclama el recambio al proveedor antes de volver a ir.</li>`);
+      });
+
+      // ── B) Escalera por elemento (tipo + zona) ──
+      const porElem = {};
+      filas.forEach(v => {
+        const tr = v.TRABAJO||v.trabajo||'';
+        if (esMto(tr)) return;
+        const tipo = TIPOS.find(t => t.rx.test(tr));
+        if (!tipo) return;
+        const zs = _zonasNum(tr);
+        const claves = zs.length ? zs.map(z => `${tipo.id}#${z}`) : [`${tipo.id}#${_zonaDeG(tr)||'—'}`];
+        claves.forEach(k => {
+          (porElem[k] = porElem[k] || { tipo, zona: zs.length ? k.split('#')[1] : _zonaDeG(tr), vis: [] }).vis.push(v);
+        });
+      });
+
+      Object.values(porElem).forEach(({ tipo, zona, vis }) => {
+        if (vis.length < 2) return;                    // con una sola vez no hay escalera
+        // Si este elemento está en el proveedor y no consta que haya vuelto, la escalera se para
+        const idxRet = vis.findIndex(v => RX_RETIRA.test(v.TRABAJO||v.trabajo||''));
+        if (idxRet >= 0 && !vis.slice(idxRet+1).some(w => RX_VUELVE.test(w.TRABAJO||w.trabajo||''))) return;
+
+        const txts = vis.map(v => v.TRABAJO||v.trabajo||'');
+        const hechoConex  = txts.some(t => RX_CONEX.test(t));
+        const hechoSust   = txts.some(t => RX_SUSTIT.test(t));
+        const hechoCable  = txts.some(t => RX_CABLE.test(t));
+        const soloLeve    = txts.every(t => RX_LEVE.test(t)) && !hechoConex && !hechoSust;
+
+        // ¿el recambio fue material recuperado?
+        const recuperado = vis.some(v => /recuperad/i.test(`${v.MATERIAL||''} ${v.TRABAJO||v.trabajo||''}`));
+
+        const quien = `${tipo.nom}${zona && zona!=='—' ? ' zona '+zona : ''}`;
+        const n = vis.length;
+        let paso;
+        if (hechoCable && hechoSust)  paso = `ya has hecho conexionado, recambio y cableado. Replantéatelo: interferencia, ubicación del elemento o alimentación de esa zona — o pásalo a presupuesto`;
+        else if (hechoSust)           paso = recuperado
+              ? `ya lo sustituiste, pero el recambio fue material recuperado. Antes de picar cable, comprueba si el que pusiste estaba bien; si lo estaba, revisa la tirada completa`
+              : `ya miraste el conexionado y lo sustituiste, y sigue igual. Toca revisar el cableado, la tirada entera hasta la central`;
+        else if (hechoConex)          paso = `el conexionado ya lo revisaste. Este viaje sustituye el equipo`;
+        else if (soloLeve)            paso = `hasta ahora solo lo has restaurado. Revisa el conexionado a fondo antes de darlo por falsa alarma`;
+        else                          paso = `revisa el conexionado a fondo; si vuelve, sustituye el equipo`;
+
+        const marca = n >= 3 ? '⚠️ ' : '';
+        escalera.push(`<li>${marca}🪜 <strong>${escH(nomOf)}</strong>${codOf} — <strong>${escH(quien)}</strong>, ${n} veces ya: ${paso}.</li>`);
+      });
+    });
+
+    pendMat.forEach(x => consejos.push(x));
+    escalera.forEach(x => consejos.push(x));
+
+    // Volcar: una línea por oficina, con las causas extra anidadas
+    Object.values(porOficina).forEach(o => {
+      const extra = o.extras.length
+        ? `<ul style="margin:2px 0 0">${o.extras.map(e => `<li>${e}</li>`).join('')}</ul>`
+        : '';
+      consejos.push(`<li>${o.cab}${o.cuerpo}${extra}</li>`);
     });
 
     // ── Galaxy Flex con módulo 4G sin actualizar ──
     // Para futuras versiones: subir GALAXY_VER_MIN cuando salga una superior.
     const GALAXY_VER_MIN = 3.54;
     const _verDe = txt => {
-      const m = String(txt||'').match(/v(?:ers(?:i[oó]n)?)?\s*\.?\s*(\d+(?:[.,]\d+)?)/i);
+      const t = String(txt||'');
+      // "Versión galaxy 3.51" (admite palabras entre medias)
+      let m = t.match(/vers(?:i[oó]n)?[^0-9]{0,14}(\d+(?:[.,]\d+)?)/i);
+      // "V3.54" / "V.3.37" (pegado, para no confundir con "Visión")
+      if (!m) m = t.match(/\bv\.?\s?(\d+(?:[.,]\d+)?)/i);
       return m ? parseFloat(m[1].replace(',','.')) : null;
     };
     const equiposObjC = loadObj(K_EQUIPOS);
     const vistosG = new Set();
+    const galaxyAvisos = [];      // versión conocida y por debajo del mínimo
+    const sinConstancia = [];     // sin dato de versión → se agrupan al final
     partes.forEach(p => {
-      const eq = equiposObjC[p.codigo || p.id] || {};
-      const central = String(eq['CENTRAL INTRUSIÓN'] || eq.central || '');
-      const com     = String(eq['COMUNICACIÓN']     || eq.com     || '');
+      const eq   = equiposObjC[p.codigo || p.id] || {};
+      const keyG = nrm(p.codigo||'');
+      const cliG = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
+
+      // La versión suele quedar escrita en el histórico (columna MODELO CENTRAL), no en Equipos
+      const filasOf = hist.filter(hh => {
+        const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
+        return keyG ? (hKey===keyG||hKey.endsWith(keyG)||keyG.endsWith(hKey)) : (nrm(hh.CLIENTE||'')===cliG);
+      });
+      const txtHist = filasOf.map(h => `${h['MODELO CENTRAL']||''} ${h.MODELO||h.modelo||''} ${h['CENTRAL INTRUSIÓN']||''} ${h['COMUNICACIÓN']||''}`).join(' ');
+
+      const central = `${eq['CENTRAL INTRUSIÓN'] || eq.central || ''} ${txtHist}`;
+      const com     = `${eq['COMUNICACIÓN']     || eq.com     || ''} ${txtHist}`;
       if (!/galaxy\s*flex/i.test(central)) return;
       if (!/4g/i.test(com)) return;
 
-      const idOf = nrm(p.clienteReal||p.clienteNorm||p.cliente||'') + '|' + nrm(p.codigo||'');
+      const idOf = cliG + '|' + keyG;
       if (vistosG.has(idOf)) return; vistosG.add(idOf);
 
-      // La versión puede venir en el texto de Instalación o en la propia comunicación
-      const txtVer = `${eq.MODELO || eq.modelo || ''} ${com}`;
+      const txtVer = `${eq.MODELO || eq.modelo || ''} ${eq['COMUNICACIÓN'] || eq.com || ''} ${txtHist}`;
       const ver    = _verDe(txtVer);
-      const dice   = /actualizad/i.test(txtVer);
-
-      let aviso;
-      if (ver !== null && ver >= GALAXY_VER_MIN) return;               // al día
-      if (ver !== null)      aviso = `está en la <strong>versión ${ver}</strong>, por debajo de la ${GALAXY_VER_MIN}`;
-      else if (dice)         return;                                    // dice "actualizada" sin número → la damos por buena
-      else                   aviso = `no consta que esté actualizada`;
+      const dice   = /actualizad[ao]/i.test(txtVer);
+      const diceNo = /sin\s+actualizar|no\s+actualizad/i.test(txtVer);
 
       const nom = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+      const cod = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
+
+      let aviso;
+      if (diceNo)                                    aviso = `consta como <strong>sin actualizar</strong>`;
+      else if (ver !== null && ver >= GALAXY_VER_MIN) return;           // al día
+      else if (ver !== null)                         aviso = `está en la <strong>versión ${ver}</strong>, por debajo de la ${GALAXY_VER_MIN}`;
+      else if (dice)                                 return;            // dice "actualizada" sin número → la damos por buena
+      else { sinConstancia.push(`${escH(nom)}${cod}`); return; }        // 6) sin dato → van juntas al final
+
       const esCajamar = /cajamar|caja\s*rural|caixa\s*rural|cajacheste/i.test(p.clienteReal||p.clienteNorm||p.cliente||'');
-      consejos.push(`<li>📡 <strong>${escH(nom)}</strong> tiene Galaxy Flex con módulo 4G y ${aviso}. `
+      galaxyAvisos.push(`<li>📡 <strong>${escH(nom)}</strong>${cod} tiene Galaxy Flex con módulo 4G y ${aviso}. `
         + `Si vas a tocarla, aprovecha para actualizarla.`
         + (esCajamar ? ` <span style="color:#8a8781">Ojo: en Cajamar hay que desprogramar y reprogramar la central y probar con la CRA — cuenta con varias horas, no es un cambio rápido.</span>` : '')
         + `</li>`);
     });
+
+    // Las que sí sabemos que están cortas de versión, una a una
+    galaxyAvisos.forEach(a => consejos.push(a));
+    // Las que simplemente no tienen el dato, todas en una línea para no llenar la lista
+    if (sinConstancia.length === 1) {
+      consejos.push(`<li>📡 En <strong>${sinConstancia[0]}</strong> no consta la versión del Galaxy Flex con 4G. Si pasas por allí, apúntala.</li>`);
+    } else if (sinConstancia.length > 1) {
+      consejos.push(`<li>📡 <strong>Sin versión anotada</strong> (Galaxy Flex con 4G): ${sinConstancia.join(', ')}. `
+        + `Cuando pases, apunta la versión en Instalación y ya te aviso si van cortas.</li>`);
+    }
 
     if (!consejos.length) return 'No veo ninguna oficina de hoy con visitas repetidas por la misma causa. Todo en orden 👍';
     return _HTML_MARK + `<p><strong>💡 Consejos del día</strong></p><ul style="margin:6px 0 0">${consejos.join('')}</ul>`;
