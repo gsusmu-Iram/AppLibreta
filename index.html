@@ -3468,14 +3468,6 @@ body { font-size: 14px; }
                 <span class="equip-drop-arr">▾</span>
               </button>
             </div>
-            <div class="equip-item" id="eq-capacidad-item" style="display:none">
-              <span class="equip-lbl">Capacidad</span>
-              <button type="button" class="equip-drop" id="eq-capacidad" onclick="abrirSheet('capacidad')">
-                <span class="equip-drop-ic">📐</span>
-                <span class="equip-drop-val" id="eq-capacidad-val">— Seleccionar —</span>
-                <span class="equip-drop-arr">▾</span>
-              </button>
-            </div>
             <div class="equip-item">
               <span class="equip-lbl">Instalación</span>
               <input class="field-input" id="campo-modelo" type="text" placeholder="A082 · v3 · Galaxy Flex…">
@@ -5580,14 +5572,6 @@ const OPTS = {
     titulo: 'Central incendio',
     grupos: [{items:['Visión','Morley','Honeywell','Kilsen','Notifier','Otro…']}]
   },
-  capacidad: {
-    titulo: 'Capacidad de la central',
-    grupos: [
-      {label:'Flex',      items:['Flex 20','Flex 50','Flex 100']},
-      {label:'Dimensión', items:['Galaxy 48','Galaxy 96','Galaxy 264','Galaxy 520']},
-      {label:'',          items:['Otro…']},
-    ]
-  },
   acceso: {
     titulo: 'Control acceso',
     grupos: [{items:['Salto','Myaccess','Honeywell','Otro…']}]
@@ -5602,7 +5586,7 @@ let finActivo     = false;
 let sheetCampo    = null;
 let paradaActual  = null;
 let paradas       = [];   // cache global — actualizado en renderLista
-let vals          = {central:'', capacidad:'', grabador:'', com:'', incendio:'', acceso:'', modelo:'',
+let vals          = {central:'', grabador:'', com:'', incendio:'', acceso:'', modelo:'',
                      material:'', spiderCentral:false, spiderCerraduras:false};
 let mapaL         = null;   // instancia Leaflet
 
@@ -6530,7 +6514,7 @@ function abrirFinalizarPara(id) {
 
       // Acordeón equipos — abrir si ya hay alguno relleno
       const tieneEquipos = !!(eq.central||eq.grabador||eq.com||eq.incendio||eq.acceso||eq.modelo
-                              ||eq.capacidad||eq.spiderCentral||eq.spiderCerraduras);
+                              ||eq.spiderCentral||eq.spiderCerraduras);
       const equipBody = document.getElementById('equip-body');
       const equipArr  = document.getElementById('equip-arr');
       if (equipBody) equipBody.classList.toggle('open', tieneEquipos);
@@ -6558,8 +6542,7 @@ function abrirFinalizarPara(id) {
       }
 
       // Equipos
-      vals = { central: eq.central||'', capacidad: eq.capacidad||eq.CAPACIDAD||'',
-               grabador: eq.grabador||'', com: eq.com||'',
+      vals = { central: eq.central||'', grabador: eq.grabador||'', com: eq.com||'',
                incendio: eq.incendio||'', acceso: eq.acceso||'', modelo: eq.modelo||'',
                material: '',
                spiderCentral:    !!(eq.spiderCentral    || eq['SPIDER CENTRAL']    === 'SI'),
@@ -6658,7 +6641,7 @@ function cargarUltVisitas(p) {
 
 
 function actualizarBadgeEquipos() {
-  const rellenos = [vals.central, vals.capacidad, vals.grabador, vals.com, vals.incendio, vals.acceso, vals.modelo]
+  const rellenos = [vals.central, vals.grabador, vals.com, vals.incendio, vals.acceso, vals.modelo]
     .filter(v => v && v.trim()).length
     + (vals.spiderCentral ? 1 : 0) + (vals.spiderCerraduras ? 1 : 0);
   const badge = document.getElementById('equip-badge');
@@ -6763,7 +6746,7 @@ function onEquipChange(campo, sel) {
 }
 
 function refrescarSels() {
-  const campos = ['central','capacidad','grabador','com','incendio','acceso'];
+  const campos = ['central','grabador','com','incendio','acceso'];
   campos.forEach(campo => {
     const btn = document.getElementById('eq-' + campo);
     const val = document.getElementById('eq-' + campo + '-val');
@@ -6772,11 +6755,6 @@ function refrescarSels() {
     val.textContent = v || '— Seleccionar —';
     btn.classList.toggle('filled', !!v);
   });
-  // La capacidad sólo aplica a centrales Galaxy
-  const esGalaxy = /galaxy/i.test(vals.central || '');
-  const item = document.getElementById('eq-capacidad-item');
-  if (item) item.style.display = esGalaxy ? '' : 'none';
-  if (!esGalaxy) vals.capacidad = '';
   const sc = document.getElementById('eq-spider-central');
   const sk = document.getElementById('eq-spider-cerraduras');
   if (sc) sc.checked = !!vals.spiderCentral;
@@ -6907,7 +6885,6 @@ function guardarFinalizar() {
     CÓDIGO:              p.codigo || '',
     MUNICIPIO:           p.localidad || '',
     'CENTRAL INTRUSIÓN': vals.central  || prev['CENTRAL INTRUSIÓN'] || '',
-    CAPACIDAD:           vals.capacidad|| prev.CAPACIDAD             || '',
     'SPIDER CENTRAL':    vals.spiderCentral    ? 'SI' : (prev['SPIDER CENTRAL']    || ''),
     'SPIDER CERRADURAS': vals.spiderCerraduras ? 'SI' : (prev['SPIDER CERRADURAS'] || ''),
     MODELO:              modelo        || prev.MODELO               || '',
@@ -6918,7 +6895,6 @@ function guardarFinalizar() {
     'ÚLTIMA VISITA':     fecha,
     ACTUALIZADO:         fecha,
     central:  vals.central  || prev.central  || '',
-    capacidad: vals.capacidad || prev.capacidad || '',
     spiderCentral:    vals.spiderCentral    || prev.spiderCentral    || false,
     spiderCerraduras: vals.spiderCerraduras || prev.spiderCerraduras || false,
     grabador: vals.grabador || prev.grabador || '',
@@ -7552,7 +7528,6 @@ function datosExportarExcel() {
           'MUNICIPIO':         String(e.MUNICIPIO          || e.municipio || ''),
           'ZONA':              String(e.ZONA               || e.zona      || ''),
           'CENTRAL INTRUSIÓN': String(e['CENTRAL INTRUSIÓN'] || e.central  || ''),
-          'CAPACIDAD':         String(e.CAPACIDAD          || e.capacidad || ''),
           'SPIDER CENTRAL':    String(e['SPIDER CENTRAL']  || (e.spiderCentral ? 'SI' : '') || ''),
           'SPIDER CERRADURAS': String(e['SPIDER CERRADURAS'] || (e.spiderCerraduras ? 'SI' : '') || ''),
           'MODELO':            String(e.MODELO             || e.modelo    || ''),
@@ -7566,7 +7541,7 @@ function datosExportarExcel() {
           'ACTUALIZADO':       String(e.ACTUALIZADO        || hoy),
         }))
       : [{'CLIENTE':'','CÓDIGO':'','MUNICIPIO':'','ZONA':'','CENTRAL INTRUSIÓN':'',
-          'CAPACIDAD':'','SPIDER CENTRAL':'','SPIDER CERRADURAS':'',
+          'SPIDER CENTRAL':'','SPIDER CERRADURAS':'',
           'MODELO':'','GRABADOR':'','COMUNICACIÓN':'','CENTRAL INCENDIO':'',
           'MODELO INC':'','CONTROL ACCESO':'','OBSERVACIONES':'','ÚLTIMA VISITA':'','ACTUALIZADO':''}];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eqRows), 'Equipos');
@@ -7808,7 +7783,6 @@ function datosImportarExcel(input) {
               CLIENTE:String(r['CLIENTE']||''), 'CÓDIGO':cod,
               MUNICIPIO:String(r['MUNICIPIO']||''), ZONA:String(r['ZONA']||''),
               'CENTRAL INTRUSIÓN':String(r['CENTRAL INTRUSIÓN']||''),
-              CAPACIDAD:String(r['CAPACIDAD']||''),
               'SPIDER CENTRAL':String(r['SPIDER CENTRAL']||''),
               'SPIDER CERRADURAS':String(r['SPIDER CERRADURAS']||''),
               MODELO:String(r['MODELO']||''), GRABADOR:String(r['GRABADOR']||''),
@@ -7820,7 +7794,6 @@ function datosImportarExcel(input) {
               'ÚLTIMA VISITA':String(r['ÚLTIMA VISITA']||''),
               // Claves cortas para uso interno
               central:String(r['CENTRAL INTRUSIÓN']||''),
-              capacidad:String(r['CAPACIDAD']||''),
               spiderCentral: String(r['SPIDER CENTRAL']||'').toUpperCase()==='SI',
               spiderCerraduras: String(r['SPIDER CERRADURAS']||'').toUpperCase()==='SI',
               modelo:String(r['MODELO']||''), grabador:String(r['GRABADOR']||''),
@@ -14887,6 +14860,13 @@ async function pycEnviar() {
   if (/^(s[íi]|va|dale|venga|ok|claro|hazlo|llama|abre|sí|si|perfecto|adelante)$/i.test(txt) && _iramUltimaAccion) {
     const acc = _iramUltimaAccion;
     _iramUltimaAccion = null;
+    if (acc.tipo === 'cerrar_dia') {
+      if (typeof ejecutarCerrarDia === 'function') {
+        try { ejecutarCerrarDia(); pycMsgIA('🌙 Día cerrado · Análisis y ruta limpios. El historial queda guardado.', false, 'local'); }
+        catch(e) { pycMsgIA('⚠️ No he podido cerrar el día: ' + e.message, false, 'local'); }
+      } else pycMsgIA('⚠️ No he encontrado la función de cerrar el día.', false, 'local');
+      _pycThinking = false; return;
+    }
     if (acc.tipo === 'waze' && acc.datos) {
       iramAbrirWazeParada(acc.datos);
       pycMsgIA('Abriendo Waze.', false, 'local');
@@ -16121,6 +16101,44 @@ async function iramEjecutarAccion(cl) {
         const reincTxt = reincidente ? ' Está siendo muy reincidente.' : '';
         consejos.push(`<li>${marca}En <strong>${escH(nom)}</strong> ya tuviste problemas con: ${detalleTxt}. ${consejoTxt}.${reincTxt}</li>`);
       });
+    });
+
+    // ── Galaxy Flex con módulo 4G sin actualizar ──
+    // Para futuras versiones: subir GALAXY_VER_MIN cuando salga una superior.
+    const GALAXY_VER_MIN = 3.54;
+    const _verDe = txt => {
+      const m = String(txt||'').match(/v(?:ers(?:i[oó]n)?)?\s*\.?\s*(\d+(?:[.,]\d+)?)/i);
+      return m ? parseFloat(m[1].replace(',','.')) : null;
+    };
+    const equiposObjC = loadObj(K_EQUIPOS);
+    const vistosG = new Set();
+    partes.forEach(p => {
+      const eq = equiposObjC[p.codigo || p.id] || {};
+      const central = String(eq['CENTRAL INTRUSIÓN'] || eq.central || '');
+      const com     = String(eq['COMUNICACIÓN']     || eq.com     || '');
+      if (!/galaxy\s*flex/i.test(central)) return;
+      if (!/4g/i.test(com)) return;
+
+      const idOf = nrm(p.clienteReal||p.clienteNorm||p.cliente||'') + '|' + nrm(p.codigo||'');
+      if (vistosG.has(idOf)) return; vistosG.add(idOf);
+
+      // La versión puede venir en el texto de Instalación o en la propia comunicación
+      const txtVer = `${eq.MODELO || eq.modelo || ''} ${com}`;
+      const ver    = _verDe(txtVer);
+      const dice   = /actualizad/i.test(txtVer);
+
+      let aviso;
+      if (ver !== null && ver >= GALAXY_VER_MIN) return;               // al día
+      if (ver !== null)      aviso = `está en la <strong>versión ${ver}</strong>, por debajo de la ${GALAXY_VER_MIN}`;
+      else if (dice)         return;                                    // dice "actualizada" sin número → la damos por buena
+      else                   aviso = `no consta que esté actualizada`;
+
+      const nom = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+      const esCajamar = /cajamar|caja\s*rural|caixa\s*rural|cajacheste/i.test(p.clienteReal||p.clienteNorm||p.cliente||'');
+      consejos.push(`<li>📡 <strong>${escH(nom)}</strong> tiene Galaxy Flex con módulo 4G y ${aviso}. `
+        + `Si vas a tocarla, aprovecha para actualizarla.`
+        + (esCajamar ? ` <span style="color:#8a8781">Ojo: en Cajamar hay que desprogramar y reprogramar la central y probar con la CRA — cuenta con varias horas, no es un cambio rápido.</span>` : '')
+        + `</li>`);
     });
 
     if (!consejos.length) return 'No veo ninguna oficina de hoy con visitas repetidas por la misma causa. Todo en orden 👍';
