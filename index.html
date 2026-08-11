@@ -16082,6 +16082,7 @@ async function iramEjecutarAccion(cl) {
       { id:'bat',  rx:/\b(bater[ií]a|pila)/i,                              txt:'la batería',            consejo:'deja una batería nueva, está dando guerra' },
       { id:'vol',  rx:/\b(volum[eé]tric|s[ií]smic|enmascar)/i,             txt:'un detector/volumétrico', consejo:'cambia el detector, lleva dando falsas varias veces' },
       { id:'res',  rx:/\b(resistencia|fin\s+de\s+l[ií]nea|eol)/i,          txt:'resistencias de línea', consejo:'revisa el cableado y deja resistencias nuevas' },
+      { id:'det',  rx:/\b(detector|[oó]ptico|t[eé]rmico|sonda)/i, txt:'detector de incendio', consejo:'si los detectores caen uno tras otro, mira el lazo y la alimentación antes que el detector' },
       { id:'fuego',rx:/\b(fuego|incendio|derivaci[oó]n\s+tierra|central\s+de\s+incendio)/i, txt:'avería de fuego/PCI', consejo:'revisa la zona de incendio a fondo, puede ser derivación a tierra en el bucle' },
       { id:'acc',  rx:/\b(contacto\s+magn|im[aá]n|puerta\s+emergencia|magn[eé]tic)/i, txt:'el contacto de puerta', consejo:'cambia el contacto magnético, suele acabar soltándose' },
       { id:'barr', rx:/\bbarrera/i,                                        txt:'la barrera exterior',   consejo:'ajusta o sustituye la barrera, da saltos en falso' },
@@ -16326,6 +16327,15 @@ async function iramEjecutarAccion(cl) {
     const ofConPend = new Set();   // material en el proveedor → calla la reincidencia
     const ofConEsc  = new Set();   // ya tiene escalera concreta → sobra la línea genérica
     const equiposObjC  = loadObj(K_EQUIPOS);
+    // Para futuras versiones: subir GALAXY_VER_MIN cuando salga una superior.
+    const GALAXY_VER_MIN = 3.54;
+    const _verDe = txt => {
+      const t = String(txt||'');
+      let m = t.match(/vers(?:i[oó]n)?[^0-9]{0,14}(\d+(?:[.,]\d+)?)/i);
+      if (!m) m = t.match(/\bv\.?\s?(\d+(?:[.,]\d+)?)/i);
+      return m ? parseFloat(m[1].replace(',','.')) : null;
+    };
+    const yaAvisadoVer = new Set();   // oficinas cuya versión ya se menciona en la escalera 4G
     const escComs      = [];       // escalera de comunicaciones
     const vistosCom    = new Set();
     const ofConEscCom  = new Set();
@@ -16423,7 +16433,12 @@ async function iramEjecutarAccion(cl) {
     escalera.forEach(x => consejos.push(x));
 
     // ── Escalera de COMUNICACIONES (no es un elemento físico, va aparte) ──
-    const RX_ANTENA  = /(antena|fachada|omnidireccional|aleta\s+de\s+tibur[oó]n|exterior)/i;
+    // Sólo la OMNIDIRECCIONAL vale para 4G. La "pequeña" es la interior del módulo,
+    // y la aleta de tiburón / Pacom son las que se ponían con el 2G.
+    const RX_ANT_BUENA = /(omnidireccional|antena[^.]{0,20}(?:fachada|exterior)|(?:fachada|exterior)[^.]{0,20}antena)/i;
+    const RX_ANT_2G    = /(aleta\s+de\s+tibur[oó]n|antena\s+pacom|pacom\s+antena)/i;
+    const RX_ANT_PEQ   = /(antena\s+peque|peque[nñ]a\s+interior|antena\s+interior|antena\s+del\s+m[oó]dulo)/i;
+    const RX_ANT_ALGO  = /(antena|omnidireccional|aleta\s+de\s+tibur[oó]n)/i;
     const RX_MOD4G   = /(m[oó]dulo\s*4g|se\s+instala\s+modulo\s*4g|sustituy\w*\s+(?:el\s+)?m[oó]dulo)/i;
     const RX_ACTUAL  = /(actualiz\w*|versi[oó]n\s*\d)/i;
     const RX_SIM     = /(multioperador|multi\s*operador|tarjeta\s+sim|sim\s+nueva|se\s+cambia\s+(?:la\s+)?sim)/i;
@@ -16457,31 +16472,54 @@ async function iramEjecutarAccion(cl) {
       const todo = filas.map(h => `${h.TRABAJO||h.trabajo||''} ${h['MODELO CENTRAL']||''} ${h['COMUNICACIÓN']||''}`).join(' · ');
       const eqC  = equiposObjC[p.codigo || p.id] || {};
 
-      const hayAntena = RX_ANTENA.test(todo) || /antena/i.test(`${eqC['COMUNICACIÓN']||eqC.com||''}`);
-      const hayMod4G  = RX_MOD4G.test(todo);
-      const hayActual = RX_ACTUAL.test(todo);
-      const haySim    = RX_SIM.test(todo)
+      const comEq   = `${eqC['COMUNICACIÓN']||eqC.com||''}`;
+      const todoCom = `${todo} ${comEq}`;
+      const antBuena = RX_ANT_BUENA.test(todoCom);
+      const ant2G    = !antBuena && RX_ANT_2G.test(todoCom);
+      const antPeq   = !antBuena && RX_ANT_PEQ.test(todoCom);
+      const hayMod4G  = RX_MOD4G.test(todoCom);
+      const hayActual = RX_ACTUAL.test(todoCom);
+      const haySim    = RX_SIM.test(todoCom)
                         || !!eqC.multioperador || String(eqC.MULTIOPERADOR||'').toUpperCase()==='SI';
+
+      // Sin ningún dato de comunicación no se inventa un escalón: mejor callar
+      const hayDatos = antBuena || ant2G || antPeq || hayMod4G || haySim
+                       || RX_ANT_ALGO.test(todoCom) || /4g|2g|gsm|gprs/i.test(comEq);
+      if (!hayDatos) return;
 
       const nomC = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
       const codC = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
       const gris = t => `<span style="color:#8a8781">${t}</span>`;
 
       let paso, hecho = [];
-      if (hayAntena)            hecho.push('antena fuera');
-      if (hayMod4G)             hecho.push('módulo 4G');
-      if (hayActual)            hecho.push('central actualizada');
-      if (haySim)               hecho.push('tarjeta multioperador');
+      if (antBuena)  hecho.push('antena omnidireccional');
+      if (ant2G)     hecho.push('antena de 2G (aleta/Pacom)');
+      if (antPeq)    hecho.push('antena pequeña interior');
+      if (hayMod4G)  hecho.push('módulo 4G');
+      if (hayActual) hecho.push('central actualizada');
+      if (haySim)    hecho.push('tarjeta multioperador');
 
-      if (!hayAntena) {
-        paso = `empieza por sacar la antena al exterior o a fachada si no está`;
+      if (ant2G) {
+        paso = `lleva todavía la antena del 2G (aleta de tiburón o Pacom) con módulo 4G. `
+             + `Cámbiala por una <strong>omnidireccional</strong> antes de tocar nada más`;
+      } else if (!antBuena) {
+        paso = antPeq
+          ? `sólo tiene la antena pequeña interior del módulo y sigue fallando: saca una <strong>omnidireccional a fachada</strong>`
+          : `empieza por poner una <strong>antena omnidireccional</strong> en fachada`;
       } else if (!(hayMod4G && hayActual)) {
-        paso = `la antena ya está fuera. Toca sustituir el módulo 4G y actualizar la central`;
+        paso = `la omnidireccional ya está puesta. Toca sustituir el módulo 4G y actualizar la central`;
       } else if (!haySim) {
         paso = `antena y módulo 4G ya están y sigue fallando. Comprueba si la tarjeta es <strong>multioperador</strong>`;
       } else {
         paso = `ya has hecho antena, módulo 4G y tarjeta multioperador, y vuelve a fallar: <strong>el problema es de cobertura</strong>. `
              + `Puedes probar a sustituir el módulo por si salió defectuoso, pero no esperes que lo resuelva`;
+      }
+
+      // Si además va corta de versión, se dice aquí y no en una línea aparte
+      const verC = _verDe(`${eqC.MODELO||eqC.modelo||''} ${todoCom}`);
+      if (verC !== null && verC < GALAXY_VER_MIN && /galaxy\s*flex/i.test(`${eqC['CENTRAL INTRUSIÓN']||eqC.central||''} ${todoCom}`)) {
+        paso += `. Y aprovecha para actualizar: está en la <strong>versión ${verC}</strong>, por debajo de la ${GALAXY_VER_MIN}`;
+        yaAvisadoVer.add(idOfC);
       }
 
       ofConEscCom.add(idOfC);
@@ -16494,8 +16532,22 @@ async function iramEjecutarAccion(cl) {
 
     // ── Escaleras específicas: PCI (batería de central) y SÍSMICO ──
     // PCI
-    const RX_PCI_HOY   = /(bater[ií]a|baja\s+bater|aliment|fallo\s+red|bater[ií]as)/i;
-    const RX_PCI_BAT   = /(sustituy\w*\s+(?:la\s+)?bater[ií]as?\s+central\s+incendio|bater[ií]as?\s+central\s+incendio)/i;
+    // Cualquier aviso PCI vale (1001 = fuego disparado, 1002 = avería)
+    const RX_PCI_HOY   = /(bater[ií]a|baja\s+bater|aliment|fallo\s+red|1001|1002|fuego|averia|aver[ií]a|detector|no\s+responde|rearme)/i;
+    // Causa externa: no es culpa de la instalación, no debe escalar
+    const RX_EXTERNA   = /(corte\s+de\s+luz|cortes\s+de\s+luz|sin\s+luz|corte\s+el[eé]ctrico|fallo\s+(?:de\s+)?(?:red|suministro)\s+(?:del\s+)?edificio|obras?\b|tormenta|rayo|subida\s+de\s+tensi[oó]n|se\s+fue\s+la\s+luz)/i;
+    const RX_PCI_DET   = /(se\s+sustituy\w*[^.]{0,30}detector|detector[^.]{0,20}(?:sustituid|nuevo)|se\s+cambia[^.]{0,25}detector)/i;
+    // Fecha de batería: "8/2026", "11/23", "bat. 8/26"
+    const _fechaBat = t => {
+      const m = String(t||'').match(/(\d{1,2})\s*[\/\-]\s*(\d{2,4})/);
+      if (!m) return null;
+      let a = +m[2]; if (a < 100) a += 2000;
+      const mes = +m[1];
+      if (mes < 1 || mes > 12 || a < 2000 || a > 2100) return null;
+      return { mes, anio: a };
+    };
+    // Ya estamos en contexto PCI, así que basta con que se hable de batería
+    const RX_PCI_BAT   = /(sustituy\w*[^.]{0,20}bater[ií]a|bater[ií]as?\s+central|se\s+cambia[^.]{0,20}bater[ií]a)/i;
     const RX_PCI_FTE   = /(fuente\s+de\s+aliment|se\s+sustituy\w*\s+(?:la\s+)?fuente|no\s+supervis|sin\s+supervis|quitar?\s+supervisi[oó]n|se\s+programa[^.]{0,30}supervis)/i;
     const RX_PCI_CENT  = /(sustituy\w*\s+central\s+(?:de\s+)?incendio|central\s+incendio\s+nueva)/i;
     // Sísmico
@@ -16551,21 +16603,59 @@ async function iramEjecutarAccion(cl) {
       const codS = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
       const grisS = t => `<span style="color:#8a8781">${t}</span>`;
 
-      /* PCI: batería de central de incendio */
+      /* PCI: batería de central de incendio + detectores */
       if (esPci) {
         const bat  = RX_PCI_BAT.test(todoS);
         const fte  = RX_PCI_FTE.test(todoS);
         const cent = RX_PCI_CENT.test(todoS);
+        // ¿Los fallos previos fueron por causa externa (corte de luz, obra…)?
+        const externa = filas.some(v => RX_EXTERNA.test(v.TRABAJO||v.trabajo||''));
+
+        // Detectores sustituidos en esta oficina (visitas distintas)
+        const visDet = filas.filter(v => RX_PCI_DET.test(v.TRABAJO||v.trabajo||''));
+        if (visDet.length >= 2) {
+          const cuales = visDet.slice(-4).map(v => {
+            const t = (v.TRABAJO||v.trabajo||'').replace(/\s+/g,' ');
+            const mm = t.match(/detector[^.,;]{0,28}/i);
+            if (!mm) return 'detector';
+            return mm[0].split(/\s+y\s+|\s+que\s+/i)[0].trim();
+          });
+          escPci.push(`<li>🔥 <strong>${escH(nomS)}</strong>${codS} — en esta oficina ya has cambiado `
+            + `<strong>${visDet.length} detectores</strong> ${grisS('(' + escH(cuales.join(', ')) + ')')}. `
+            + `<strong>Llévate alguno de repuesto.</strong></li>`);
+          ofConEscPS.add(idOfS);
+        }
+
+        // Orientación por el código del aviso
+        const txtH = `${p.trabajo||''} ${p.descripcion||''}`;
+        const pista = /1001/.test(txtH) ? ` ${grisS('El 1001 es fuego disparado: mira el detector, suciedad o ambiente.')}`
+                    : /1002/.test(txtH) ? ` ${grisS('El 1002 es avería: tira más de línea, batería o alimentación.')}` : '';
+
         let paso;
-        if (!bat)        paso = `sustituye la batería de la central`;
+        if (externa && bat) paso = `la última vez fue por causa externa (corte de luz), no por la central. Si vuelve sin corte de por medio, ya sí mira fuente y supervisión`;
+        else if (!bat)      paso = `sustituye la batería de la central`;
         else if (!fte)   paso = `la batería ya la cambiaste y vuelve a dar baja: no es la batería. Sustituye la fuente de alimentación, o programa la central para que no supervise las baterías`;
         else if (!cent)  paso = `batería y fuente/supervisión ya están hechas. Toca sustituir la central`;
         else if (_ultRecup(RX_PCI_CENT)) paso = `ya cambiaste la central, pero la última fue material <strong>recuperado</strong>. Si vuelve a fallar es la propia central: pide una nueva`;
         else             paso = `ya has cambiado batería, fuente y central. Revisa alimentación de línea y consumo, aquí hay algo de fondo`;
-        const hechoP = [bat&&'batería', fte&&'fuente/supervisión', cent&&'central', _ultRecup(RX_PCI_CENT)&&'material recuperado'].filter(Boolean);
+        const hechoP = [bat&&'batería', fte&&'fuente/supervisión', cent&&'central', externa&&'causa externa', _ultRecup(RX_PCI_CENT)&&'material recuperado'].filter(Boolean);
         ofConEscPS.add(idOfS);
-        escPci.push(`<li>🔋 <strong>${escH(nomS)}</strong>${codS} — ${paso}.`
+        escPci.push(`<li>🔋 <strong>${escH(nomS)}</strong>${codS} — ${paso}.${pista}`
           + (hechoP.length ? ` ${grisS('Ya consta: ' + hechoP.join(', ') + '.')}` : '') + `</li>`);
+
+        // Edad de la batería: si la última anotada pasa de 3 años, avisar
+        for (let i = filas.length - 1; i >= 0; i--) {
+          const t = filas[i].TRABAJO || filas[i].trabajo || '';
+          if (!/bater[ií]a/i.test(t)) continue;
+          const fb = _fechaBat(t);
+          if (!fb) break;
+          const meses = (new Date().getFullYear() - fb.anio) * 12 + (new Date().getMonth() + 1 - fb.mes);
+          if (meses >= 36) {
+            escPci.push(`<li>🔋 <strong>${escH(nomS)}</strong>${codS} — la batería anotada es de `
+              + `<strong>${fb.mes}/${fb.anio}</strong>, ya tiene ${Math.floor(meses/12)} años. Llévate una de repuesto.</li>`);
+          }
+          break;
+        }
       }
 
       /* Sísmico */
@@ -16614,15 +16704,7 @@ async function iramEjecutarAccion(cl) {
 
     // ── Galaxy Flex con módulo 4G sin actualizar ──
     // Para futuras versiones: subir GALAXY_VER_MIN cuando salga una superior.
-    const GALAXY_VER_MIN = 3.54;
-    const _verDe = txt => {
-      const t = String(txt||'');
-      // "Versión galaxy 3.51" (admite palabras entre medias)
-      let m = t.match(/vers(?:i[oó]n)?[^0-9]{0,14}(\d+(?:[.,]\d+)?)/i);
-      // "V3.54" / "V.3.37" (pegado, para no confundir con "Visión")
-      if (!m) m = t.match(/\bv\.?\s?(\d+(?:[.,]\d+)?)/i);
-      return m ? parseFloat(m[1].replace(',','.')) : null;
-    };
+
     const vistosG = new Set();
     const galaxyAvisos = [];      // versión conocida y por debajo del mínimo
     const sinConstancia = [];     // sin dato de versión → se agrupan al final
@@ -16645,6 +16727,7 @@ async function iramEjecutarAccion(cl) {
 
       const idOf = cliG + '|' + keyG;
       if (vistosG.has(idOf)) return; vistosG.add(idOf);
+      if (yaAvisadoVer.has(idOf)) return;   // ya se dijo dentro de la escalera de comunicaciones
 
       const txtVer = `${eq.MODELO || eq.modelo || ''} ${eq['COMUNICACIÓN'] || eq.com || ''} ${txtHist}`;
       const ver    = _verDe(txtVer);
