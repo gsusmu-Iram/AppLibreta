@@ -3518,6 +3518,14 @@ body { font-size: 14px; }
               <span>Cerraduras Spider a pilas</span>
             </label>
           </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e8e4dc">
+            <span class="equip-lbl" style="display:block;margin-bottom:6px">Comunicación</span>
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px;cursor:pointer">
+              <input type="checkbox" id="eq-multioperador" onchange="vals.multioperador=this.checked;actualizarBadgeEquipos()"
+                style="width:18px;height:18px;accent-color:var(--green)">
+              <span>Tarjeta multioperador</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -4433,8 +4441,10 @@ function parsearHorarioTexto(txt) {
   const cierre   = m[3];
   const partes   = diasStr.split('-').filter(Boolean);
   let dias = [];
-  if (partes.length === 2) {
-    // Rango: L-V, L-D, L-S
+  // El guion significa "y" (lista), SALVO en los rangos de semana completa:
+  // L-V (lun a vie), L-S y L-D. Así 'M-J' = martes y jueves, 'M-X-V' = mar, mié y vie.
+  const RANGOS_SEMANA = ['L-V','L-S','L-D'];
+  if (partes.length === 2 && RANGOS_SEMANA.includes(diasStr)) {
     const ini = DIA_IDX[partes[0]];
     const fin = DIA_IDX[partes[1]];
     if (ini == null || fin == null) return null;
@@ -4447,8 +4457,9 @@ function parsearHorarioTexto(txt) {
       for (let d = 0; d <= fin; d++) dias.push(d);
     }
   } else {
-    // Lista: L-X-V → días sueltos
+    // Lista: 'M-J', 'L-X-V', 'M' → días sueltos
     dias = partes.map(p => DIA_IDX[p]).filter(d => d != null);
+    if (!dias.length) return null;
   }
   return { dias, apertura, cierre };
 }
@@ -5589,7 +5600,7 @@ let sheetCampo    = null;
 let paradaActual  = null;
 let paradas       = [];   // cache global — actualizado en renderLista
 let vals          = {central:'', grabador:'', com:'', incendio:'', acceso:'', modelo:'',
-                     material:'', spiderCentral:false, spiderCerraduras:false};
+                     material:'', spiderCentral:false, spiderCerraduras:false, multioperador:false};
 let mapaL         = null;   // instancia Leaflet
 
 /* ================================================================
@@ -6516,7 +6527,7 @@ function abrirFinalizarPara(id) {
 
       // Acordeón equipos — abrir si ya hay alguno relleno
       const tieneEquipos = !!(eq.central||eq.grabador||eq.com||eq.incendio||eq.acceso||eq.modelo
-                              ||eq.spiderCentral||eq.spiderCerraduras);
+                              ||eq.spiderCentral||eq.spiderCerraduras||eq.multioperador);
       const equipBody = document.getElementById('equip-body');
       const equipArr  = document.getElementById('equip-arr');
       if (equipBody) equipBody.classList.toggle('open', tieneEquipos);
@@ -6548,7 +6559,8 @@ function abrirFinalizarPara(id) {
                incendio: eq.incendio||'', acceso: eq.acceso||'', modelo: eq.modelo||'',
                material: '',
                spiderCentral:    !!(eq.spiderCentral    || eq['SPIDER CENTRAL']    === 'SI'),
-               spiderCerraduras: !!(eq.spiderCerraduras || eq['SPIDER CERRADURAS'] === 'SI') };
+               spiderCerraduras: !!(eq.spiderCerraduras || eq['SPIDER CERRADURAS'] === 'SI'),
+               multioperador:    !!(eq.multioperador    || eq['MULTIOPERADOR']     === 'SI') };
       setMaterial('');
       refrescarSels();
       actualizarBadgeEquipos();
@@ -6645,7 +6657,7 @@ function cargarUltVisitas(p) {
 function actualizarBadgeEquipos() {
   const rellenos = [vals.central, vals.grabador, vals.com, vals.incendio, vals.acceso, vals.modelo]
     .filter(v => v && v.trim()).length
-    + (vals.spiderCentral ? 1 : 0) + (vals.spiderCerraduras ? 1 : 0);
+    + (vals.spiderCentral ? 1 : 0) + (vals.spiderCerraduras ? 1 : 0) + (vals.multioperador ? 1 : 0);
   const badge = document.getElementById('equip-badge');
   if (badge) badge.textContent = rellenos ? '(' + rellenos + ' rellenos)' : '';
 }
@@ -6761,6 +6773,8 @@ function refrescarSels() {
   const sk = document.getElementById('eq-spider-cerraduras');
   if (sc) sc.checked = !!vals.spiderCentral;
   if (sk) sk.checked = !!vals.spiderCerraduras;
+  const mo = document.getElementById('eq-multioperador');
+  if (mo) mo.checked = !!vals.multioperador;
   actualizarBadgeEquipos();
 }
 
@@ -6889,6 +6903,7 @@ function guardarFinalizar() {
     'CENTRAL INTRUSIÓN': vals.central  || prev['CENTRAL INTRUSIÓN'] || '',
     'SPIDER CENTRAL':    vals.spiderCentral    ? 'SI' : (prev['SPIDER CENTRAL']    || ''),
     'SPIDER CERRADURAS': vals.spiderCerraduras ? 'SI' : (prev['SPIDER CERRADURAS'] || ''),
+    'MULTIOPERADOR':     vals.multioperador     ? 'SI' : (prev['MULTIOPERADOR']     || ''),
     MODELO:              modelo        || prev.MODELO               || '',
     GRABADOR:            vals.grabador || prev.GRABADOR             || '',
     'COMUNICACIÓN':      vals.com      || prev['COMUNICACIÓN']      || '',
@@ -6899,6 +6914,7 @@ function guardarFinalizar() {
     central:  vals.central  || prev.central  || '',
     spiderCentral:    vals.spiderCentral    || prev.spiderCentral    || false,
     spiderCerraduras: vals.spiderCerraduras || prev.spiderCerraduras || false,
+    multioperador:    vals.multioperador    || prev.multioperador    || false,
     grabador: vals.grabador || prev.grabador || '',
     com:      vals.com      || prev.com      || '',
     incendio: vals.incendio || prev.incendio || '',
@@ -7532,6 +7548,7 @@ function datosExportarExcel() {
           'CENTRAL INTRUSIÓN': String(e['CENTRAL INTRUSIÓN'] || e.central  || ''),
           'SPIDER CENTRAL':    String(e['SPIDER CENTRAL']  || (e.spiderCentral ? 'SI' : '') || ''),
           'SPIDER CERRADURAS': String(e['SPIDER CERRADURAS'] || (e.spiderCerraduras ? 'SI' : '') || ''),
+          'MULTIOPERADOR':     String(e.MULTIOPERADOR       || (e.multioperador    ? 'SI' : '') || ''),
           'MODELO':            String(e.MODELO             || e.modelo    || ''),
           'GRABADOR':          String(e.GRABADOR           || e.grabador  || ''),
           'COMUNICACIÓN':      String(e['COMUNICACIÓN']    || e.com       || ''),
@@ -7543,7 +7560,7 @@ function datosExportarExcel() {
           'ACTUALIZADO':       String(e.ACTUALIZADO        || hoy),
         }))
       : [{'CLIENTE':'','CÓDIGO':'','MUNICIPIO':'','ZONA':'','CENTRAL INTRUSIÓN':'',
-          'SPIDER CENTRAL':'','SPIDER CERRADURAS':'',
+          'SPIDER CENTRAL':'','SPIDER CERRADURAS':'','MULTIOPERADOR':'',
           'MODELO':'','GRABADOR':'','COMUNICACIÓN':'','CENTRAL INCENDIO':'',
           'MODELO INC':'','CONTROL ACCESO':'','OBSERVACIONES':'','ÚLTIMA VISITA':'','ACTUALIZADO':''}];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(eqRows), 'Equipos');
@@ -7787,6 +7804,7 @@ function datosImportarExcel(input) {
               'CENTRAL INTRUSIÓN':String(r['CENTRAL INTRUSIÓN']||''),
               'SPIDER CENTRAL':String(r['SPIDER CENTRAL']||''),
               'SPIDER CERRADURAS':String(r['SPIDER CERRADURAS']||''),
+              MULTIOPERADOR:String(r['MULTIOPERADOR']||''),
               MODELO:String(r['MODELO']||''), GRABADOR:String(r['GRABADOR']||''),
               'COMUNICACIÓN':String(r['COMUNICACIÓN']||''),
               'CENTRAL INCENDIO':String(r['CENTRAL INCENDIO']||''),
@@ -7798,6 +7816,7 @@ function datosImportarExcel(input) {
               central:String(r['CENTRAL INTRUSIÓN']||''),
               spiderCentral: String(r['SPIDER CENTRAL']||'').toUpperCase()==='SI',
               spiderCerraduras: String(r['SPIDER CERRADURAS']||'').toUpperCase()==='SI',
+              multioperador: String(r['MULTIOPERADOR']||'').toUpperCase()==='SI',
               modelo:String(r['MODELO']||''), grabador:String(r['GRABADOR']||''),
               com:String(r['COMUNICACIÓN']||''), incendio:String(r['CENTRAL INCENDIO']||''),
               acceso:String(r['CONTROL ACCESO']||''),
@@ -16306,6 +16325,11 @@ async function iramEjecutarAccion(cl) {
     const vistosE   = new Set();
     const ofConPend = new Set();   // material en el proveedor → calla la reincidencia
     const ofConEsc  = new Set();   // ya tiene escalera concreta → sobra la línea genérica
+    const equiposObjC  = loadObj(K_EQUIPOS);
+    const escComs      = [];       // escalera de comunicaciones
+    const vistosCom    = new Set();
+    const ofConEscCom  = new Set();
+    const ofConEscPS   = new Set();   // escaleras PCI / sísmico
 
     partes.forEach(p => {
       const keyE = nrm(p.codigo||'');
@@ -16398,12 +16422,190 @@ async function iramEjecutarAccion(cl) {
     pendMat.forEach(x => consejos.push(x));
     escalera.forEach(x => consejos.push(x));
 
+    // ── Escalera de COMUNICACIONES (no es un elemento físico, va aparte) ──
+    const RX_ANTENA  = /(antena|fachada|omnidireccional|aleta\s+de\s+tibur[oó]n|exterior)/i;
+    const RX_MOD4G   = /(m[oó]dulo\s*4g|se\s+instala\s+modulo\s*4g|sustituy\w*\s+(?:el\s+)?m[oó]dulo)/i;
+    const RX_ACTUAL  = /(actualiz\w*|versi[oó]n\s*\d)/i;
+    const RX_SIM     = /(multioperador|multi\s*operador|tarjeta\s+sim|sim\s+nueva|se\s+cambia\s+(?:la\s+)?sim)/i;
+    const RX_FALLOCOM= /(gsm|4g|2g|gprs|sin\s+comunicaci|fallo\s+comunicaci|incomunicad|cobertura)/i;
+
+    partes.forEach(p => {
+      const keyC = nrm(p.codigo||'');
+      const cliC = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
+      const idOfC = cliC + '|' + keyC;
+      if (vistosCom.has(idOfC)) return; vistosCom.add(idOfC);
+
+      // Sólo si el aviso de hoy es de comunicaciones
+      if (!RX_FALLOCOM.test(`${p.trabajo||''} ${p.descripcion||''}`)) return;
+
+      let filas = hist.filter(hh => {
+        const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
+        const ok = keyC ? (hKey===keyC||hKey.endsWith(keyC)||keyC.endsWith(hKey)) : (nrm(hh.CLIENTE||'')===cliC);
+        if (!ok) return false;
+        const fe = parseFecha(hh.FECHA); return fe && fe >= haceUnAno;
+      });
+      const vs = new Set();
+      filas = filas.filter(v => {
+        const ot = String(v.OT||v.ot||'').trim();
+        const f = ot ? 'ot:'+nrm(ot)+'|'+nrm(v.FECHA||'') : 'txt:'+nrm(v.FECHA||'')+'|'+nrm((v.TRABAJO||v.trabajo||'').slice(0,40));
+        if (vs.has(f)) return false; vs.add(f); return true;
+      });
+      filas.sort((a,b) => (parseFecha(a.FECHA)||0) - (parseFecha(b.FECHA)||0));
+      if (!filas.length) return;
+
+      // Se mira todo el texto de la oficina: trabajo + columnas de equipo
+      const todo = filas.map(h => `${h.TRABAJO||h.trabajo||''} ${h['MODELO CENTRAL']||''} ${h['COMUNICACIÓN']||''}`).join(' · ');
+      const eqC  = equiposObjC[p.codigo || p.id] || {};
+
+      const hayAntena = RX_ANTENA.test(todo) || /antena/i.test(`${eqC['COMUNICACIÓN']||eqC.com||''}`);
+      const hayMod4G  = RX_MOD4G.test(todo);
+      const hayActual = RX_ACTUAL.test(todo);
+      const haySim    = RX_SIM.test(todo)
+                        || !!eqC.multioperador || String(eqC.MULTIOPERADOR||'').toUpperCase()==='SI';
+
+      const nomC = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+      const codC = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
+      const gris = t => `<span style="color:#8a8781">${t}</span>`;
+
+      let paso, hecho = [];
+      if (hayAntena)            hecho.push('antena fuera');
+      if (hayMod4G)             hecho.push('módulo 4G');
+      if (hayActual)            hecho.push('central actualizada');
+      if (haySim)               hecho.push('tarjeta multioperador');
+
+      if (!hayAntena) {
+        paso = `empieza por sacar la antena al exterior o a fachada si no está`;
+      } else if (!(hayMod4G && hayActual)) {
+        paso = `la antena ya está fuera. Toca sustituir el módulo 4G y actualizar la central`;
+      } else if (!haySim) {
+        paso = `antena y módulo 4G ya están y sigue fallando. Comprueba si la tarjeta es <strong>multioperador</strong>`;
+      } else {
+        paso = `ya has hecho antena, módulo 4G y tarjeta multioperador, y vuelve a fallar: <strong>el problema es de cobertura</strong>. `
+             + `Puedes probar a sustituir el módulo por si salió defectuoso, pero no esperes que lo resuelva`;
+      }
+
+      ofConEscCom.add(idOfC);
+      escComs.push(`<li>📶 <strong>${escH(nomC)}</strong>${codC} — ${paso}.`
+        + (hecho.length ? ` ${gris('Ya consta: ' + hecho.join(', ') + '.')}` : '')
+        + `</li>`);
+    });
+
+    escComs.forEach(x => consejos.push(x));
+
+    // ── Escaleras específicas: PCI (batería de central) y SÍSMICO ──
+    // PCI
+    const RX_PCI_HOY   = /(bater[ií]a|baja\s+bater|aliment|fallo\s+red|bater[ií]as)/i;
+    const RX_PCI_BAT   = /(sustituy\w*\s+(?:la\s+)?bater[ií]as?\s+central\s+incendio|bater[ií]as?\s+central\s+incendio)/i;
+    const RX_PCI_FTE   = /(fuente\s+de\s+aliment|se\s+sustituy\w*\s+(?:la\s+)?fuente|no\s+supervis|sin\s+supervis|quitar?\s+supervisi[oó]n|se\s+programa[^.]{0,30}supervis)/i;
+    const RX_PCI_CENT  = /(sustituy\w*\s+central\s+(?:de\s+)?incendio|central\s+incendio\s+nueva)/i;
+    // Sísmico
+    const RX_SIS_HOY   = /\bs[ií]smic/i;
+    const RX_SIS_CONEX = /(conexionad|se\s+aprietan?|se\s+conecta|conector|borne|estaba\s+suelto|cable\s+test)/i;
+    const RX_SIS_AJUST = /(ajusta\w*\s+(?:la\s+)?sensibilidad|regula\w*\s+(?:la\s+)?sensibilidad|dips?)/i;   // dips, a mano
+    const RX_SIS_PROG  = /(programa\w*\s+(?:la\s+)?sensibilidad|configura\w*\s+(?:la\s+)?sensibilidad)/i;     // ordenador + cable
+    const RX_SIS_REUB  = /(reubic|se\s+cambia\s+de\s+sitio|nueva\s+ubicaci)/i;
+    const RX_SIS_SUST  = /(se\s+sustituy\w*[^.]{0,25}s[ií]smic|s[ií]smic[^.]{0,25}(?:sustituid|nuevo))/i;
+    const RX_RECUP     = /recuperad/i;
+    const RX_CABLEADO  = /(se\s+sanea\s+cable|cableado|nueva\s+tirada|se\s+tira\s+cable|manguera)/i;
+
+    const escPci = [], escSis = [];
+    const vistosPS = new Set();
+
+    partes.forEach(p => {
+      const keyS = nrm(p.codigo||'');
+      const cliS = nrm(p.clienteReal||p.clienteNorm||p.cliente||'');
+      const idOfS = cliS + '|' + keyS;
+      if (vistosPS.has(idOfS)) return; vistosPS.add(idOfS);
+
+      const txtHoy = `${p.trabajo||''} ${p.descripcion||''}`;
+      const esPci  = /pci|fuego|incendio/i.test(`${p.sistema||''} ${txtHoy}`) && RX_PCI_HOY.test(txtHoy);
+      const esSis  = RX_SIS_HOY.test(txtHoy);
+      if (!esPci && !esSis) return;
+
+      let filas = hist.filter(hh => {
+        const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
+        const ok = keyS ? (hKey===keyS||hKey.endsWith(keyS)||keyS.endsWith(hKey)) : (nrm(hh.CLIENTE||'')===cliS);
+        if (!ok) return false;
+        const fe = parseFecha(hh.FECHA); return fe && fe >= haceUnAno;
+      });
+      const vs2 = new Set();
+      filas = filas.filter(v => {
+        const ot = String(v.OT||v.ot||'').trim();
+        const f = ot ? 'ot:'+nrm(ot)+'|'+nrm(v.FECHA||'') : 'txt:'+nrm(v.FECHA||'')+'|'+nrm((v.TRABAJO||v.trabajo||'').slice(0,40));
+        if (vs2.has(f)) return false; vs2.add(f); return true;
+      });
+      if (!filas.length) return;
+      filas.sort((a,b) => (parseFecha(a.FECHA)||0) - (parseFecha(b.FECHA)||0));
+
+      const todoS = filas.map(h => h.TRABAJO||h.trabajo||'').join(' · ');
+      // ¿La ÚLTIMA sustitución fue con material recuperado? (si luego pusiste uno nuevo, ya no cuenta)
+      const _ultRecup = rxSust => {
+        for (let i = filas.length - 1; i >= 0; i--) {
+          const t = `${filas[i].TRABAJO||filas[i].trabajo||''}`;
+          if (!rxSust.test(t)) continue;
+          return RX_RECUP.test(`${filas[i].MATERIAL||''} ${t}`);
+        }
+        return false;
+      };
+      const nomS = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+      const codS = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
+      const grisS = t => `<span style="color:#8a8781">${t}</span>`;
+
+      /* PCI: batería de central de incendio */
+      if (esPci) {
+        const bat  = RX_PCI_BAT.test(todoS);
+        const fte  = RX_PCI_FTE.test(todoS);
+        const cent = RX_PCI_CENT.test(todoS);
+        let paso;
+        if (!bat)        paso = `sustituye la batería de la central`;
+        else if (!fte)   paso = `la batería ya la cambiaste y vuelve a dar baja: no es la batería. Sustituye la fuente de alimentación, o programa la central para que no supervise las baterías`;
+        else if (!cent)  paso = `batería y fuente/supervisión ya están hechas. Toca sustituir la central`;
+        else if (_ultRecup(RX_PCI_CENT)) paso = `ya cambiaste la central, pero la última fue material <strong>recuperado</strong>. Si vuelve a fallar es la propia central: pide una nueva`;
+        else             paso = `ya has cambiado batería, fuente y central. Revisa alimentación de línea y consumo, aquí hay algo de fondo`;
+        const hechoP = [bat&&'batería', fte&&'fuente/supervisión', cent&&'central', _ultRecup(RX_PCI_CENT)&&'material recuperado'].filter(Boolean);
+        ofConEscPS.add(idOfS);
+        escPci.push(`<li>🔋 <strong>${escH(nomS)}</strong>${codS} — ${paso}.`
+          + (hechoP.length ? ` ${grisS('Ya consta: ' + hechoP.join(', ') + '.')}` : '') + `</li>`);
+      }
+
+      /* Sísmico */
+      if (esSis) {
+        const cnx  = RX_SIS_CONEX.test(todoS);
+        const aj   = RX_SIS_AJUST.test(todoS);
+        const prog = RX_SIS_PROG.test(todoS);
+        const reub = RX_SIS_REUB.test(todoS);
+        const sust = RX_SIS_SUST.test(todoS);
+        const cab  = RX_CABLEADO.test(todoS);
+        let paso;
+        if (!cnx)                 paso = `empieza por comprobar el conexionado`;
+        else if (!aj && !prog)    paso = `el conexionado ya lo miraste. Ajusta la sensibilidad con los dips`;
+        else if (!prog && !reub)  paso = `conexionado y dips ya hechos: <strong>llévate el cable de programación</strong> y mira de paso si se puede reubicar`;
+        else if (!sust)           paso = `ya lo has programado. Toca sustituir el sísmico`;
+        else if (_ultRecup(RX_SIS_SUST)) paso = `ya lo sustituiste, pero el último recambio fue <strong>recuperado</strong> — prueba con uno nuevo antes de picar cable`;
+        else if (!cab)            paso = `sustituido con material nuevo y sigue fallando: revisa la tirada de cable completa hasta la central`;
+        else                      paso = `has hecho conexionado, sensibilidad, recambio y cableado. Replantea ubicación o pásalo a presupuesto`;
+        const hechoS = [cnx&&'conexionado', aj&&'dips', prog&&'programado con cable', reub&&'reubicado', sust&&'sustituido', _ultRecup(RX_SIS_SUST)&&'último recuperado', cab&&'cableado'].filter(Boolean);
+        ofConEscPS.add(idOfS);
+        escSis.push(`<li>📳 <strong>${escH(nomS)}</strong>${codS} — <strong>sísmico</strong>: ${paso}.`
+          + (hechoS.length ? ` ${grisS('Ya consta: ' + hechoS.join(', ') + '.')}` : '') + `</li>`);
+      }
+    });
+
+    escPci.forEach(x => consejos.push(x));
+    escSis.forEach(x => consejos.push(x));
+
+
+
+
+
     // Volcar: una línea por oficina, con las causas extra anidadas
     Object.entries(porOficina).forEach(([idOf, o]) => {
       // Si el material está en el proveedor, no tiene sentido mandarle a revisar cableado
       if (ofConPend.has(idOf)) return;
       // Si ya hay escalera para esa oficina, la línea genérica sobra
       if (ofConEsc.has(idOf)) return;
+      if (ofConEscCom.has(idOf)) return;
+      if (ofConEscPS.has(idOf)) return;
       const extra = o.extras.length
         ? `<ul style="margin:2px 0 0">${o.extras.map(e => `<li>${e}</li>`).join('')}</ul>`
         : '';
@@ -16421,7 +16623,6 @@ async function iramEjecutarAccion(cl) {
       if (!m) m = t.match(/\bv\.?\s?(\d+(?:[.,]\d+)?)/i);
       return m ? parseFloat(m[1].replace(',','.')) : null;
     };
-    const equiposObjC = loadObj(K_EQUIPOS);
     const vistosG = new Set();
     const galaxyAvisos = [];      // versión conocida y por debajo del mínimo
     const sinConstancia = [];     // sin dato de versión → se agrupan al final
@@ -16476,6 +16677,57 @@ async function iramEjecutarAccion(cl) {
       consejos.push(`<li>📡 <strong>Sin versión anotada</strong> (Galaxy Flex con 4G): ${sinConstancia.join(', ')}. `
         + `Cuando pases, apunta la versión en Instalación y ya te aviso si van cortas.</li>`);
     }
+
+    // ── Oficinas que hoy NO abren (horario real del cliente + festivos) ──
+    try {
+      const festivos = (() => { try { return JSON.parse(localStorage.getItem('pyc_festivos')||'[]'); } catch { return []; } })();
+      const cerradasHoy = [];
+      const vistCierre  = new Set();
+      partes.forEach(p => {
+        const idC = nrm(p.clienteReal||p.clienteNorm||p.cliente||'') + '|' + nrm(p.codigo||'');
+        if (vistCierre.has(idC)) return; vistCierre.add(idC);
+        // Horario real de la ficha del cliente; si no hay, no se inventa nada
+        const cliRow = (typeof iramBuscarCliente === 'function')
+          ? iramBuscarCliente(p.clienteReal||p.cliente||'', p.localidad||'') : null;
+        const horTxt = String((cliRow && (cliRow.HORARIO || cliRow.horario)) || p.horarioTxt || '').trim();
+        if (!horTxt) return;
+        const c = checkCerrada(horTxt, festivos, p.localidad||'');
+        if (!c) return;
+        if (c.motivo !== 'festivo' && c.motivo !== 'dia_cerrado') return;   // "cierra a las X" no interesa
+        const nomC = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+        const codC = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
+        const det  = c.motivo === 'festivo' ? 'hoy es festivo allí' : `hoy no abre — ${escH(verbalizarHorario(horTxt) || horTxt)}`;
+        cerradasHoy.push(`<li><strong>${escH(nomC)}</strong>${codC} — ${det}</li>`);
+      });
+      if (cerradasHoy.length) {
+        consejos.unshift(`<li>🚪 <strong>Hoy no abren${cerradasHoy.length>1?' ('+cerradasHoy.length+')':''}</strong>, no gastes el viaje:`
+          + `<ul style="margin:2px 0 0">${cerradasHoy.join('')}</ul></li>`);
+      }
+    } catch(e) { console.warn('aviso cierre:', e.message); }
+
+    // ── Partes que llevan demasiado tiempo abiertos ──
+    try {
+      const viejos = [];
+      const vistV = new Set();
+      partes.forEach(p => {
+        const d = Number(p.dias || 0);
+        if (!d || d < 60) return;
+        const idV = nrm(p.clienteReal||p.clienteNorm||p.cliente||'') + '|' + nrm(p.codigo||'');
+        if (vistV.has(idV)) return; vistV.add(idV);
+        viejos.push({ p, d });
+      });
+      viejos.sort((a,b) => b.d - a.d);
+      if (viejos.length) {
+        const li = viejos.slice(0,4).map(({p,d}) => {
+          const nomV = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+          const codV = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
+          return `<li><strong>${escH(nomV)}</strong>${codV} — <strong>${d} días</strong> abierto</li>`;
+        }).join('');
+        consejos.push(`<li>⏳ <strong>Partes que se están enquistando</strong>: `
+          + `<ul style="margin:2px 0 0">${li}</ul>`
+          + `<span style="color:#8a8781">Si no puedes cerrarlos, plantéate escalarlos o avisar de que siguen abiertos.</span></li>`);
+      }
+    } catch(e) { console.warn('partes viejos:', e.message); }
 
     if (!consejos.length) return 'No veo ninguna oficina de hoy con visitas repetidas por la misma causa. Todo en orden 👍';
     return _HTML_MARK + `<p><strong>💡 Consejos del día</strong></p><ul style="margin:6px 0 0">${consejos.join('')}</ul>`;
