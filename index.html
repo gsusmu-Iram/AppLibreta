@@ -14906,6 +14906,24 @@ async function pycEnviar() {
   if (/^(s[íi]|va|dale|venga|ok|claro|hazlo|llama|abre|sí|si|perfecto|adelante)$/i.test(txt) && _iramUltimaAccion) {
     const acc = _iramUltimaAccion;
     _iramUltimaAccion = null;
+    // Cadena: ruta → material → consejos
+    if (acc.tipo === 'cadena_material' || acc.tipo === 'cadena_consejos' || acc.tipo === 'ruta_siguiente') {
+      const sig = acc.tipo === 'cadena_material' ? 'QUE_ME_LLEVO'
+                : acc.tipo === 'cadena_consejos' ? 'CONSEJOS' : 'POR_DONDE_EMPIEZO';
+      try {
+        const r = await iramEjecutarAccion({ intento: sig });
+        if (r) {
+          let extra = '';
+          if (acc.tipo === 'cadena_material') { _iramUltimaAccion = { tipo:'cadena_consejos' }; extra = '<p>¿Seguimos con los consejos?</p>'; }
+          else if (acc.tipo === 'ruta_siguiente') { _iramUltimaAccion = { tipo:'cadena_material' }; extra = '<p>¿Seguimos con el material?</p>'; }
+          const txtR = (typeof r === 'string' && r.startsWith(_HTML_MARK))
+            ? r + extra
+            : (extra ? _HTML_MARK + '<p>' + r + '</p>' + extra : r);
+          pycMsgIA(txtR, false, 'local');
+        }
+      } catch(e) { pycMsgIA('⚠️ No he podido continuar: ' + e.message, false, 'local'); }
+      _pycThinking = false; return;
+    }
     if (acc.tipo === 'cerrar_dia') {
       if (typeof ejecutarCerrarDia === 'function') {
         try { ejecutarCerrarDia(); pycMsgIA('🌙 Día cerrado · Análisis y ruta limpios. El historial queda guardado.', false, 'local'); }
@@ -15325,6 +15343,18 @@ function iramClasificar(txt) {
   if (/^(?:dime\s+|dame\s+|ense[ñn]ame\s+|ve[rs]?\s+)?(?:los?\s+|mis\s+)?apuntes?\b/i.test(raw)
       || /qu[eé]\s+(?:ten[ií]a|hab[ií]a|tengo)\s+apuntad/i.test(raw))
     return { intento:'CONSULTA_APUNTES' };
+
+  // ── EMPEZAR EN / ORDENAR RUTA desde una oficina ──
+  {
+    const mEmp = raw.match(/^(?:iram[,\s]+)?(?:empezamos?|empiezo|arranco|comenzamos|empezar)\s+(?:en|por|desde)\s+(.+?)[\s,.]*$/i);
+    if (mEmp) {
+      let resto = mEmp[1].trim();
+      const ordenar = /(orden[ae]|ord[eé]name|reordena|ord[eé]nala|monta)/i.test(raw);
+      resto = resto.replace(/[,;]?\s*(?:y\s+)?(?:orden[ae]\w*|ord[eé]name\w*|reordena\w*|m[eo]nta\w*)\b.*$/i,'').trim();
+      resto = resto.replace(/\b(?:me\s+)?la\s+ruta\b.*$/i,'').trim();
+      if (resto) return { intento:'EMPEZAR_EN', lugar: resto, ordenar };
+    }
+  }
 
   // ── DIME CONSEJOS (patrones del histórico) ──
   if (/^(?:dime\s+|dame\s+)?(?:los?\s+)?consejos?\b/i.test(raw)
@@ -16605,11 +16635,18 @@ async function iramEjecutarAccion(cl) {
 
       /* PCI: batería de central de incendio + detectores */
       if (esPci) {
-        const bat  = RX_PCI_BAT.test(todoS);
-        const fte  = RX_PCI_FTE.test(todoS);
-        const cent = RX_PCI_CENT.test(todoS);
-        // ¿Los fallos previos fueron por causa externa (corte de luz, obra…)?
-        const externa = filas.some(v => RX_EXTERNA.test(v.TRABAJO||v.trabajo||''));
+        const bat  = RX_PCI_BAT.test(todoReal);
+        const fte  = RX_PCI_FTE.test(todoReal);
+        const cent = RX_PCI_CENT.test(todoReal);
+        // La causa externa (corte de luz, obra…) sólo explica SU visita, no las anteriores.
+        // Si la última intervención fue por un corte, esa queda cerrada; el resto del
+        // historial sigue contando tal cual.
+        const visExt   = filas.filter(v => RX_EXTERNA.test(v.TRABAJO||v.trabajo||''));
+        const ultima   = filas[filas.length - 1] || {};
+        const ultimaExt= RX_EXTERNA.test(ultima.TRABAJO||ultima.trabajo||'');
+        // Visitas que NO se explican por una causa externa: son las que valen para escalar
+        const filasReales = filas.filter(v => !RX_EXTERNA.test(v.TRABAJO||v.trabajo||''));
+        const todoReal    = filasReales.map(v => v.TRABAJO||v.trabajo||'').join(' · ');
 
         // Detectores sustituidos en esta oficina (visitas distintas)
         const visDet = filas.filter(v => RX_PCI_DET.test(v.TRABAJO||v.trabajo||''));
@@ -16632,13 +16669,16 @@ async function iramEjecutarAccion(cl) {
                     : /1002/.test(txtH) ? ` ${grisS('El 1002 es avería: tira más de línea, batería o alimentación.')}` : '';
 
         let paso;
-        if (externa && bat) paso = `la última vez fue por causa externa (corte de luz), no por la central. Si vuelve sin corte de por medio, ya sí mira fuente y supervisión`;
-        else if (!bat)      paso = `sustituye la batería de la central`;
+        if (ultimaExt && !bat) paso = `la última intervención fue por causa externa (corte de luz), así que esa queda cerrada. `
+                                    + `Si vuelve a dar avería sin corte de por medio, empieza por la batería de la central`;
+        else if (!bat)         paso = `sustituye la batería de la central`;
         else if (!fte)   paso = `la batería ya la cambiaste y vuelve a dar baja: no es la batería. Sustituye la fuente de alimentación, o programa la central para que no supervise las baterías`;
         else if (!cent)  paso = `batería y fuente/supervisión ya están hechas. Toca sustituir la central`;
         else if (_ultRecup(RX_PCI_CENT)) paso = `ya cambiaste la central, pero la última fue material <strong>recuperado</strong>. Si vuelve a fallar es la propia central: pide una nueva`;
         else             paso = `ya has cambiado batería, fuente y central. Revisa alimentación de línea y consumo, aquí hay algo de fondo`;
-        const hechoP = [bat&&'batería', fte&&'fuente/supervisión', cent&&'central', externa&&'causa externa', _ultRecup(RX_PCI_CENT)&&'material recuperado'].filter(Boolean);
+        const hechoP = [bat&&'batería', fte&&'fuente/supervisión', cent&&'central',
+                        visExt.length&&`${visExt.length} por causa externa (no cuentan)`,
+                        _ultRecup(RX_PCI_CENT)&&'material recuperado'].filter(Boolean);
         ofConEscPS.add(idOfS);
         escPci.push(`<li>🔋 <strong>${escH(nomS)}</strong>${codS} — ${paso}.${pista}`
           + (hechoP.length ? ` ${grisS('Ya consta: ' + hechoP.join(', ') + '.')}` : '') + `</li>`);
@@ -16872,7 +16912,8 @@ async function iramEjecutarAccion(cl) {
     if (tPend)           bits.push(`<li>📋 ${tPend} tarea${tPend>1?'s':''} pendiente${tPend>1?'s':''}</li>`);
     if (bits.length) out += `<ul style="margin:6px 0 8px">${bits.join('')}</ul>`;
 
-    out += pend.length ? `<p>¿Seguimos con la ruta?</p>` : `<p>¿Montamos ruta?</p>`;
+    if (pend.length) { _iramUltimaAccion = { tipo:'ruta_siguiente' }; out += `<p>¿Seguimos con la ruta?</p>`; }
+    else { out += `<p>¿Montamos ruta? Si prefieres, dime "empezamos en&nbsp;…" y te digo qué tienes cerca.</p>`; }
     return _HTML_MARK + out;
   }
 
@@ -17312,6 +17353,110 @@ async function iramEjecutarAccion(cl) {
       const trab = p.trabajo||p.descripcion||'Sin descripción';
       return `${i+1}. ${cli} · ${p.localidad||''}: ${trab}`;
     }).join('\n');
+  }
+
+  /* ── EMPEZAR EN <oficina> · sugerir orden de ruta (NO la modifica) ── */
+  if (cl.intento === 'EMPEZAR_EN') {
+    const q = iramNorm(cl.lugar||'');
+    if (!q) return 'Dime por dónde empiezas, por ejemplo "empezamos en Villamalea".';
+
+    const coordsMap = (typeof cargarCoords === 'function') ? cargarCoords() : {};
+    const _xy = o => {
+      if (o && o.lat && o.lng) return { lat:o.lat, lng:o.lng };
+      if (typeof _getCoordsParada === 'function') { const c = _getCoordsParada(o, coordsMap); if (c) return c; }
+      return null;
+    };
+    const _casa = o => iramNorm(`${o.localidad||''} ${o.clienteReal||o.clienteNorm||o.cliente||''} ${o.codigo||''}`).includes(q);
+
+    const ruta = loadArr(K_RUTA);
+    const pend = ruta.filter(r => r.estado !== 'completada');
+
+    // Con ruta montada → ordenar SOLO lo que ya hay. Sin ruta → sugerir desde los partes.
+    const usarRuta = cl.ordenar ? pend.length > 0 : pend.length > 0;
+    const base = usarRuta ? pend : cargarPartes();
+    if (!base.length) return 'No tienes ni ruta ni partes cargados todavía.';
+
+    const idx = base.findIndex(_casa);
+    if (idx < 0) return `No encuentro "${escH(cl.lugar)}" entre ${usarRuta ? 'las paradas de la ruta' : 'los partes de hoy'}. Prueba con la localidad o el código.`;
+
+    // Agrupar por localidad+código: los avisos del mismo sitio nunca se separan
+    const grupos = new Map();
+    base.forEach(o => {
+      const k = iramNorm(`${o.localidad||''}|${o.codigo||''}`);
+      if (!grupos.has(k)) grupos.set(k, { items:[], ref:o, xy:_xy(o) });
+      const g = grupos.get(k);
+      g.items.push(o);
+      if (!g.xy) g.xy = _xy(o);
+    });
+    const gInicio = grupos.get(iramNorm(`${base[idx].localidad||''}|${base[idx].codigo||''}`));
+
+    // Vecino más próximo desde el punto de partida
+    const restantes = [...grupos.values()].filter(g => g !== gInicio);
+    const orden = [gInicio];
+    let actual = gInicio;
+    let kmTotal = 0, sinCoords = 0;
+    while (restantes.length) {
+      let mejor = null, mejorKm = Infinity;
+      restantes.forEach(g => {
+        if (!actual.xy || !g.xy) return;
+        const km = distanciaKm(actual.xy.lat, actual.xy.lng, g.xy.lat, g.xy.lng);
+        if (km < mejorKm) { mejorKm = km; mejor = g; }
+      });
+      if (!mejor) { mejor = restantes[0]; mejorKm = null; sinCoords++; }
+      mejor._km = (mejorKm != null && isFinite(mejorKm)) ? Math.round(mejorKm) : null;
+      if (mejor._km != null) kmTotal += mejor._km;
+      orden.push(mejor);
+      restantes.splice(restantes.indexOf(mejor), 1);
+      actual = mejor;
+    }
+
+    // Km del orden actual, para comparar
+    let kmActual = 0, okActual = true;
+    if (usarRuta) {
+      const secuencia = [];
+      const vistoG = new Set();
+      base.forEach(o => {
+        const k = iramNorm(`${o.localidad||''}|${o.codigo||''}`);
+        if (vistoG.has(k)) return; vistoG.add(k);
+        secuencia.push(grupos.get(k));
+      });
+      for (let i = 1; i < secuencia.length; i++) {
+        const a = secuencia[i-1].xy, b = secuencia[i].xy;
+        if (!a || !b) { okActual = false; break; }
+        kmActual += Math.round(distanciaKm(a.lat, a.lng, b.lat, b.lng));
+      }
+    }
+
+    const _nom = g => {
+      const o = g.ref;
+      return `${o.clienteReal||o.clienteNorm||o.cliente||'—'}${o.localidad?' · '+o.localidad:''}`
+           + (o.codigo ? ` <span style="color:#8a8781">(${escH(o.codigo)})</span>` : '');
+    };
+    const li = orden.map((g,i) => {
+      const trabajos = g.items.map(o => _cortaTxt(o.trabajo||o.descripcion||'', 42)).filter(Boolean);
+      const km = (i === 0) ? '' : (g._km != null ? ` <span style="color:#8a8781">· ${g._km} km</span>` : ' <span style="color:#8a8781">· sin coords</span>');
+      const det = trabajos.length ? `<br><span style="color:#8a8781">${escH(trabajos.join(' · '))}</span>` : '';
+      return `<li>${_nom(g)}${km}${g.items.length>1?` <span style="color:#8a8781">(${g.items.length} avisos)</span>`:''}${det}</li>`;
+    }).join('');
+
+    let cab = usarRuta
+      ? `📍 <strong>Orden sugerido desde ${escH(cl.lugar)}</strong>`
+      : `📍 <strong>Empezando en ${escH(cl.lugar)}</strong> — esto es lo que tienes cerca`;
+    if (kmTotal) cab += ` <span style="color:#8a8781">· ~${kmTotal} km entre paradas</span>`;
+
+    let comparacion = '';
+    if (usarRuta && okActual && kmActual) {
+      comparacion = kmTotal < kmActual
+        ? `<p style="color:#8a8781">Tu orden actual son ~${kmActual} km, así te ahorrarías ~${kmActual-kmTotal} km.</p>`
+        : kmTotal > kmActual
+          ? `<p style="color:#8a8781">Tu orden actual son ~${kmActual} km, o sea que el tuyo ya es mejor. Déjalo como está.</p>`
+          : `<p style="color:#8a8781">Sale prácticamente igual que tu orden actual.</p>`;
+    }
+
+    _iramUltimaAccion = { tipo:'cadena_material' };
+    return _HTML_MARK + cab + `<ol style="margin:6px 0 8px">${li}</ol>` + comparacion
+      + `<p style="color:#8a8781">Es solo una sugerencia — la ruta no se toca, ordénala tú en la app si lo ves bien.</p>`
+      + `<p>¿Seguimos con el material?</p>`;
   }
 
   /* ── QUÉ ME LLEVO (material según partes + diccionario) ── */
