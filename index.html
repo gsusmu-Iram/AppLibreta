@@ -9889,10 +9889,10 @@ function ejecutarBusqueda(q) {
     hint: hintHis(h),
     equipo: [h['CENTRAL INTRUSIÓN'],h.GRABADOR,h['COMUNICACIÓN'],h['CENTRAL INCENDIO'],h['CONTROL ACCESO']].filter(Boolean).join(' · '),
     title:   `${h.CLIENTE||'—'} · ${h.SISTEMA||'—'} · ${h.LOCALIDAD||'—'}`,
-    sub:     `${h.FECHA||'—'} — ${_cortaTxt(h.TRABAJO||'', 200)}`,
+    sub:     `${h.FECHA||'—'} — ${String(h.TRABAJO||'').replace(/\s+/g,' ').trim()}`,
     meta:    h.OT||'',
     titleHL: `${hl(h.CLIENTE||'')} · ${hl(h.SISTEMA||'')} · ${hl(h.LOCALIDAD||'')}`,
-    subHL:   `${h.FECHA||'—'} — ${hl(_cortaTxt(h.TRABAJO||'', 200))}`,
+    subHL:   `${h.FECHA||'—'} — ${hl(String(h.TRABAJO||'').replace(/\s+/g,' ').trim())}`,
   }));
 
   // INFO TÉCNICA
@@ -10061,7 +10061,7 @@ function renderResultadosFiltrados() {
       g += `
         <div class="res-card his-grp-card">
           <div class="res-top"><span class="res-title">${hl(cliente)}</span><span class="res-badge rb-his">HISTORIAL</span></div>
-          <div class="res-sub">${escH(last.fecha)} — ${hl(_cortaTxt(last.trabajo||'', 200))}</div>
+          <div class="res-sub">${escH(last.fecha)} — ${hl(String(last.trabajo||'').replace(/\s+/g,' ').trim())}</div>
           <div class="res-meta">${escH(last.sistema||'')}${last.localidad?' · '+escH(last.localidad):''}</div>
           ${last.equipo?`<div class="res-meta" style="color:var(--cyan)">⚙️ ${escH(last.equipo)}</div>`:''}
           ${hintHtml(last.hint||'')}
@@ -16113,7 +16113,8 @@ async function iramEjecutarAccion(cl) {
     // Categorías de causa → cómo detectarlas y qué aconsejar
     const CATS = [
       { id:'cam',  rx:/\b(c[aá]mara|cctv|onsafe|grabador|nvr|dvr|lanaccess)/i, txt:'problemas de cámara', consejo:'igual toca sustituir la cámara o el grabador de una vez' },
-      { id:'com',  rx:/\b(4g|2g|gsm|gprs|comunicaci|incomunicad|cobertura|alwon)\b|m[oó]dulo\s*(?:ip|4g|2g)|antena/i, txt:'fallo de comunicación', consejo:'plantéate cambiar el módulo de comunicaciones en vez de reiniciarlo cada vez' },
+      { id:'com',  rx:/\b(4g|2g|gsm|gprs|comunicaci|incomunicad|cobertura|alwon|lincoln)\b|m[oó]dulo\s*(?:ip|4g|2g)|antena|fuera\s+de\s+l[ií]nea/i, txt:'fallo de comunicación', consejo:'plantéate cambiar el módulo de comunicaciones en vez de reiniciarlo cada vez' },
+      { id:'arm',  rx:/(no\s+(?:se\s+)?arma|no\s+deja\s+armar|error\s+al\s+armar|no\s+puede\s+armar|queda\s+armada)/i, txt:'problemas al armar', consejo:'lo normal es que haya una zona en fallo que lo impide: mira qué zona está abierta o en avería antes de nada' },
       { id:'puls', rx:/\bpulsador/i,                                       txt:'el pulsador',           consejo:'cambia el pulsador, sale más a cuenta que ir a rearmarlo' },
       { id:'bat',  rx:/\b(bater[ií]a|pila)/i,                              txt:'la batería',            consejo:'deja una batería nueva, está dando guerra' },
       { id:'vol',  rx:/\b(volum[eé]tric|s[ií]smic|enmascar)/i,             txt:'un detector/volumétrico', consejo:'cambia el detector, lleva dando falsas varias veces' },
@@ -16478,7 +16479,8 @@ async function iramEjecutarAccion(cl) {
     const RX_MOD4G   = /(m[oó]dulo\s*4g|se\s+instala\s+modulo\s*4g|sustituy\w*\s+(?:el\s+)?m[oó]dulo)/i;
     const RX_ACTUAL  = /(actualiz\w*|versi[oó]n\s*\d)/i;
     const RX_SIM     = /(multioperador|multi\s*operador|tarjeta\s+sim|sim\s+nueva|se\s+cambia\s+(?:la\s+)?sim)/i;
-    const RX_FALLOCOM= /(gsm|4g|2g|gprs|sin\s+comunicaci|fallo\s+comunicaci|incomunicad|cobertura)/i;
+    // "Lincoln" y "fuera de línea" también son fallo de comunicación
+    const RX_FALLOCOM= /(gsm|4g|2g|gprs|sin\s+comunicaci|fallo\s+comunicaci|incomunicad|cobertura|lincoln|fuera\s+de\s+l[ií]nea|receptora)/i;
 
     partes.forEach(p => {
       const keyC = nrm(p.codigo||'');
@@ -16518,13 +16520,38 @@ async function iramEjecutarAccion(cl) {
       const haySim    = RX_SIM.test(todoCom)
                         || !!eqC.multioperador || String(eqC.MULTIOPERADOR||'').toUpperCase()==='SI';
 
+      const nomC = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+      const codC = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
+
+      // ── Clientes que NO son banca: aquí no hay escalera de antena. El fallo suele
+      //    estar en la receptora, el router del cliente o una IP que ha cambiado.
+      //    Lo útil es recordarle qué hizo la última vez, con su texto completo.
+      const esBanca = /cajamar|caja\s*rural|caixa\s*rural|cajacheste|bbva|abanca|banca\s*march|caixaturis/i
+                        .test(`${p.clienteReal||p.clienteNorm||p.cliente||''}`);
+      if (!esBanca) {
+        // Sólo el TEXTO del trabajo: la columna COMUNICACIÓN lleva el equipo de la
+        // oficina (ALWON, 4G…) y colaría visitas que no van de comunicación
+        const previas = filas.filter(v => {
+          const t = String(v.TRABAJO||v.trabajo||'');
+          if (esMto(t)) return false;
+          return /(comunicaci|incomunicad|gsm|gprs|\b4g\b|\b2g\b|router|receptora|\bcra\b|fuera\s+de\s+l[ií]nea|lincoln|cambia[^.]{0,15}ip\b|\bip\b[^.]{0,15}(?:router|cambi))/i.test(t);
+        });
+        if (!previas.length) return;
+        const ult = previas.slice(-2).reverse().map(v =>
+          `<li><strong>${escH(v.FECHA||'')}</strong> — ${escH(String(v.TRABAJO||v.trabajo||'').replace(/\s+/g,' ').trim())}</li>`
+        ).join('');
+        ofConEscCom.add(idOfC);
+        escComs.push(`<li>📶 <strong>${escH(nomC)}</strong>${codC} — ya estuviste aquí por fallo de comunicación:`
+          + `<ul style="margin:2px 0 0">${ult}</ul>`
+          + `<span style="color:#8a8781">Mira si es lo mismo. En este cliente suele ir por receptora, router o cambio de IP.</span></li>`);
+        return;
+      }
+
       // Sin ningún dato de comunicación no se inventa un escalón: mejor callar
       const hayDatos = antBuena || ant2G || antPeq || hayMod4G || haySim
                        || RX_ANT_ALGO.test(todoCom) || /4g|2g|gsm|gprs/i.test(comEq);
       if (!hayDatos) return;
 
-      const nomC = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
-      const codC = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
       const gris = t => `<span style="color:#8a8781">${t}</span>`;
 
       let paso, hecho = [];
@@ -16568,8 +16595,9 @@ async function iramEjecutarAccion(cl) {
 
     // ── Escaleras específicas: PCI (batería de central) y SÍSMICO ──
     // PCI
-    // Cualquier aviso PCI vale (1001 = fuego disparado, 1002 = avería)
-    const RX_PCI_HOY   = /(bater[ií]a|baja\s+bater|aliment|fallo\s+red|1001|1002|fuego|averia|aver[ií]a|detector|no\s+responde|rearme)/i;
+    // Sólo avisos PCI que hablen de batería / alimentación / fallo de red.
+    // Un 1001 o 1002 suelto no basta: puede ser cualquier cosa.
+    const RX_PCI_HOY   = /(bater[ií]a|baja\s+bater|aliment|fallo\s+(?:de\s+)?red|f\.?\s*alimentaci|no\s+responde|equipo\s+no\s+responde)/i;
     // Causa externa: no es culpa de la instalación, no debe escalar
     const RX_EXTERNA   = /(corte\s+de\s+luz|cortes\s+de\s+luz|sin\s+luz|corte\s+el[eé]ctrico|fallo\s+(?:de\s+)?(?:red|suministro)\s+(?:del\s+)?edificio|obras?\b|tormenta|rayo|subida\s+de\s+tensi[oó]n|se\s+fue\s+la\s+luz)/i;
     const RX_PCI_DET   = /(se\s+sustituy\w*[^.]{0,30}detector|detector[^.]{0,20}(?:sustituid|nuevo)|se\s+cambia[^.]{0,25}detector)/i;
@@ -16614,6 +16642,8 @@ async function iramEjecutarAccion(cl) {
         const hKey = nrm(hh.KEY||'').replace(/^sis_/,'');
         const ok = keyS ? (hKey===keyS||hKey.endsWith(keyS)||keyS.endsWith(hKey)) : (nrm(hh.CLIENTE||'')===cliS);
         if (!ok) return false;
+        // Un mantenimiento programado no es una avería: no cuenta para escalar
+        if (esMto(hh.TRABAJO||hh.trabajo||'')) return false;
         const fe = parseFecha(hh.FECHA); return fe && fe >= haceUnAno;
       });
       const vs2 = new Set();
