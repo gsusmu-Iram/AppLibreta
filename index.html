@@ -4943,6 +4943,8 @@ function _clEsPartes(txt) {
 
 function _clComandoOrden(txt) {
   const t = txt.toLowerCase();
+  // "empieza por X y ordéname la ruta" NO es reordenar la tabla: lo lleva IRAM
+  if (/\b(empez|empiez|arranc|comienz|comenzamos)/.test(t)) return null;
   if (!/orden|ordena|reordena/.test(t) && !/como estaban|original/.test(t)) return null;
   if (/localidad|poblaci|ruta|ciudad|pueblo/.test(t)) return 'localidad';
   if (/client|entidad/.test(t)) return 'cliente';
@@ -14916,10 +14918,13 @@ async function pycEnviar() {
           let extra = '';
           if (acc.tipo === 'cadena_material') { _iramUltimaAccion = { tipo:'cadena_consejos' }; extra = '<p>¿Seguimos con los consejos?</p>'; }
           else if (acc.tipo === 'ruta_siguiente') { _iramUltimaAccion = { tipo:'cadena_material' }; extra = '<p>¿Seguimos con el material?</p>'; }
-          const txtR = (typeof r === 'string' && r.startsWith(_HTML_MARK))
-            ? r + extra
-            : (extra ? _HTML_MARK + '<p>' + r + '</p>' + extra : r);
-          pycMsgIA(txtR, false, 'local');
+          if (typeof r === 'string' && r.startsWith(_HTML_MARK)) {
+            pycMsgIAHtml('<div class="cl-assist-body">' + r.slice(_HTML_MARK.length) + extra + '</div>');
+          } else if (extra) {
+            pycMsgIAHtml('<div class="cl-assist-body"><p>' + escH(String(r)) + '</p>' + extra + '</div>');
+          } else {
+            pycMsgIA(r, false, 'local');
+          }
         }
       } catch(e) { pycMsgIA('⚠️ No he podido continuar: ' + e.message, false, 'local'); }
       _pycThinking = false; return;
@@ -15346,7 +15351,8 @@ function iramClasificar(txt) {
 
   // ── EMPEZAR EN / ORDENAR RUTA desde una oficina ──
   {
-    const mEmp = raw.match(/^(?:iram[,\s]+)?(?:empezamos?|empiezo|arranco|comenzamos|empezar)\s+(?:en|por|desde)\s+(.+?)[\s,.]*$/i);
+    // Admite "sí, empieza por Sinarcas", "vale empezamos en X", "empieza por X"
+    const mEmp = raw.match(/^(?:iram[,\s]+)?(?:s[íi]|vale|ok|venga|dale)?[,\s]*(?:empezamos?|empieza|empiezo|arranco|arranca|comenzamos|comienza|empezar|vamos)\s+(?:en|por|desde|a)\s+(.+?)[\s,.]*$/i);
     if (mEmp) {
       let resto = mEmp[1].trim();
       const ordenar = /(orden[ae]|ord[eé]name|reordena|ord[eé]nala|monta)/i.test(raw);
