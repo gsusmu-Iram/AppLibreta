@@ -16635,9 +16635,6 @@ async function iramEjecutarAccion(cl) {
 
       /* PCI: batería de central de incendio + detectores */
       if (esPci) {
-        const bat  = RX_PCI_BAT.test(todoReal);
-        const fte  = RX_PCI_FTE.test(todoReal);
-        const cent = RX_PCI_CENT.test(todoReal);
         // La causa externa (corte de luz, obra…) sólo explica SU visita, no las anteriores.
         // Si la última intervención fue por un corte, esa queda cerrada; el resto del
         // historial sigue contando tal cual.
@@ -16647,6 +16644,10 @@ async function iramEjecutarAccion(cl) {
         // Visitas que NO se explican por una causa externa: son las que valen para escalar
         const filasReales = filas.filter(v => !RX_EXTERNA.test(v.TRABAJO||v.trabajo||''));
         const todoReal    = filasReales.map(v => v.TRABAJO||v.trabajo||'').join(' · ');
+
+        const bat  = RX_PCI_BAT.test(todoReal);
+        const fte  = RX_PCI_FTE.test(todoReal);
+        const cent = RX_PCI_CENT.test(todoReal);
 
         // Detectores sustituidos en esta oficina (visitas distintas)
         const visDet = filas.filter(v => RX_PCI_DET.test(v.TRABAJO||v.trabajo||''));
