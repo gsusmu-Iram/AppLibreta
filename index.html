@@ -16232,10 +16232,15 @@ async function iramEjecutarAccion(cl) {
         return pa - pb || b.vis.length - a.vis.length;
       });
 
+      // Si el aviso de hoy tiene una categoría clara y NINGUNA causa del historial
+      // coincide con ella, no tiene sentido soltarle un problema de otra cosa.
+      const hayCoincidencia = !catHoy || causasOrd.some(c => c.cat.id === catHoy.id && c.vis.length >= 2);
+
       causasOrd.forEach(({ cat, vis }) => {
         const n = vis.length;
         if (n < 2) return;
         const esDeHoy = !!(catHoy && cat.id === catHoy.id);
+        if (catHoy && !hayCoincidencia && !esDeHoy) return;   // lo de hoy va de otra cosa
 
         const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
         const ELEM = { com:'comunicación', cam:'cámara', puls:'pulsador', bat:'batería', vol:'detector', res:'resistencia', fuego:'zona de fuego', acc:'contacto', barr:'barrera', ret:'retardo' };
