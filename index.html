@@ -4871,7 +4871,7 @@ function claudeGenerarResumenTabla(criterio) {
   partes.forEach(p => {
     const fin = _esFin(p);
     const trab = (p.descripcion || p.aviso || '').replace(/\s+/g,' ').trim();
-    const trabCorto = trab.length > 90 ? trab.slice(0,90) + '…' : trab;
+    const trabCorto = trab;
     const prio = fin ? `<span class="cl-badge fin">✓ Hecho</span>` : _clPrioridad(p);
     tabla += `<tr class="${fin?'cl-row-fin':''}">
       <td style="white-space:nowrap">${escH(p.fecha||'—')}</td>
@@ -6643,7 +6643,7 @@ function cargarUltVisitas(p) {
     const fin = (v.ESTADO||'').toLowerCase().includes('finaliz');
     return `<div class="ult-vis-row">
       <div class="ult-vis-fecha">${v.FECHA||'—'}${v.OT?' · OT '+v.OT:''}</div>
-      <div class="ult-vis-trabajo">${escH((v.TRABAJO||'Sin descripción').slice(0,120))}</div>
+      <div class="ult-vis-trabajo">${escH(String(v.TRABAJO||'Sin descripción').replace(/\s+/g,' ').trim())}</div>
       <span class="ult-vis-estado ${fin?'fin':'pend'}">${fin?'✓ Finalizado':'⏳ Pendiente'}</span>
     </div>`;
   }).join('');
@@ -14755,9 +14755,32 @@ async function pycGemini(fraseOriginal) {
     ? [modeloAuto, ...MODELOS_FALLBACK.filter(m => m !== modeloAuto)]
     : MODELOS_FALLBACK;
 
-  const system = `Eres IRAM, asistente de campo de Gsus, técnico de seguridad electrónica en Valencia (España).
-Responde en español, de forma breve y directa. Máximo 3-4 frases.
-No expliques quién eres ni saludos innecesarios. Ve al grano.`;
+  // Contexto real del día: fecha, dónde anda y cómo va la jornada
+  const _ctxDia = (() => {
+    try {
+      const d = new Date();
+      const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+      const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      const partes = [`Hoy es ${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}, son las ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}.`];
+      const ruta = loadArr(K_RUTA) || [];
+      const act  = ruta.find(r => r.estado === 'activa') || ruta.find(r => r.estado !== 'completada');
+      const hechas = ruta.filter(r => r.estado === 'completada').length;
+      if (act && act.localidad) partes.push(`Ahora va camino de ${act.localidad}${act.clienteReal||act.cliente ? ' ('+(act.clienteReal||act.cliente)+')' : ''}.`);
+      if (ruta.length) partes.push(`Lleva ${hechas} de ${ruta.length} paradas del día.`);
+      else if (_iramOficinaActiva && _iramOficinaActiva.localidad) partes.push(`Estaban hablando de ${_iramOficinaActiva.localidad}.`);
+      return partes.join(' ');
+    } catch(e) { return ''; }
+  })();
+
+  const system = `Eres IRAM, el asistente de campo de Jes, técnico de seguridad electrónica que trabaja por la provincia de Valencia y alrededores (Requena, Utiel, Ademuz, la Serranía, la Ribera, Cuenca y Albacete).
+
+${_ctxDia}
+
+Háblale de tú, como un compañero de trabajo: directo, cercano y sin paternalismos. Nada de animarle en exceso ni de tratarle de usted. Puedes tener un comentario suelto sobre el día, el tiempo o la zona por la que anda si viene a cuento, pero sin enrollarte.
+
+Responde en español, breve: 3-4 frases como mucho. Ve al grano, sin presentarte ni saludar.
+
+Importante: si te pregunta por algo concreto que no sabes con certeza — una fiesta local, un horario, una carretera cortada, una noticia — dilo claramente en vez de inventártelo. Prefiere un "no lo sé" a un dato inventado, porque va conduciendo y puede fiarse de lo que le digas.`;
 
   const contexto = _pycHist.filter(m => !m.thinking).slice(-4).map(m => ({
     role: m.role === 'user' ? 'user' : 'model',
@@ -15161,6 +15184,20 @@ let _iramDialogo = null; // { esperando: 'CREAR_TAREA', datos: {} }
 let _iramUltimaAccion = null;
 let _iramOficinaActiva = null; // { cliente, codigo, localidad, direccion } — contexto persistente
 
+// Deja una oficina en contexto para poder encadenar preguntas ("¿y su histórico?")
+function _iramFijarOficina(p) {
+  if (!p) return;
+  const cli = p.clienteReal || p.clienteNorm || p.cliente || '';
+  if (!cli && !p.codigo) return;
+  _iramOficinaActiva = {
+    cliente:   cli,
+    codigo:    p.codigo    || '',
+    localidad: p.localidad || '',
+    direccion: p.direccion || '',
+    horario:   p.horarioTxt|| '',
+  };
+}
+
 /* ══════════════════════════════════════════════════════
    IRAM — Saludo proactivo inteligente
    ══════════════════════════════════════════════════════ */
@@ -15371,14 +15408,23 @@ function iramClasificar(txt) {
   if (/^(?:iram[,\s]+)?(?:fin\s+(?:de|del)\s+(?:la\s+)?(?:d[ií]a|jornada)|jornada\s+(?:terminada|acabada|finalizada)|(?:he\s+)?(?:terminado|acabado)(?:\s+(?:por\s+hoy|la\s+jornada|el\s+d[ií]a))?|cierra\s+(?:el\s+)?d[ií]a|cerrar\s+(?:el\s+)?d[ií]a|cerrar\s+y\s+limpiar(?:\s+(?:el\s+)?d[ií]a)?|limpiar?\s+(?:el\s+)?d[ií]a)\s*[.!]?$/i.test(raw))
     return { intento:'CERRAR_DIA' };
 
-  // ── Referencias a la última oficina ("su histórico", "llévame ahí", "su horario"…) ──
+  // ── Referencias a la última oficina ("su histórico", "y el horario?", "qué equipos tiene") ──
   if (_iramOficinaActiva) {
     const ref = /\b(su|sus|esa|esas|ese|esos|esta|estas|es[ae]\s+oficina|ah[ií]|aqu[ií]|all[ií]|mism[ao])(?![a-zñáéíóú])/i;
-    if (ref.test(raw)) {
-      if (/hist[oó]ric/i.test(raw))       return { intento:'HISTORIAL_CLIENTE', refActiva:true };
-      if (/horario/i.test(raw))           return { intento:'HORARIO', refActiva:true };
-      if (/ficha/i.test(raw))             return { intento:'FICHA_CLIENTE', refActiva:true };
-      if (/(ll[eé]vame|vamos|navega|waze|ir\s+a|voy\b)/i.test(raw)) return { intento:'NAVEGAR', refActiva:true };
+    // Pregunta corta de seguimiento ("¿y el histórico?", "la central?") — se asume
+    // la oficina activa mientras no se nombre otra ni sea un comando propio de IRAM.
+    const esComando = /^(?:iram[,\s]+)?(?:hola|buenos|qu[eé]\s+me\s+llevo|qu[eé]\s+llevo|por\s+d[oó]nde|c[oó]mo\s+voy|qu[eé]\s+m[aá]s|dime\s+consejos?|consejos?|apunta|ap[uú]ntame|finaliza|cierra|cerrar|fin\s+de|jornada|empezamos?|empiezo|empieza|arranco|arranca|monta|ordena|historial\b)/i.test(raw.trim());
+    const corta = raw.trim().split(/\s+/).length <= 6;
+    const nombraOtra = /\b(cajamar|bbva|campsa|repsol|sprinter|dia\b|orange|cemex|aquae|kuehne|caixa|caja\s*rural|cajacheste|plenergy|onofre)\b/i.test(raw)
+                       || /\b\d{4,6}\b/.test(raw);
+    const seguimiento = !esComando && ((corta && !nombraOtra) || ref.test(raw));
+    if (seguimiento) {
+      if (/hist[oó]ric|[uú]ltimas?\s+visitas?/i.test(raw))  return { intento:'HISTORIAL_CLIENTE', refActiva:true };
+      if (/horario|abre|cierra/i.test(raw))                  return { intento:'HORARIO', refActiva:true };
+      if (/ficha|datos/i.test(raw))                          return { intento:'FICHA_CLIENTE', refActiva:true };
+      if (/(equipo|central|grabador|comunicaci|incendio|control\s+acceso|c[aá]mara|bater[ií]a|mto|mantenimient)/i.test(raw))
+                                                             return { intento:'FICHA_CLIENTE', refActiva:true };
+      if (/(ll[eé]vame|vamos|navega|waze|ir\s+a|c[oó]mo\s+llego)/i.test(raw)) return { intento:'NAVEGAR', refActiva:true };
     }
   }
 
@@ -17015,6 +17061,7 @@ async function iramEjecutarAccion(cl) {
       return `<li>${urg}<strong>${cli}</strong>${loc}${dias}</li>`;
     }).join('');
     const hayUrg = sorted[0]?.urgente;
+    if (sorted[0]) _iramFijarOficina(sorted[0]);
     const motivo = hayUrg ? 'Yo empezaría por lo urgente' : 'Yo empezaría por lo que lleva más tiempo esperando';
     // Aviso de festivos
     let festNota = '';
@@ -17504,6 +17551,7 @@ async function iramEjecutarAccion(cl) {
           : `<p style="color:#8a8781">Sale prácticamente igual que tu orden actual.</p>`;
     }
 
+    _iramFijarOficina(base[idx]);
     _iramUltimaAccion = { tipo:'cadena_material' };
     return _HTML_MARK + cab + `<ol style="margin:6px 0 8px">${li}</ol>` + comparacion
       + `<p style="color:#8a8781">Es solo una sugerencia — la ruta no se toca, ordénala tú en la app si lo ves bien.</p>`
@@ -17658,7 +17706,7 @@ async function iramEjecutarAccion(cl) {
     if (nombre && nombre !== 'ese cliente') _iramOficinaActiva = { cliente:nombre, codigo:cl.codigo||ofi?.codigo||'', localidad:loc, direccion:ofi?.direccion||'' };
     if (!visitas.length) return `No hay visitas registradas en ${nombre}${loc?' de '+loc:''}.`;
     const lista = visitas.slice(0,5).map(v => {
-      const trab = (v.TRABAJO||v.trabajo||'sin descripción').slice(0,70);
+      const trab = String(v.TRABAJO||v.trabajo||'sin descripción').replace(/\s+/g,' ').trim();
       return `<li><span style="color:#8a8781">${escH(v.FECHA||'?')}</span> — ${escH(trab)}</li>`;
     }).join('');
     const mas = visitas.length > 5 ? `<p style="color:#8a8781;font-size:13px;margin:4px 0 0">(y ${visitas.length-5} más)</p>` : '';
