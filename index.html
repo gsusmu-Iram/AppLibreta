@@ -16509,7 +16509,7 @@ async function iramEjecutarAccion(cl) {
         if (vs.has(f)) return false; vs.add(f); return true;
       });
       filas.sort((a,b) => (parseFecha(a.FECHA)||0) - (parseFecha(b.FECHA)||0));
-      if (!filas.length) return;
+      // Sin histórico aún puede haber dato útil en la ficha de equipos (p. ej. una oficina en 2G)
 
       // Se mira todo el texto de la oficina: trabajo + columnas de equipo
       const todo = filas.map(h => `${h.TRABAJO||h.trabajo||''} ${h['MODELO CENTRAL']||''} ${h['COMUNICACIÓN']||''}`).join(' · ');
@@ -16517,6 +16517,10 @@ async function iramEjecutarAccion(cl) {
 
       const comEq   = `${eqC['COMUNICACIÓN']||eqC.com||''}`;
       const todoCom = `${todo} ${comEq}`;
+      // ¿La oficina va todavía por 2G? (ficha de equipos o histórico)
+      const gris = t => `<span style="color:#8a8781">${t}</span>`;
+      const es2G = /\b2g\b/i.test(comEq) || /\b2g\b/i.test(todo);
+      const sinAntena2G = /2g\s+sin\s+antena/i.test(comEq);
       const antBuena = RX_ANT_BUENA.test(todoCom);
       const ant2G    = !antBuena && RX_ANT_2G.test(todoCom);
       const antPeq   = !antBuena && RX_ANT_PEQ.test(todoCom);
@@ -16557,9 +16561,9 @@ async function iramEjecutarAccion(cl) {
                        || RX_ANT_ALGO.test(todoCom) || /4g|2g|gsm|gprs/i.test(comEq);
       if (!hayDatos) return;
 
-      const gris = t => `<span style="color:#8a8781">${t}</span>`;
 
       let paso, hecho = [];
+      if (es2G)      hecho.push('2G');
       if (antBuena)  hecho.push('antena omnidireccional');
       if (ant2G)     hecho.push('antena de 2G (aleta/Pacom)');
       if (antPeq)    hecho.push('antena pequeña interior');
@@ -16567,7 +16571,12 @@ async function iramEjecutarAccion(cl) {
       if (hayActual) hecho.push('central actualizada');
       if (haySim)    hecho.push('tarjeta multioperador');
 
-      if (ant2G) {
+      if (es2G && !hayMod4G) {
+        paso = `la oficina va todavía por <strong>2G</strong>. Aprovecha el aviso para migrar: `
+             + `<strong>llévate un módulo 4G nuevo</strong>, actualiza la central y déjalo con la antena pequeña `
+             + `del módulo, que es como lo quiere el cliente. Si más adelante vuelve a fallar, ya se saca la omnidireccional a fachada`
+             + (sinAntena2G ? ` ${gris('(ahora va sin antena exterior)')}` : '');
+      } else if (ant2G) {
         paso = `lleva todavía la antena del 2G (aleta de tiburón o Pacom) con módulo 4G. `
              + `Cámbiala por una <strong>omnidireccional</strong> antes de tocar nada más`;
       } else if (!antBuena) {
