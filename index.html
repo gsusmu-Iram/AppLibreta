@@ -5609,8 +5609,33 @@ let mapaL         = null;   // instancia Leaflet
    ALMACENAMIENTO — funciones helper
    ================================================================ */
 const load  = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
-const save  = (k,v) => localStorage.setItem(k, JSON.stringify(v));
-const loadArr = k => load(k) || [];
+// Quita paradas repetidas: misma oficina + mismo aviso + mismo sistema.
+// Dos avisos DISTINTOS de la misma oficina se conservan (son dos partes).
+function _dedupeRuta(arr) {
+  if (!Array.isArray(arr)) return arr;
+  const n = x => String(x||'').toLowerCase().replace(/[\s.\-]/g,'');
+  const vistos = new Map();
+  const salida = [];
+  arr.forEach(p => {
+    const of = n(p.codigo) || (n(p.clienteReal||p.cliente) + '|' + n(p.localidad));
+    const tr = n(String(p.trabajo||'').slice(0,60));
+    const firma = of + '#' + tr + '#' + n(p.sistema);
+    if (!vistos.has(firma)) { vistos.set(firma, salida.length); salida.push(p); return; }
+    // Ya había una igual: se queda la completada si alguna lo está
+    const i = vistos.get(firma);
+    if (p.estado === 'completada' && salida[i].estado !== 'completada') salida[i] = p;
+  });
+  return salida;
+}
+
+const save  = (k,v) => localStorage.setItem(k, JSON.stringify(
+  (typeof K_RUTA !== 'undefined' && k === K_RUTA) ? _dedupeRuta(v) : v
+));
+const loadArr = k => {
+  const v = load(k) || [];
+  // La ruta se limpia también al leer, para arrastrar duplicados antiguos
+  return (typeof K_RUTA !== 'undefined' && k === K_RUTA) ? _dedupeRuta(v) : v;
+};
 const loadObj = k => load(k) || {};
 
 /* ================================================================
@@ -10795,7 +10820,7 @@ function guardarNuevoAviso(datos) {
   // Añadir a ruta si se pidió
   if (aRuta) {
     const ruta = loadArr(K_RUTA);
-    ruta.push({ id:'R_'+Date.now(), clienteReal:parte.clienteReal, clienteNorm:parte.clienteNorm, cliente:parte.cliente, codigo:parte.codigo, localidad:parte.localidad, direccion:parte.direccion, trabajo:parte.trabajo, horarioTxt:parte.horarioTxt, urgente:false, estado:'pendiente' });
+    ruta.push({ id:'R_'+Date.now(), sistema:parte.sistema||'', clienteReal:parte.clienteReal, clienteNorm:parte.clienteNorm, cliente:parte.cliente, codigo:parte.codigo, localidad:parte.localidad, direccion:parte.direccion, trabajo:parte.trabajo, horarioTxt:parte.horarioTxt, urgente:false, estado:'pendiente' });
     save(K_RUTA, ruta);
     if (typeof renderRuta === 'function') renderRuta();
   }
@@ -15331,10 +15356,13 @@ const _HOR_NOMBRE = { 'L':'lunes','M':'martes','X':'miércoles','J':'jueves','V'
 
 // Devuelve Set con getDay() de los días que abre según el bloque "L-V" o "L-X-V"
 function _parsearDias(bloque) {
+  const bruto  = String(bloque||'').trim().toUpperCase();
   const letras = bloque.split('-').map(l => l.trim().toUpperCase()).filter(l => _HOR_LETRA[l] !== undefined);
   if (!letras.length) return new Set();
-  if (letras.length === 2) {
-    // Dos letras → rango L-V, S-D, etc.
+  // El guion significa "y" (lista), SALVO en los rangos de semana completa:
+  // L-V, L-S y L-D. Así 'M-J' = martes y jueves, no de martes a jueves.
+  const RANGOS_SEMANA = ['L-V','L-S','L-D'];
+  if (letras.length === 2 && RANGOS_SEMANA.includes(bruto)) {
     const desde = _HOR_LETRA[letras[0]];
     const hasta  = _HOR_LETRA[letras[1]];
     const SEQ   = [1,2,3,4,5,6,0]; // Lun→Dom
@@ -15353,8 +15381,10 @@ function _parsearDias(bloque) {
 
 // Verbaliza un bloque de días para el chat / TTS
 function _verbalizarDias(bloque) {
+  const bruto  = String(bloque||'').trim().toUpperCase();
   const letras = bloque.split('-').map(l => l.trim().toUpperCase()).filter(l => _HOR_LETRA[l] !== undefined);
-  if (letras.length === 2 && _parsearDias(bloque).size > 2) {
+  // Sólo se dice "de X a Y" en los rangos de semana completa
+  if (letras.length === 2 && ['L-V','L-S','L-D'].includes(bruto)) {
     return `de ${_HOR_NOMBRE[letras[0]]} a ${_HOR_NOMBRE[letras[1]]}`;
   }
   const nombres = letras.map(l => _HOR_NOMBRE[l]).filter(Boolean);
