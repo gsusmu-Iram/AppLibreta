@@ -8125,8 +8125,17 @@ function datosBorrarTodo() {
   const keys = [K_EXCEL, K_HIST, K_EQUIPOS, K_UBICS, K_RUTA,
                 K_ANALISIS, K_HORARIOS, K_FESTIVOS, OTS_VISTOS_KEY, K_BACKUP_TS,
                 K_MTO_MAN, K_MTO_EXT, K_INFO_TEC, K_TAREAS, K_NOTAS, K_EVENTOS,
-                K_ETIQUETAS, 'pyc_gps', 'pyc_coords', 'pyc_alarmas'];
+                K_ETIQUETAS, 'pyc_gps', 'pyc_coords', 'pyc_alarmas',
+                PYC_KEY_GROQ, PYC_KEY_GEMINI];   // también las claves de API
   keys.forEach(k => localStorage.removeItem(k));
+  // Limpiar los campos de la pantalla para que no parezca que siguen guardadas
+  try {
+    const _phs = { 'bk-key-groq':'gsk_...', 'bk-key-gemini':'AIza...' };
+    Object.entries(_phs).forEach(([id, ph]) => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.placeholder = ph; }
+    });
+  } catch(e) {}
   datosCerrarConfirm();
   cerrarDatos();
   datosToast('✓ Todos los datos eliminados');
@@ -9744,6 +9753,169 @@ function mostrarEstadoVacio() {
 }
 
 // Recorta sin partir palabras y marca con … que hay más texto (el original se guarda entero)
+/* ── Editar / borrar historial y equipos desde BUSCAR ───────────────── */
+// Localiza una fila del historial por KEY + fecha + OT + sistema
+function _hisIdx(key, fecha, ot, sistema) {
+  const hist = loadArr(K_HIST);
+  const n = x => String(x||'').trim().toLowerCase();
+  return hist.findIndex(h =>
+    n(h.KEY) === n(key) && n(h.FECHA) === n(fecha) &&
+    n(h.OT||h.ot) === n(ot) && n(h.SISTEMA) === n(sistema)
+  );
+}
+
+function hisEditar(key, fecha, ot, sistema) {
+  const hist = loadArr(K_HIST);
+  const i = _hisIdx(key, fecha, ot, sistema);
+  if (i < 0) { buscarToast('⚠️ No encuentro ese registro'); return; }
+  const h = hist[i];
+  const ov = document.createElement('div');
+  ov.id = 'his-edit-ov';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-end';
+  ov.innerHTML = `
+    <div style="background:var(--card,#fff);width:100%;border-radius:16px 16px 0 0;padding:16px;max-height:88vh;overflow:auto">
+      <div style="font-weight:800;font-size:15px;margin-bottom:2px">✏️ Editar visita</div>
+      <div style="font-size:12px;color:#8a8781;margin-bottom:10px">${escH(h.CLIENTE||'')} · ${escH(h.FECHA||'')}${h.SISTEMA?' · '+escH(h.SISTEMA):''}</div>
+      <label style="font-size:11px;font-weight:700;color:#8a8781">TRABAJO REALIZADO</label>
+      <textarea id="his-ed-trab" rows="6"
+        style="width:100%;margin:4px 0 12px;padding:10px;border-radius:10px;border:1.5px solid #d8d4cc;font-size:14px;font-family:inherit;background:var(--card,#fff)">${escH(h.TRABAJO||'')}</textarea>
+      <label style="font-size:11px;font-weight:700;color:#8a8781">MATERIAL</label>
+      <input id="his-ed-mat" type="text" value="${escH(h.MATERIAL||'')}" placeholder="nuevo / recuperado"
+        style="width:100%;margin:4px 0 14px;padding:10px;border-radius:10px;border:1.5px solid #d8d4cc;font-size:14px;background:var(--card,#fff)">
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('his-edit-ov').remove()"
+          style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #d8d4cc;background:transparent;font-size:14px;font-weight:700">Cancelar</button>
+        <button onclick="hisGuardarEdicion('${escH(key)}','${escH(fecha)}','${escH(ot)}','${escH(sistema)}')"
+          style="flex:1.4;padding:12px;border-radius:10px;border:none;background:var(--green,#16a34a);color:#fff;font-size:14px;font-weight:800">💾 Guardar</button>
+      </div>
+    </div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  setTimeout(() => { const t = document.getElementById('his-ed-trab'); if (t) t.focus(); }, 60);
+}
+
+function hisGuardarEdicion(key, fecha, ot, sistema) {
+  const hist = loadArr(K_HIST);
+  const i = _hisIdx(key, fecha, ot, sistema);
+  if (i < 0) { buscarToast('⚠️ No encuentro ese registro'); return; }
+  const trab = (document.getElementById('his-ed-trab')?.value || '').trim();
+  const mat  = (document.getElementById('his-ed-mat')?.value  || '').trim();
+  hist[i].TRABAJO  = trab;
+  hist[i].MATERIAL = mat;
+  save(K_HIST, hist);
+  document.getElementById('his-edit-ov')?.remove();
+  buscarToast('✓ Visita actualizada');
+  if (typeof ejecutarBusqueda === 'function') ejecutarBusqueda();
+}
+
+function hisBorrar(key, fecha, ot, sistema) {
+  const hist = loadArr(K_HIST);
+  const i = _hisIdx(key, fecha, ot, sistema);
+  if (i < 0) { buscarToast('⚠️ No encuentro ese registro'); return; }
+  const h = hist[i];
+  const ov = document.createElement('div');
+  ov.id = 'his-del-ov';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="background:var(--card,#fff);border-radius:16px;padding:18px;max-width:400px;width:100%">
+      <div style="font-weight:800;font-size:15px;margin-bottom:8px">🗑️ ¿Borrar esta visita?</div>
+      <div style="font-size:13px;color:#8a8781;margin-bottom:4px">${escH(h.CLIENTE||'')} · ${escH(h.FECHA||'')}</div>
+      <div style="font-size:13px;margin-bottom:14px">${escH(String(h.TRABAJO||'').slice(0,160))}</div>
+      <div style="font-size:12px;color:#c0392b;margin-bottom:14px">No se puede deshacer.</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('his-del-ov').remove()"
+          style="flex:1;padding:11px;border-radius:10px;border:1.5px solid #d8d4cc;background:transparent;font-weight:700">Cancelar</button>
+        <button onclick="hisBorrarConfirm('${escH(key)}','${escH(fecha)}','${escH(ot)}','${escH(sistema)}')"
+          style="flex:1;padding:11px;border-radius:10px;border:none;background:#c0392b;color:#fff;font-weight:800">Borrar</button>
+      </div>
+    </div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+
+function hisBorrarConfirm(key, fecha, ot, sistema) {
+  const hist = loadArr(K_HIST);
+  const i = _hisIdx(key, fecha, ot, sistema);
+  if (i >= 0) { hist.splice(i, 1); save(K_HIST, hist); }
+  document.getElementById('his-del-ov')?.remove();
+  buscarToast('✓ Visita borrada');
+  if (typeof ejecutarBusqueda === 'function') ejecutarBusqueda();
+}
+
+// Editar los equipos de una oficina sin necesidad de tenerla en ruta
+function hisEquipos(codigo) {
+  const eq = (loadObj(K_EQUIPOS) || {})[codigo] || {};
+  const campos = [
+    ['CENTRAL INTRUSIÓN', 'Central intrusión'],
+    ['MODELO',            'Instalación / versión'],
+    ['GRABADOR',          'Grabador'],
+    ['COMUNICACIÓN',      'Comunicación'],
+    ['CENTRAL INCENDIO',  'Central incendio'],
+    ['CONTROL ACCESO',    'Control acceso'],
+  ];
+  const filas = campos.map(([k, lbl]) => `
+    <label style="font-size:11px;font-weight:700;color:#8a8781">${lbl.toUpperCase()}</label>
+    <input id="eqx-${k.replace(/[^A-Za-z]/g,'')}" type="text" value="${escH(eq[k] || '')}"
+      style="width:100%;margin:4px 0 10px;padding:9px;border-radius:9px;border:1.5px solid #d8d4cc;font-size:14px;background:var(--card,#fff)">`).join('');
+  const chk = (id, k, lbl) => `
+    <label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px">
+      <input type="checkbox" id="${id}" ${String(eq[k]||'').toUpperCase()==='SI'?'checked':''}
+        style="width:18px;height:18px;accent-color:var(--green,#16a34a)"><span>${lbl}</span></label>`;
+  const ov = document.createElement('div');
+  ov.id = 'eqx-ov';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-end';
+  ov.innerHTML = `
+    <div style="background:var(--card,#fff);width:100%;border-radius:16px 16px 0 0;padding:16px;max-height:88vh;overflow:auto">
+      <div style="font-weight:800;font-size:15px;margin-bottom:2px">⚙️ Equipos · ${escH(codigo)}</div>
+      <div style="font-size:12px;color:#8a8781;margin-bottom:12px">Se guardan en el Excel de equipos</div>
+      ${filas}
+      <div style="border-top:1px solid #e8e4dc;margin-top:6px;padding-top:10px">
+        ${chk('eqx-spc','SPIDER CENTRAL','Central Spider')}
+        ${chk('eqx-spk','SPIDER CERRADURAS','Cerraduras Spider a pilas')}
+        ${chk('eqx-mop','MULTIOPERADOR','Tarjeta multioperador')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button onclick="document.getElementById('eqx-ov').remove()"
+          style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #d8d4cc;background:transparent;font-weight:700">Cancelar</button>
+        <button onclick="hisGuardarEquipos('${escH(codigo)}')"
+          style="flex:1.4;padding:12px;border-radius:10px;border:none;background:var(--green,#16a34a);color:#fff;font-weight:800">💾 Guardar</button>
+      </div>
+    </div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+
+function hisGuardarEquipos(codigo) {
+  const todos = loadObj(K_EQUIPOS) || {};
+  const prev  = todos[codigo] || {};
+  const val = k => (document.getElementById('eqx-' + k.replace(/[^A-Za-z]/g,''))?.value || '').trim();
+  const chk = id => document.getElementById(id)?.checked ? 'SI' : '';
+  todos[codigo] = {
+    ...prev,
+    'CENTRAL INTRUSIÓN': val('CENTRAL INTRUSIÓN'),
+    'MODELO':            val('MODELO'),
+    'GRABADOR':          val('GRABADOR'),
+    'COMUNICACIÓN':      val('COMUNICACIÓN'),
+    'CENTRAL INCENDIO':  val('CENTRAL INCENDIO'),
+    'CONTROL ACCESO':    val('CONTROL ACCESO'),
+    'SPIDER CENTRAL':    chk('eqx-spc'),
+    'SPIDER CERRADURAS': chk('eqx-spk'),
+    'MULTIOPERADOR':     chk('eqx-mop'),
+    // Claves cortas, para que los consejos las lean igual
+    central:  val('CENTRAL INTRUSIÓN'), modelo: val('MODELO'),
+    grabador: val('GRABADOR'), com: val('COMUNICACIÓN'),
+    incendio: val('CENTRAL INCENDIO'), acceso: val('CONTROL ACCESO'),
+    spiderCentral:    chk('eqx-spc') === 'SI',
+    spiderCerraduras: chk('eqx-spk') === 'SI',
+    multioperador:    chk('eqx-mop') === 'SI',
+    ACTUALIZADO: new Date().toLocaleDateString('es-ES'),
+  };
+  save(K_EQUIPOS, todos);
+  document.getElementById('eqx-ov')?.remove();
+  buscarToast('✓ Equipos guardados');
+  if (typeof ejecutarBusqueda === 'function') ejecutarBusqueda();
+}
+
 function _cortaTxt(t, max) {
   t = String(t||'').replace(/\s+/g,' ').trim();
   if (t.length <= max) return t;
@@ -9901,6 +10073,7 @@ function ejecutarBusqueda(q) {
     match(h['CENTRAL INCENDIO'])||match(h['CONTROL ACCESO'])
   ).map(h => ({
     tipo:'his', ot:h.OT||'', cliente:h.CLIENTE||'—',
+    key:h.KEY||'', codigo:String(h.KEY||'').replace(/^sis_/,''),
     fecha:h.FECHA||'—', trabajo:h.TRABAJO||'', sistema:h.SISTEMA||'',
     localidad:h.LOCALIDAD||'', estado:h.ESTADO||'',
     hint: hintHis(h),
@@ -10084,6 +10257,9 @@ function renderResultadosFiltrados() {
           ${hintHtml(last.hint||'')}
           <div class="res-actions">
             ${last.ot?`<button class="res-act copy" onclick="copiarTexto('${escH(last.ot)}',this)">📋 ${escH(last.ot)}</button>`:''}
+            <button class="res-act" onclick="hisEditar('${escH(last.key)}','${escH(last.fecha)}','${escH(last.ot)}','${escH(last.sistema)}')">✏️ Editar</button>
+            <button class="res-act" onclick="hisBorrar('${escH(last.key)}','${escH(last.fecha)}','${escH(last.ot)}','${escH(last.sistema)}')">🗑️</button>
+            ${last.codigo?`<button class="res-act" onclick="hisEquipos('${escH(last.codigo)}')">⚙️ Equipos</button>`:''}
             ${extra>0?`<button class="res-act nav" data-cli="${escH(cliente)}" onclick="toggleHisGrupo(this.dataset.cli)">${expandido?'▲ Ocultar':'▼ '+extra+' visita'+(extra>1?'s':'')+' más'}</button>`:''}
           </div>
         </div>`;
@@ -10095,7 +10271,11 @@ function renderResultadosFiltrados() {
               <div class="res-meta">${escH(v.sistema||'')}${v.estado?' · '+escH(v.estado):''}</div>
               ${v.equipo?`<div class="res-meta" style="color:var(--cyan);font-size:9px">⚙️ ${escH(v.equipo)}</div>`:''}
               ${hintHtml(v.hint||'')}
-              ${v.ot?`<div class="res-actions"><button class="res-act copy" onclick="copiarTexto('${escH(v.ot)}',this)">📋 ${escH(v.ot)}</button></div>`:''}
+              <div class="res-actions">
+                ${v.ot?`<button class="res-act copy" onclick="copiarTexto('${escH(v.ot)}',this)">📋 ${escH(v.ot)}</button>`:''}
+                <button class="res-act" onclick="hisEditar('${escH(v.key)}','${escH(v.fecha)}','${escH(v.ot)}','${escH(v.sistema)}')">✏️ Editar</button>
+                <button class="res-act" onclick="hisBorrar('${escH(v.key)}','${escH(v.fecha)}','${escH(v.ot)}','${escH(v.sistema)}')">🗑️</button>
+              </div>
             </div>`;
         });
       }
@@ -15021,14 +15201,31 @@ async function pycEnviar() {
       const { partes } = acc.datos;
       const rutaAct  = loadArr(K_RUTA);
       const analisis = (() => { try { return JSON.parse(localStorage.getItem('pyc_analisis_partes')||'[]'); } catch{return[];} })();
-      partes.forEach(a => { a.enRuta = true; });
+      // No volver a meter lo que ya esté en la ruta
+      const _nrm2 = x => iramNorm(x||'');
+      const _dup = a => rutaAct.some(r => {
+        const mismaOf = _nrm2(r.codigo) && _nrm2(a.codigo)
+          ? _nrm2(r.codigo) === _nrm2(a.codigo)
+          : _nrm2(r.clienteReal||r.cliente) === _nrm2(a.clienteReal||a.clienteNorm||a.cliente)
+            && _nrm2(r.localidad) === _nrm2(a.localidad);
+        if (!mismaOf) return false;
+        const t1 = _nrm2((r.trabajo||'').slice(0,60));
+        const t2 = _nrm2((a.trabajo||a.descripcion||'').slice(0,60));
+        return !t1 || !t2 || t1 === t2;
+      });
+      const nuevos = partes.filter(a => !_dup(a));
+      const repes  = partes.length - nuevos.length;
+      nuevos.forEach(a => { a.enRuta = true; });
       localStorage.setItem('pyc_analisis_partes', JSON.stringify(analisis));
-      partes.forEach(a => {
+      nuevos.forEach(a => {
         rutaAct.push({ id:'R_'+Date.now()+'_'+Math.random().toString(36).slice(2), clienteReal:a.clienteReal||a.clienteNorm||a.cliente, clienteNorm:a.clienteNorm||a.cliente, cliente:a.cliente, codigo:a.codigo||'', localidad:a.localidad||'', direccion:a.direccion||'', trabajo:a.trabajo||a.descripcion||'', horarioTxt:a.horarioTxt||'', urgente:a.urgente||false, estado:'pendiente' });
       });
       save(K_RUTA, rutaAct);
       if (typeof renderRuta === 'function') renderRuta();
-      pycMsgIA(`✅ ${partes.length} aviso${partes.length>1?'s':''} añadidos a la ruta.`, false, 'local');
+      const msgDup = repes ? ` (${repes} ya estaba${repes>1?'n':''})` : '';
+      pycMsgIA(nuevos.length
+        ? `✅ ${nuevos.length} aviso${nuevos.length>1?'s':''} añadido${nuevos.length>1?'s':''} a la ruta.${msgDup}`
+        : `Ya estaban todos en la ruta.`, false, 'local');
       _pycThinking = false; return;
     }
   }
@@ -18391,6 +18588,18 @@ async function iramEjecutarAccion(cl) {
     const nD        = iramNorm(cl.destino||cl.localidad||'');
     if (!nD) return 'Dime qué aviso o localidad quieres añadir.';
 
+    // ¿Esa parada ya está en la ruta? (mismo código+localidad, o mismo trabajo si no hay código)
+    const _yaEnRuta = a => rutaActual.some(r => {
+      const mismaOf = iramNorm(r.codigo||'') && iramNorm(a.codigo||'')
+        ? iramNorm(r.codigo) === iramNorm(a.codigo)
+        : iramNorm(r.clienteReal||r.cliente||'') === iramNorm(a.clienteReal||a.clienteNorm||a.cliente||'')
+          && iramNorm(r.localidad||'') === iramNorm(a.localidad||'');
+      if (!mismaOf) return false;
+      const t1 = iramNorm((r.trabajo||'').slice(0,60));
+      const t2 = iramNorm((a.trabajo||a.descripcion||'').slice(0,60));
+      return !t1 || !t2 || t1 === t2;   // mismo aviso
+    });
+
     // Buscar por localidad primero — puede ser múltiple
     let partes = analisis.filter(a => {
       if (a.estado==='completado'||a.estado==='cerrado'||a.enRuta) return false;
@@ -18409,6 +18618,15 @@ async function iramEjecutarAccion(cl) {
     }
 
     if (!partes.length) return `No encuentro avisos de "${cl.destino||cl.localidad}" en análisis.`;
+
+    // Quitar los que ya están en la ruta, para no duplicarlos
+    const yaEstaban = partes.filter(_yaEnRuta);
+    partes = partes.filter(a => !_yaEnRuta(a));
+    if (!partes.length) {
+      return yaEstaban.length === 1
+        ? `Eso ya está en la ruta: ${yaEstaban[0].clienteReal||yaEstaban[0].clienteNorm||yaEstaban[0].cliente}${yaEstaban[0].localidad?' · '+yaEstaban[0].localidad:''}.`
+        : `Esos ${yaEstaban.length} avisos ya están en la ruta.`;
+    }
 
     // Si son varios, confirmar antes de añadir
     if (partes.length > 1) {
