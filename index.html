@@ -6845,13 +6845,30 @@ function guardarFinalizar() {
   };
   // Con OT → solo coincide si es la MISMA OT (dos partes distintos el mismo día no se pisan)
   // Sin OT en ninguno → caer a KEY + fecha + sistema + trabajo (SEG y PCI del mismo día no se pisan)
-  const idxHist = hist.findIndex(h => {
+  let idxHist = hist.findIndex(h => {
     const hOt = String(h.OT||h.ot||'');
     if (p.ot || hOt) return !!(p.ot && hOt && hOt === p.ot);
     return h.KEY === nuevaFila.KEY && h.FECHA === fecha
         && (h.SISTEMA||'') === nuevaFila.SISTEMA
         && (h.TRABAJO||'') === nuevaFila.TRABAJO;
   });
+  // Reapertura para corregir: si la parada viene sin OT (o la fila guardada la tiene
+  // y ésta no), buscar por oficina + fecha + sistema para NO duplicar el registro.
+  if (idxHist === -1) {
+    idxHist = hist.findIndex(h =>
+      h.KEY === nuevaFila.KEY &&
+      h.FECHA === fecha &&
+      (h.SISTEMA||'') === (nuevaFila.SISTEMA||'')
+    );
+    // Si la fila encontrada tiene una OT distinta de la del parte, son partes
+    // diferentes del mismo día: no se toca y se crea uno nuevo.
+    if (idxHist !== -1) {
+      const otFila = String(hist[idxHist].OT || hist[idxHist].ot || '');
+      if (otFila && p.ot && otFila !== p.ot) idxHist = -1;
+      // Conservar la OT original si el parte reabierto ya no la trae
+      else if (otFila && !p.ot) nuevaFila.OT = otFila;
+    }
+  }
   if (idxHist !== -1) {
     hist[idxHist] = nuevaFila;
   } else {
@@ -14905,6 +14922,46 @@ async function pycEnviar() {
   }
 
   // ── Confirmación de acción pendiente ──
+  // ── Respuesta a una pregunta pendiente de IRAM ──
+  // Se resuelve SIEMPRE en local. Nunca llega a la API.
+  if (_iramPendiente) {
+    const pend = _iramPendiente;
+    const t = txt.trim();
+    // Si arranca otro comando, la pregunta caduca y sigue el flujo normal
+    const otroComando = /^(?:iram[,\s]+)?(?:hola|dime|dame|crea|finaliza|ll[eé]vame|quita|registra|a[ñn]ade|apunta|qu[eé]\s|c[oó]mo\s|por\s+d[oó]nde|empez|empiez|arranc|cierra|cerrar|fin\s+de|jornada|analiza|busca)/i.test(t);
+    if (otroComando) { _iramPendiente = null; }
+    else {
+    if (/^(d[eé]jalo|nada|olvida|cancela|no)\b/i.test(t)) {
+      _iramPendiente = null;
+      pycMsgIA('Vale, lo dejamos.', false, 'local');
+      _pycThinking = false; return;
+    }
+    if (pend.tipo === 'codigo_oficina') {
+      const nrmC = c => String(c||'').replace(/[\s.\-]/g,'').toLowerCase();
+      const dicho = nrmC(t);
+      let elegido = (pend.opciones||[]).find(c => nrmC(c) === dicho);
+      // Admite también "el 2204", "la 2204", o el código dentro de una frase
+      if (!elegido) {
+        const m = t.match(/\b([A-Za-z]?\d[\d.\-]{2,})\b/);
+        if (m) elegido = (pend.opciones||[]).find(c => nrmC(c) === nrmC(m[1]));
+      }
+      if (elegido) {
+        _iramPendiente = null;
+        try {
+          const r = await iramEjecutarAccion({ intento:'FICHA_CLIENTE', codigo: elegido });
+          if (typeof r === 'string' && r.startsWith(_HTML_MARK)) pycMsgIAHtml('<div class="cl-assist-body">' + r.slice(_HTML_MARK.length) + '</div>');
+          else pycMsgIA(r, false, 'local');
+        } catch(e) { pycMsgIA('⚠️ No he podido abrir la ficha: ' + e.message, false, 'local'); }
+        _pycThinking = false; return;
+      }
+      // No se entiende: se vuelve a preguntar, sin salir a la API
+      pycMsgIA('No te he pillado el código. Dime uno de estos: ' + (pend.opciones||[]).join(', ') + ' — o di "déjalo".', false, 'local');
+      _pycThinking = false; return;
+    }
+    _iramPendiente = null;   // tipo desconocido: se descarta y sigue el flujo normal
+    }
+  }
+
   if (/^(s[íi]|va|dale|venga|ok|claro|hazlo|llama|abre|sí|si|perfecto|adelante)$/i.test(txt) && _iramUltimaAccion) {
     const acc = _iramUltimaAccion;
     _iramUltimaAccion = null;
@@ -15160,6 +15217,12 @@ function horarioAbreAhora(horStr) {
 let _iramDialogo = null; // { esperando: 'CREAR_TAREA', datos: {} }
 let _iramUltimaAccion = null;
 let _iramOficinaActiva = null; // { cliente, codigo, localidad, direccion } — contexto persistente
+
+// ── Pregunta pendiente ──────────────────────────────────────────────
+// Cuando IRAM pregunta algo ("dime el código"), queda anotado aquí qué espera.
+// La siguiente respuesta se resuelve SIEMPRE en local contra esta pregunta:
+// nunca se manda a la API, y si no se entiende se vuelve a preguntar.
+let _iramPendiente = null;   // { tipo, opciones? , datos? }
 
 /* ══════════════════════════════════════════════════════
    IRAM — Saludo proactivo inteligente
@@ -18714,15 +18777,23 @@ function iramResolverOficina(codigo, cliente, localidad) {
   const matches = iramBuscarClientes(cliente||'', localidad||'');
   if (matches.length === 1) return { row: matches[0] };
   if (matches.length > 1) {
-    const cliN = matches[0].CLIENTE||matches[0].cliente||'cliente';
+    // Si los resultados son de clientes distintos, no se puede decir "N oficinas de X"
+    const clientes = [...new Set(matches.map(c => String(c.CLIENTE||c.cliente||'').trim().toUpperCase()).filter(Boolean))];
     const locN = localidad || matches[0].MUNICIPIO || matches[0].municipio || '';
-    let lista = `Hay ${matches.length} oficinas de ${cliN}${locN?' en '+locN:''}. Dime el código:`;
+    const cab  = clientes.length === 1
+      ? `Hay ${matches.length} oficinas de ${clientes[0]}${locN?' en '+locN:''}.`
+      : `Hay ${matches.length} oficinas${locN?' en '+locN:''} (${clientes.length} clientes distintos).`;
+    let lista = `${cab} Dime el código:`;
     matches.slice(0,12).forEach(c => {
       const cc = c.CODIGO||c.codigo||'?';
       const dd = c.DIRECCIÓN||c.DIRECCION||c.direccion||'';
-      lista += `\n  · ${cc}${dd?' — '+dd:''}`;
+      // Con varios clientes, cada línea lleva el suyo para saber cuál es cuál
+      const nc = clientes.length > 1 ? ` ${String(c.CLIENTE||c.cliente||'').trim()} ·` : '';
+      lista += `\n  · ${cc} —${nc}${dd?' '+dd:''}`;
     });
     if (matches.length > 12) lista += `\n  …y ${matches.length-12} más`;
+    // Queda anotado que IRAM espera un código: la respuesta se resuelve en LOCAL
+    _iramPendiente = { tipo:'codigo_oficina', opciones: matches.map(c => String(c.CODIGO||c.codigo||'')).filter(Boolean) };
     return { ambiguo: lista };
   }
   return { vacio: true };
