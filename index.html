@@ -44,7 +44,7 @@
   --ink-mid:      #3a453f;
   --ink-light:    #6e7b74;
   --ink-xl:       #9aa39c;
-  --ok:      #16a34a;  --ok-bg:     rgba(22,163,74,.1);
+  --ok:      #3a6b52;  --ok-bg:     rgba(58,107,82,.1);
   --warn:    #b0802a;  --warn-bg:   rgba(176,128,42,.1);
   --error:   #8e2f26;  --error-bg:  rgba(142,47,38,.1);
   --cyan:    #0284c7;  --cyan-bg:   rgba(2,132,199,.1);
@@ -356,7 +356,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .sys-tag { font-family:var(--font-mono); font-size:8px; padding:2px 6px; border-radius:3px; font-weight:500; white-space:nowrap; letter-spacing:.03em; }
 .sys-seg  { background:var(--purple-bg); color:var(--purple); border:1px solid rgba(124,58,237,.2); }
 .sys-pci  { background:var(--cyan-bg);   color:var(--cyan);   border:1px solid rgba(2,132,199,.2); }
-.sys-inst { background:var(--ok-bg);     color:var(--ok);     border:1px solid rgba(22,163,74,.2); }
+.sys-inst { background:var(--ok-bg);     color:var(--ok);     border:1px solid rgba(58,107,82,.2); }
 
 /* ================================================================
    🎨 PANEL EXPANDIDO
@@ -379,7 +379,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .hor-row { display:flex; align-items:center; justify-content:space-between; }
 .hor-val { font-family:var(--font-mono); font-size:10px; font-weight:500; color:var(--navy); }
 .hor-badge { display:inline-flex; align-items:center; gap:4px; font-family:var(--font-mono); font-size:8px; padding:2px 8px; border-radius:10px; }
-.h-open  { background:var(--ok-bg);    color:var(--ok);    border:1px solid rgba(22,163,74,.25); }
+.h-open  { background:var(--ok-bg);    color:var(--ok);    border:1px solid rgba(58,107,82,.25); }
 .h-close { background:var(--error-bg); color:var(--error); border:1px solid rgba(142,47,38,.25); }
 .h-dot   { width:5px; height:5px; border-radius:50%; background:currentColor; animation:blink 1.5s infinite; }
 /* Horario inline en tarjeta compacta */
@@ -389,12 +389,12 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .card-hor.ch-fest  { background:#fef2f2; border:1px solid #fecaca; }
 .ch-dot  { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
 .ch-close .ch-dot { background:#8e2f26; }
-.ch-open  .ch-dot { background:#16a34a; animation:blink 1.5s infinite; }
+.ch-open  .ch-dot { background:#3a6b52; animation:blink 1.5s infinite; }
 .ch-fest  .ch-dot { background:#8e2f26; }
 .ch-hor  { font-family:var(--font-mono); font-size:10px; font-weight:600; color:#374151; }
 .ch-st   { font-size:10px; font-weight:700; margin-left:auto; }
 .ch-close .ch-st { color:#8e2f26; }
-.ch-open  .ch-st { color:#16a34a; }
+.ch-open  .ch-st { color:#3a6b52; }
 .ch-fest  .ch-st  { color:#8e2f26; }
 
 .hist-list { display:flex; flex-direction:column; gap:4px; }
@@ -503,7 +503,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 }
 .btn-finalizado.on {
   background: var(--ok); color: white; border: 2.5px solid var(--ok);
-  box-shadow: 0 4px 14px rgba(22,163,74,.3);
+  box-shadow: 0 4px 14px rgba(58,107,82,.3);
 }
 
 /* Grupos de campo */
@@ -558,7 +558,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
   cursor: pointer;
 }
 .equip-sel:focus { border-color: var(--orange); }
-.equip-sel.filled { border-color: var(--ok); background-color: rgba(22,163,74,.04); color: var(--navy); font-weight:700; }
+.equip-sel.filled { border-color: var(--ok); background-color: rgba(58,107,82,.04); color: var(--navy); font-weight:700; }
 .equip-drop {
   width:100%; display:flex; align-items:center; gap:7px; box-sizing:border-box;
   border:1.5px solid rgba(22,34,29,.12); border-radius:9px;
@@ -567,13 +567,13 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
   transition:border-color .15s, background .15s, transform .08s;
 }
 .equip-drop:active { transform:scale(.98); }
-.equip-drop.filled { border-color:var(--ok); background:linear-gradient(135deg,rgba(22,163,74,.07),rgba(22,163,74,.03)); }
+.equip-drop.filled { border-color:var(--ok); background:linear-gradient(135deg,rgba(58,107,82,.07),rgba(58,107,82,.03)); }
 .equip-drop-ic {
   font-size:12px; flex-shrink:0; width:22px; height:22px; border-radius:6px;
   display:flex; align-items:center; justify-content:center;
   background:rgba(22,34,29,.05); transition:background .15s;
 }
-.equip-drop.filled .equip-drop-ic { background:rgba(22,163,74,.14); }
+.equip-drop.filled .equip-drop-ic { background:rgba(58,107,82,.14); }
 .equip-drop-val { flex:1; min-width:0; font-size:12px; color:var(--ink-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .equip-drop.filled .equip-drop-val { color:var(--navy); font-weight:700; }
 .equip-drop-arr { font-size:10px; color:var(--ink-xl); flex-shrink:0; }
@@ -601,7 +601,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
   border-radius: var(--r-sm); padding: 8px 10px; cursor: pointer;
   -webkit-tap-highlight-color: transparent; width: 100%;
 }
-.sel-btn.filled { border-color: var(--ok); background: rgba(22,163,74,.04); }
+.sel-btn.filled { border-color: var(--ok); background: rgba(58,107,82,.04); }
 .sel-val { font-size: 12px; color: var(--ink-xl); flex: 1; text-align: left;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sel-val.filled { color: var(--navy); font-weight: 700; }
@@ -626,7 +626,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
   font-size: 14px; font-weight: 800; cursor: pointer;
   -webkit-tap-highlight-color: transparent; transition: all .2s;
 }
-.btn-guardar.ok { background: var(--ok); box-shadow: 0 4px 14px rgba(22,163,74,.35); }
+.btn-guardar.ok { background: var(--ok); box-shadow: 0 4px 14px rgba(58,107,82,.35); }
 .modal-title { font-size:17px; font-weight:900; color:var(--navy); margin-bottom:8px; }
 .modal-desc  { font-size:13px; color:var(--ink-mid); line-height:1.5; margin-bottom:20px; }
 .modal-btns  { display:flex; gap:10px; }
@@ -903,7 +903,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .btn-accion-sub { font-size: 9px; font-weight: 500; opacity: .8; }
 .btn-ir  { background: #1a73e8; color: white; box-shadow: 0 3px 10px rgba(26,115,232,.3); }
 .btn-mto { background: var(--orange); color: white; box-shadow: 0 3px 10px rgba(176,128,42,.3); }
-.btn-ok  { background: var(--ok); color: white; box-shadow: 0 3px 10px rgba(22,163,74,.3); }
+.btn-ok  { background: var(--ok); color: white; box-shadow: 0 3px 10px rgba(58,107,82,.3); }
 
 /* ================================================================
    🎨 TARJETA COMPACTA — con drag handle grande
@@ -937,7 +937,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .badge-estado { font-family: var(--font-mono); font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 5px; white-space: nowrap; letter-spacing: .04em; }
 .be-seg  { background: rgba(22,34,29,.07); color: var(--ink-mid); border: 1px solid rgba(22,34,29,.12); }
 .be-pci  { background: var(--cyan-bg); color: var(--cyan); border: 1px solid rgba(2,132,199,.2); }
-.be-inst { background: var(--ok-bg); color: var(--ok); border: 1px solid rgba(22,163,74,.2); }
+.be-inst { background: var(--ok-bg); color: var(--ok); border: 1px solid rgba(58,107,82,.2); }
 .p-chevron { font-size: 16px; color: var(--ink-xl); transition: transform .25s; flex-shrink: 0; }
 .card-parada.open .p-chevron,
 .card-activa.open .p-chevron { transform: rotate(90deg); color: var(--orange); }
@@ -1019,7 +1019,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
   cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
   transition: all .18s; -webkit-tap-highlight-color: transparent;
 }
-.btn-ok    { background: var(--ok);        color: white; box-shadow: 0 4px 14px rgba(22,163,74,.3); flex: 2; }
+.btn-ok    { background: var(--ok);        color: white; box-shadow: 0 4px 14px rgba(58,107,82,.3); flex: 2; }
 .btn-ghost { background: var(--paper-warm); color: var(--ink-mid); border: 1.5px solid rgba(22,34,29,.15); }
 .btn-pill:disabled { opacity: .5; cursor: not-allowed; }
 
@@ -1040,7 +1040,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .ult-vis-trabajo { font-size:12px; color:var(--navy); line-height:1.4; }
 .ult-vis-estado { display:inline-block; font-size:9px; font-weight:700; margin-top:4px;
   padding:2px 7px; border-radius:10px; }
-.ult-vis-estado.fin  { background:rgba(22,163,74,.1); color:var(--ok); }
+.ult-vis-estado.fin  { background:rgba(58,107,82,.1); color:var(--ok); }
 .ult-vis-estado.pend { background:rgba(176,128,42,.1); color:var(--warn); }
 
 /* ── BOTTOM SHEET ── */
@@ -1246,7 +1246,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
   display: flex; align-items: center; gap: 5px; margin-bottom: 5px;
 }
 .dsec-badge { font-family: var(--font-mono); font-size: 6px; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
-.dbadge-rec  { background: var(--ok-bg); color: var(--ok); border: 1px solid rgba(22,163,74,.25); }
+.dbadge-rec  { background: var(--ok-bg); color: var(--ok); border: 1px solid rgba(58,107,82,.25); }
 .dbadge-json { background: rgba(26,115,232,.08); color: #1a73e8; border: 1px solid rgba(26,115,232,.2); }
 
 /* Botones del panel */
@@ -1259,7 +1259,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 }
 .dbtn:active { opacity: .82; }
 .dbtn:disabled { opacity: .35; cursor: not-allowed; }
-.dbtn-exp-xl { background: var(--ok); color: white; box-shadow: 0 2px 8px rgba(22,163,74,.25); }
+.dbtn-exp-xl { background: var(--ok); color: white; box-shadow: 0 2px 8px rgba(58,107,82,.25); }
 .dbtn-imp-xl { background: white; color: var(--ink-dark); border: 1.5px solid rgba(22,34,29,.18); }
 .dbtn-exp-js { background: #1a73e8; color: white; box-shadow: 0 2px 8px rgba(26,115,232,.2); }
 .dbtn-imp-js { background: white; color: var(--ink-dark); border: 1.5px solid rgba(22,34,29,.18); }
@@ -1593,7 +1593,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .auto-btn{background:var(--orange);color:white;border:none;border-radius:var(--r-pill);padding:7px 12px;font-size:10px;font-weight:800;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
 
 /* Pre-relleno desde parte activo */
-.prepop-bar{background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2);border-radius:var(--r-md);padding:8px 11px;display:flex;align-items:center;gap:8px}
+.prepop-bar{background:rgba(58,107,82,.06);border:1px solid rgba(58,107,82,.2);border-radius:var(--r-md);padding:8px 11px;display:flex;align-items:center;gap:8px}
 .prepop-t{font-size:9px;font-weight:800;color:var(--ok)}
 .prepop-s{font-family:var(--font-mono);font-size:7px;color:var(--ink-mid);margin-top:1px}
 .prepop-clear{background:none;border:none;color:var(--ink-xl);font-size:12px;cursor:pointer;margin-left:auto;flex-shrink:0}
@@ -1605,7 +1605,7 @@ textarea#input-partes::placeholder { color: var(--ink-xl); font-style: italic; }
 .fi{width:100%;border:1.5px solid rgba(22,34,29,.12);border-radius:var(--r-sm);padding:8px 10px;font-family:var(--font-ui);font-size:12px;color:var(--ink-dark);background:var(--paper-warm);outline:none;transition:border-color .2s;-webkit-appearance:none}
 .fi:focus{border-color:var(--orange)}
 .fi::placeholder{color:var(--ink-xl);font-size:11px}
-.fi.pre{border-color:rgba(22,163,74,.3);background:rgba(22,163,74,.04);color:var(--ok);font-weight:600}
+.fi.pre{border-color:rgba(58,107,82,.3);background:rgba(58,107,82,.04);color:var(--ok);font-weight:600}
 .fi.ta{resize:none;height:58px;line-height:1.5}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
@@ -1820,16 +1820,16 @@ mark{background:rgba(176,128,42,.2);border-radius:2px;padding:0 2px;color:var(--
 /* ── HINT campo coincidente ── */
 .res-hint{font-family:var(--font-mono);font-size:8px;color:var(--orange-deep);letter-spacing:.04em;margin-top:2px;opacity:.8}
 /* ── HISTORIAL agrupado ── */
-.his-grp-card{border-left:3px solid rgba(22,163,74,.5)}
-.his-sub-card{border-left:3px solid rgba(22,163,74,.25);border-radius:0 var(--r-md) var(--r-md) 0;margin-left:14px;background:var(--paper-warm)}
+.his-grp-card{border-left:3px solid rgba(58,107,82,.5)}
+.his-sub-card{border-left:3px solid rgba(58,107,82,.25);border-radius:0 var(--r-md) var(--r-md) 0;margin-left:14px;background:var(--paper-warm)}
 /* ── ACTION BUTTONS ── */
 .res-actions{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
 .res-act{background:none;border:1px solid rgba(22,34,29,.12);border-radius:var(--r-pill);padding:3px 9px;font-family:var(--font-mono);font-size:8.5px;font-weight:700;color:var(--ink-mid);cursor:pointer;display:inline-flex;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent;transition:all .15s;letter-spacing:.04em;text-decoration:none}
 .res-act:hover{background:var(--paper-warm)}
 .res-act:active{transform:scale(.95)}
-.res-act.copy:hover{border-color:rgba(22,163,74,.35);color:var(--ok)}
+.res-act.copy:hover{border-color:rgba(58,107,82,.35);color:var(--ok)}
 .res-act.nav:hover{border-color:rgba(176,128,42,.35);color:var(--orange)}
-.res-act.copied{background:var(--ok-bg);border-color:rgba(22,163,74,.35);color:var(--ok)}
+.res-act.copied{background:var(--ok-bg);border-color:rgba(58,107,82,.35);color:var(--ok)}
 /* ── VER MÁS ── */
 .ver-mas-btn{width:100%;background:none;border:1.5px dashed rgba(22,34,29,.15);border-radius:var(--r-md);padding:9px;font-family:var(--font-mono);font-size:9.5px;font-weight:700;color:var(--orange);cursor:pointer;letter-spacing:.04em;margin-top:4px;-webkit-tap-highlight-color:transparent;transition:all .15s}
 .ver-mas-btn:hover{background:rgba(176,128,42,.06);border-color:rgba(176,128,42,.3)}
@@ -2635,7 +2635,7 @@ body { font-size: 14px; }
         <div class="stats" style="margin-bottom:4px">
           <div class="stat" style="--c:#2c4e70"><span class="stat-n" id="s-total">0</span><span class="stat-l">Total</span></div>
           <div class="stat" style="--c:#b0802a"><span class="stat-n" id="s-pend">0</span><span class="stat-l">Pend.</span></div>
-          <div class="stat" style="--c:#16a34a"><span class="stat-n" id="s-done">0</span><span class="stat-l">Hecho</span></div>
+          <div class="stat" style="--c:#3a6b52"><span class="stat-n" id="s-done">0</span><span class="stat-l">Hecho</span></div>
           <div class="stat" style="--c:#0284c7"><span class="stat-n" id="s-pci">0</span><span class="stat-l">PCI</span></div>
         </div>
         <!-- Dots de vista -->
@@ -3142,7 +3142,7 @@ body { font-size: 14px; }
             <div class="cal-legend">
               <div class="cl-item"><div class="cl-dot" style="background:rgba(33,150,243,.88)"></div>Hoy</div>
               <div class="cl-item"><div class="cl-dot" style="background:#b0802a"></div>Trabajo</div>
-              <div class="cl-item"><div class="cl-dot" style="background:rgba(22,163,74,.75)"></div>Historial</div>
+              <div class="cl-item"><div class="cl-dot" style="background:rgba(58,107,82,.75)"></div>Historial</div>
               <div class="cl-item"><div class="cl-dot" style="background:#2a6773"></div>Guardia</div>
               <div class="cl-item"><div class="cl-dot" style="background:#7c3aed"></div>Personal</div>
             </div>
@@ -6055,7 +6055,7 @@ function _renderMapaPins() {
     const marker = L.marker([lat, lng], { icon: ic }).addTo(mapaL);
     marker.bindPopup(`
       <div style="font-family:system-ui;min-width:160px">
-        <div style="font-family:monospace;font-size:8px;color:#16a34a;font-weight:700;margin-bottom:3px">📍 UBICACIÓN EXACTA</div>
+        <div style="font-family:monospace;font-size:8px;color:#3a6b52;font-weight:700;margin-bottom:3px">📍 UBICACIÓN EXACTA</div>
         <div style="font-weight:900;font-size:13px;color:#2c4e70">${p.clienteReal||p.clienteNorm||p.cliente}</div>
         <div style="font-size:10px;color:#5a6a8a;margin-top:2px">${p.codigo ? '· '+p.codigo : ''} ${p.localidad||''}</div>
         <div style="font-size:11px;color:#2d3d5a;margin-top:3px">${p.direccion||'—'}</div>
@@ -6239,7 +6239,7 @@ function renderLista() {
   html += `
   <div class="card-sp" style="animation-delay:${delay+=30}ms">
     <div class="sp-row">
-      <div class="sp-icon" style="background:rgba(22,163,74,.12)">🏢</div>
+      <div class="sp-icon" style="background:rgba(58,107,82,.12)">🏢</div>
       <div class="sp-body">
         <div class="sp-tag"><span class="dot-g"></span> SALIDA</div>
         <div class="sp-name">${salida.nombre}</div>
@@ -6531,7 +6531,7 @@ function abrirFinalizarPara(id) {
         const coordsData = typeof _getCoordsParada === 'function' ? _getCoordsParada(p, coords) : null;
         const tieneGps = !!(coordsData && coordsData.gps);
         btnGps.textContent      = tieneGps ? '✅ GPS' : '📍 GPS';
-        btnGps.style.background = tieneGps ? 'rgba(22,163,74,.2)' : 'rgba(255,255,255,.15)';
+        btnGps.style.background = tieneGps ? 'rgba(58,107,82,.2)' : 'rgba(255,255,255,.15)';
       }
       // Reset selector MTO
       const selMto = document.getElementById('campo-mto-tipo');
@@ -6577,7 +6577,7 @@ function abrirFinalizarPara(id) {
         if (campoHorSt && horTxt) {
           const cerrada = checkCerrada(horTxt, JSON.parse(localStorage.getItem('pyc_festivos')||'[]'), p.localidad);
           campoHorSt.textContent = cerrada ? '🔴 ' + cerrada.detalle : '🟢 Abierta';
-          campoHorSt.style.cssText = `font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0;padding:5px 11px;border-radius:8px;${cerrada ? 'background:rgba(142,47,38,.1);color:#8e2f26' : 'background:rgba(22,163,74,.12);color:#15803d'}`;
+          campoHorSt.style.cssText = `font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0;padding:5px 11px;border-radius:8px;${cerrada ? 'background:rgba(142,47,38,.1);color:#8e2f26' : 'background:rgba(58,107,82,.12);color:#15803d'}`;
         } else if (campoHorSt) {
           campoHorSt.textContent = '';
           campoHorSt.style.cssText = '';
@@ -6698,9 +6698,9 @@ function setMaterial(v) {
     const b = document.getElementById('mat-' + k);
     if (!b) return;
     const on = vals.material === k;
-    b.style.background  = on ? 'var(--green,#16a34a)' : '#fff';
+    b.style.background  = on ? 'var(--green,#3a6b52)' : '#fff';
     b.style.color       = on ? '#fff' : '#6b6862';
-    b.style.borderColor = on ? 'var(--green,#16a34a)' : '#d8d4cc';
+    b.style.borderColor = on ? 'var(--green,#3a6b52)' : '#d8d4cc';
   });
 }
 
@@ -6751,7 +6751,7 @@ function btnGuardarGPS() {
 
       const ok = guardarCoordsGPS(paradaActual, lat, lng);
       if (ok) {
-        if (btn) { btn.textContent = '✅ GPS'; btn.style.background = 'rgba(22,163,74,.2)'; }
+        if (btn) { btn.textContent = '✅ GPS'; btn.style.background = 'rgba(58,107,82,.2)'; }
         tareasToast('📍 Ubicación GPS guardada para ' + (paradaActual.clienteReal || paradaActual.clienteNorm || paradaActual.codigo || '—'));
       } else {
         if (btn) { btn.textContent = '⚠️ Sin clave'; btn.style.background = 'rgba(239,68,68,.2)'; }
@@ -9814,7 +9814,7 @@ function hisEditar(key, fecha, ot, sistema) {
         <button onclick="document.getElementById('his-edit-ov').remove()"
           style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #d8d4cc;background:transparent;font-size:14px;font-weight:700">Cancelar</button>
         <button onclick="hisGuardarEdicion('${escH(key)}','${escH(fecha)}','${escH(ot)}','${escH(sistema)}')"
-          style="flex:1.4;padding:12px;border-radius:10px;border:none;background:var(--green,#16a34a);color:#fff;font-size:14px;font-weight:800">💾 Guardar</button>
+          style="flex:1.4;padding:12px;border-radius:10px;border:none;background:var(--green,#3a6b52);color:#fff;font-size:14px;font-weight:800">💾 Guardar</button>
       </div>
     </div>`;
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
@@ -9888,7 +9888,7 @@ function hisEquipos(codigo) {
   const chk = (id, k, lbl) => `
     <label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px">
       <input type="checkbox" id="${id}" ${String(eq[k]||'').toUpperCase()==='SI'?'checked':''}
-        style="width:18px;height:18px;accent-color:var(--green,#16a34a)"><span>${lbl}</span></label>`;
+        style="width:18px;height:18px;accent-color:var(--green,#3a6b52)"><span>${lbl}</span></label>`;
   const ov = document.createElement('div');
   ov.id = 'eqx-ov';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-end';
@@ -9906,7 +9906,7 @@ function hisEquipos(codigo) {
         <button onclick="document.getElementById('eqx-ov').remove()"
           style="flex:1;padding:12px;border-radius:10px;border:1.5px solid #d8d4cc;background:transparent;font-weight:700">Cancelar</button>
         <button onclick="hisGuardarEquipos('${escH(codigo)}')"
-          style="flex:1.4;padding:12px;border-radius:10px;border:none;background:var(--green,#16a34a);color:#fff;font-weight:800">💾 Guardar</button>
+          style="flex:1.4;padding:12px;border-radius:10px;border:none;background:var(--green,#3a6b52);color:#fff;font-weight:800">💾 Guardar</button>
       </div>
     </div>`;
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
@@ -12016,7 +12016,7 @@ function renderTareas() {
             ${t.descripcion?`<div class="t-desc">${escHT(t.descripcion.slice(0,80))}</div>`:''}
             <div class="t-foot">
               ${t.fecha?`<div class="t-fecha">📅 ${formatFechaTarea(t.fecha)}</div>`:''}
-              ${!isDone?`<div class="t-prio" style="background:rgba(176,128,42,.1);color:var(--warn)">🟡 Normal</div>`:'<div class="t-prio" style="background:rgba(22,163,74,.1);color:var(--ok)">✅ Hecha</div>'}
+              ${!isDone?`<div class="t-prio" style="background:rgba(176,128,42,.1);color:var(--warn)">🟡 Normal</div>`:'<div class="t-prio" style="background:rgba(58,107,82,.1);color:var(--ok)">✅ Hecha</div>'}
             </div>
           </div>
         </div>
@@ -12034,7 +12034,7 @@ function renderTareas() {
           ${t.descripcion?`<div class="t-desc">${escHT(t.descripcion.slice(0,80))}</div>`:''}
           <div class="t-foot">
             ${t.fecha?`<div class="t-fecha">📅 ${formatFechaTarea(t.fecha)}</div>`:''}
-            ${!isDone?`<div class="t-prio" style="background:rgba(176,128,42,.1);color:var(--warn)">🟡 Normal</div>`:'<div class="t-prio" style="background:rgba(22,163,74,.1);color:var(--ok)">✅ Hecha</div>'}
+            ${!isDone?`<div class="t-prio" style="background:rgba(176,128,42,.1);color:var(--warn)">🟡 Normal</div>`:'<div class="t-prio" style="background:rgba(58,107,82,.1);color:var(--ok)">✅ Hecha</div>'}
             ${showHint&&!isDone?`<span class="t-hint">→ desliza para borrar</span>`:''}
           </div>
         </div>
@@ -12539,7 +12539,7 @@ function borrarNota(id) {
 /* ================================================================
    EVENTOS + CALENDARIO — implementación propia (sin dependencias)
    ================================================================ */
-const TIPO_COLOR  = { trabajo:'#b0802a', guardia:'#2a6773', personal:'#7c3aed', hist:'rgba(22,163,74,.75)' };
+const TIPO_COLOR  = { trabajo:'#b0802a', guardia:'#2a6773', personal:'#7c3aed', hist:'rgba(58,107,82,.75)' };
 const DOW_CORTO   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                      'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -12615,7 +12615,7 @@ function buildViewMes() {
     const evDia = eventosEnDia(iso, evs).filter(ev => ev.tipo !== 'hist').slice(0,3);
     const tieneHist = eventosEnDia(iso, evs).some(ev => ev.tipo === 'hist');
     const dots = [
-      tieneHist ? `<div class="cal-dot" style="background:rgba(22,163,74,.75)"></div>` : '',
+      tieneHist ? `<div class="cal-dot" style="background:rgba(58,107,82,.75)"></div>` : '',
       ...evDia.map(ev => `<div class="cal-dot" style="background:${TIPO_COLOR[ev.tipo]||'#b0802a'}"></div>`)
     ].join('');
     h += `<div class="cal-day ${esHoy?'hoy':''} ${esSel?'sel':''} ${esWe&&!esHoy&&!esSel?'we-day':''}" onclick="calSelDia('${iso}')">
@@ -12873,7 +12873,7 @@ function renderEventos() {
     const nVisitas = historial.filter(h=>{const f=(h.FECHA||h.fecha||'').split('/');const iso=f.length>=3?`${f[2]}-${f[1]?.padStart(2,'0')}-${f[0]?.padStart(2,'0')}`:'';return iso.startsWith(mesPrefix);}).length;
     html += `<div class="ev-item" style="cursor:default">
       <div class="ev-dia" style="white-space:normal;font-size:8px;color:var(--ok);line-height:1.3">${diasHist.length}<br>días</div>
-      <div class="ev-dot" style="background:rgba(22,163,74,.65)"></div>
+      <div class="ev-dot" style="background:rgba(58,107,82,.65)"></div>
       <div class="ev-body">
         <div class="ev-t" style="color:var(--ok)">🟢 Días trabajados</div>
         <div class="ev-s" style="line-height:1.5">${nVisitas} visita${nVisitas!==1?'s':''} en el módulo <b>Ruta</b> este mes.<br>
@@ -14366,7 +14366,7 @@ function iramConfirmarLlamar(contacto) {
 
   const btnLlamar = document.createElement('button');
   btnLlamar.textContent = '📞 Llamar';
-  btnLlamar.style.cssText = 'flex:2;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-size:14px;font-weight:700;cursor:pointer';
+  btnLlamar.style.cssText = 'flex:2;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,#3a6b52,#15803d);color:#fff;font-size:14px;font-weight:700;cursor:pointer';
   btnLlamar.onclick = () => { window.location.href = 'tel:' + contacto.TELEFONO; panel.remove(); };
 
   const btnCancel = document.createElement('button');
