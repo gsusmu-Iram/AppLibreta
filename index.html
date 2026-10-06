@@ -5230,6 +5230,7 @@ function guardarParteNuevo(id) {
     if (partes[idx].horarioTxt) clis[exIdx].HORARIO   = partes[idx].horarioTxt;
     save(K_EXCEL, clis);
   }
+  if (partes[idx].horarioTxt && partes[idx].codigo) propagarHorarioOficina(partes[idx].codigo, partes[idx].horarioTxt);
   document.getElementById('edit-parte-bd')?.remove();
   document.getElementById('edit-parte-panel')?.remove();
   renderizar();
@@ -6656,6 +6657,50 @@ function toggleUltVisitas() {
    Cada botón es una frase fija. "rx" es lo que la escalera busca en el
    historial para saber que ese paso ya está hecho.
    ================================================================ */
+/* ================================================================
+   MISMO ELEMENTO — regla única para todas las escaleras y los botones
+   · Abreviaturas de Beta: GM = sísmico, CM = contacto, VOL = volumétrico
+     ("VOL BAJO" es voltaje bajo, no se toca)
+   · Mismo elemento: si los dos textos traen nº de zona, manda el número;
+     si no, la ubicación (cajero, patio…); si el aviso no trae ninguna, basta el tipo;
+     si el aviso la trae y la visita no, NO se junta (mejor callar que mezclar).
+   ================================================================ */
+function _expAbr(t) {
+  return String(t || '')
+    .replace(/\b(?:GM|Gm)\s*-?\s*(\d{3})\b/g, 'sísmico GM$1')
+    .replace(/\b(?:GM|Gm)\b/g, 'GM sísmico')
+    .replace(/\b(?:CM|Cm)\b/g, 'CM contacto')
+    .replace(/\bvol\b\.?(?!\s*bajo)/gi, 'volumétrico');
+}
+const _ELEM_LUGARES = ['cajero','reciclador','centro','patio','entrada','acceso','sotano','fachada','pasillo','aseo',
+  'caja fuerte','caja auxiliar','almacen','trastero','vestibulo','mostrador','archivo','direccion','mesa','escalera','tienda','surtidor','salida'];
+const _sinTilde = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function _elemZonas(t) {
+  const o = []; const re = /\b(?:zona|z)\s*[.:]?\s*(\d{1,4})\b/gi; let m;
+  while ((m = re.exec(String(t || '')))) if (!o.includes(m[1])) o.push(m[1]);
+  return o;
+}
+function _elemLugares(t) { const s = _sinTilde(t); return _ELEM_LUGARES.filter(l => s.includes(l)); }
+function elemMismo(tHoy, tRow) {
+  const zH = _elemZonas(tHoy), zR = _elemZonas(tRow);
+  if (zH.length && zR.length) return zR.some(z => zH.includes(z));
+  const lH = _elemLugares(tHoy), lR = _elemLugares(tRow);
+  if (lH.length && lR.length) return lR.some(l => lH.includes(l));
+  return !zH.length && !lH.length;
+}
+// ¿Lo sustituido en esta visita es ESE elemento? ("se sustituye fusible del bandit" no es cambiar el bandit)
+function _sustDe(t, rxElem) {
+  const s = String(t || '');
+  const re = /(se\s+sustituy\w*|se\s+cambia\w*|reemplaz\w*|se\s+repone\w*)([^.]{0,35})/gi; let m;
+  while ((m = re.exec(s))) {
+    // lo cambiado es lo que va justo detrás del verbo, hasta el siguiente "y"/","
+    const objeto = m[2].split(/\s+y\s+|,/)[0];
+    if (rxElem.test(objeto)) return true;
+  }
+  const re2 = new RegExp('(' + rxElem.source + ')[^.]{0,20}(sustitu[iy]d|cambiad|nuev[oa])', 'i');
+  return re2.test(s);
+}
+
 const _FIN_RX = {
   extern:   /(corte\s+de\s+luz|cortes\s+de\s+luz|sin\s+luz|corte\s+el[eé]ctrico|obras?\b|tormenta|rayo|pint(?:ur|and|ad|or|ar)|gotera|humedad|filtraci[oó]n|reforma|cambio\s+de\s+imagen|movid[oa]\s+por|m[aá]quina\s+de\s+aire|aire\s+acondicionado|roedor)/i,
   recup:    /recuperad/i,
@@ -6674,7 +6719,7 @@ const _FIN_ESC = {
     { chips:['Se revisa lazo de detección'], rx:/(lazo|derivaci|tierra|resistencia|se\s+sueld)/i },
     { chips:['Se reubica detector'], rx:/(reubic|nueva\s+ubicaci)/i },
   ] },
-  sis: { nom:'Sísmico', pasos:[
+  sis: { nom:'Sísmico', zona:true, elem:/s[ií]smic/i, pasos:[
     { chips:['Se revisa conexionado sísmico'], rx:/(conexionad|se\s+aprietan?|se\s+conecta|conector|borne|estaba\s+suelto|cable\s+test)/i },
     { chips:['Se ajusta sensibilidad con dips'], rx:/(ajusta\w*\s+(?:la\s+)?sensibilidad|regula\w*\s+(?:la\s+)?sensibilidad|dips?)/i },
     { chips:['Se programa sensibilidad con cable','Se reubica sísmico'], rx:/(programa\w*\s+(?:la\s+)?sensibilidad|configura\w*\s+(?:la\s+)?sensibilidad|reubic|nueva\s+ubicaci)/i },
@@ -6683,7 +6728,7 @@ const _FIN_ESC = {
   ] },
   volF: { nom:'Volumétrico', zona:true, elem:/(volu?m[eé]n?tric|\bvol\.?\s+(?!bajo)|antimask|enmascar|tamper|\bpir\b)/i, pasos:[
     { chips:['Se revisa conexionado volumétrico'], rx:/(conexionad|se\s+aprietan?|conector|borne|estaba\s+suelto)/i },
-    { chips:['Se reorienta volumétrico'], rx:/(orient|reubic|se\s+gira|ubicaci|sensibilidad|pulsos?)/i },
+    { chips:['Se ajusta sensibilidad'], rx:/(orient|reubic|se\s+gira|ubicaci|sensibilidad|pulsos?)/i },
     { chips:['Se sustituye volumétrico'], sust:true, rx:/(se\s+sustituy\w*[^.]{0,25}(?:volum|\bvol\b|detector|\bpir\b)|volu?m[eé]n?tric\w*[^.]{0,20}(?:nuevo|sustituid))/i },
     { chips:['Se sanea cableado'], rx:/(cableado|nueva\s+tirada|se\s+tira\s+cable|manguera)/i },
   ] },
@@ -6692,7 +6737,7 @@ const _FIN_ESC = {
     { chips:['Se sustituye volumétrico'], sust:true, rx:/(se\s+sustituy\w*[^.]{0,25}(?:volum|\bvol\b|detector|\bpir\b)|volu?m[eé]n?tric\w*[^.]{0,20}(?:nuevo|sustituid))/i },
   ], extra:['Causa externa: obras','Causa externa: pintura'] },
   volT: { nom:'Volumétrico en tamper', zona:true, elem:/(volu?m[eé]n?tric|\bvol\.?\s+(?!bajo)|antimask|enmascar|tamper|\bpir\b)/i, pasos:[
-    { chips:['Se cierra y ajusta tapa volumétrico'], rx:/(se\s+cierra|\btapa\b|se\s+ajusta)/i },
+    { chips:['Se cierra y ajusta tapa volumétrico'], rx:/(se\s+cierra|\btapa\b)/i },
     { chips:['Se revisa conexionado tamper'], rx:/(conexionad|se\s+aprietan?|conector|borne|estaba\s+suelto)/i },
     { chips:['Se sustituye volumétrico'], sust:true, rx:/(se\s+sustituy\w*[^.]{0,25}(?:volum|\bvol\b|detector|\bpir\b)|volu?m[eé]n?tric\w*[^.]{0,20}(?:nuevo|sustituid))/i },
     { chips:['Se sanea cableado'], rx:/(cableado|nueva\s+tirada|se\s+tira\s+cable|manguera)/i },
@@ -6745,7 +6790,7 @@ function _finLimpiarProblema(t) {
 
 // Qué escaleras aplican al aviso (puede haber más de una)
 function _finTipos(p) {
-  const t = `${p.trabajo||''} ${p.descripcion||''}`;
+  const t = _expAbr(`${p.trabajo||''} ${p.descripcion||''}`);
   const pci  = /pci|p\.c\.i|fuego|incendio/i.test(`${p.sistema||''} ${t}`);
   const inst = /inst/i.test(p.sistema||'') || /(reubic|se\s+instal)/i.test(t);
   const out = [];
@@ -6800,14 +6845,9 @@ function _finHistOficina(p) {
 
 // Visitas del mismo elemento (nº de zona o ubicación del aviso)
 function _finRelevantes(filas, esc, txtHoy) {
-  let r = esc.elem ? filas.filter(v => esc.elem.test(v.TRABAJO||'')) : filas;
-  if (!esc.zona) return r;
-  const zonas = t => { const o = []; const re = /(?:zona|z)\s*\.?\s*(\d{1,4})/gi; let m; while ((m = re.exec(String(t||'')))) o.push(m[1]); return o; };
-  const zn = zonas(txtHoy);
-  if (zn.length) return r.filter(v => zonas(v.TRABAJO).some(z => zn.includes(z)));
-  const ZW = ['cajero','recicladora','reciclador','centro','patio','entrada','acceso','sótano','sotano','fachada','pasillo','aseo','caja fuerte','almacén','almacen','trastero','vestíbulo','vestibulo','mostrador','archivo','dirección','direccion','mesa'];
-  const low = String(txtHoy).toLowerCase(); const zw = ZW.find(z => low.includes(z));
-  return zw ? r.filter(v => String(v.TRABAJO||'').toLowerCase().includes(zw)) : r;
+  const hoy = _expAbr(txtHoy);
+  const r = esc.elem ? filas.filter(v => esc.elem.test(_expAbr(v.TRABAJO||''))) : filas;
+  return esc.zona ? r.filter(v => elemMismo(hoy, _expAbr(v.TRABAJO||''))) : r;
 }
 
 // Paso recomendado: el primero que no conste hecho. Las causas externas no cuentan,
@@ -7185,6 +7225,8 @@ function guardarFinalizar() {
     }
   });
   if ((nuevoHorario || obs) && actualizados > 0) save(K_EXCEL, clis);
+  // El horario nuevo se ve al momento en todos los partes y paradas de esa oficina
+  if (nuevoHorario && p.codigo) propagarHorarioOficina(p.codigo, nuevoHorario);
 
   // ── EQUIPOS ──
   const equipos = loadObj(K_EQUIPOS);
@@ -10610,6 +10652,31 @@ function editarHorario(codigo, horarioActual, btn) {
   row.querySelector('#hor-edit-input').focus();
 }
 
+/* Propaga un horario nuevo a todo lo que lo muestra: Excel interno, partes de Análisis y paradas de Ruta.
+   Así el cambio se ve al momento, sin exportar y volver a cargar el Excel. */
+function propagarHorarioOficina(codigo, horario) {
+  const cod = nrmCod(codigo || '');
+  if (!cod || !horario) return;
+  const coincide = c => { const x = nrmCod(c || ''); return x && (x === cod || codigoVariantes(codigo).includes(x)); };
+  try {
+    const clis = loadArr(K_EXCEL); let ch = false;
+    clis.forEach(c => { if (coincide(c.CODIGO||c.codigo)) { c.HORARIO = horario; ch = true; } });
+    if (ch) save(K_EXCEL, clis);
+  } catch(e) {}
+  try {
+    const partes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); let ch = false;
+    partes.forEach(a => { if (coincide(a.codigo)) { a.horarioTxt = horario; ch = true; } });
+    if (ch) localStorage.setItem(STORAGE_KEY, JSON.stringify(partes));
+  } catch(e) {}
+  try {
+    const ruta = JSON.parse(localStorage.getItem(K_RUTA) || '[]'); let ch = false;
+    ruta.forEach(a => { if (coincide(a.codigo)) { a.horarioTxt = horario; ch = true; } });
+    if (ch) localStorage.setItem(K_RUTA, JSON.stringify(ruta));
+  } catch(e) {}
+  try { if (typeof renderizar === 'function') renderizar(); } catch(e) {}
+  try { if (typeof renderRuta === 'function') renderRuta(); } catch(e) {}
+}
+
 function guardarHorario(codigo, btn) {
   const input = btn.parentElement.querySelector('#hor-edit-input');
   const nuevoHorario = (input?.value || '').trim();
@@ -10629,8 +10696,9 @@ function guardarHorario(codigo, btn) {
   if (!actualizado) { buscarToast('⚠️ Cliente no encontrado'); return; }
 
   save(K_EXCEL_B, clientes);
+  propagarHorarioOficina(codigo, nuevoHorario);
   btn.closest('.hor-edit-row').remove();
-  buscarToast('✅ Horario actualizado · Recuerda exportar el Excel');
+  buscarToast('✅ Horario actualizado en la app');
 
   // Relanzar búsqueda para refrescar el resultado
   if (searchQuery) ejecutarBusqueda(searchQuery);
@@ -16316,6 +16384,24 @@ function _clContextoExtra() {
     }
   } catch(e){}
 
+  // Extintores caducados anotados en oficinas que tienen parte
+  try {
+    const conExt = [];
+    const vistasExt = new Set();
+    partes.forEach(p => {
+      if (!p.codigo) return;
+      const k = nrmCod(p.codigo);
+      if (vistasExt.has(k)) return; vistasExt.add(k);
+      const ext = mtoGetExtintores(p.codigo);   // siempre lo guardado ahora, no lo que había al pegar
+      if (!ext) return;
+      const que = [ext.polvo > 0 ? `${ext.polvo} de polvo` : '', ext.co2 > 0 ? `${ext.co2} de CO₂` : ''].filter(Boolean).join(' y ');
+      conExt.push(`<li>🧯 <strong>${escH(p.clienteReal||p.cliente||'—')}</strong>${p.localidad?' · '+escH(p.localidad):''} <span style="color:#8a8781">(${escH(p.codigo)})</span> — ${que}</li>`);
+    });
+    if (conExt.length) {
+      bloques.push(`<p style="margin:2px 0 4px"><strong>Extintores caducados</strong> en oficinas con parte, llévalos:</p><ul style="margin:0 0 8px">${conExt.join('')}</ul>`);
+    }
+  } catch(e){}
+
   // Fijados para hoy
   const fijHoy = partes.filter(p => p.fijado && p.fechaFijada === hoyISO);
   if (fijHoy.length) {
@@ -16645,9 +16731,9 @@ async function iramEjecutarAccion(cl) {
 
   /* ── DIME CONSEJOS (oficinas con visitas repetidas por la misma causa) ── */
   if (cl.intento === 'CONSEJOS') {
-    const partes = cargarPartes();
+    const partes = cargarPartes().map(p => ({ ...p, trabajo: _expAbr(p.trabajo), descripcion: _expAbr(p.descripcion) }));
     if (!partes.length) return 'No tienes partes cargados hoy. Pega los partes y te doy consejos sobre esas oficinas.';
-    const hist = loadArr(K_HIST);
+    const hist = loadArr(K_HIST).map(h => ({ ...h, TRABAJO: _expAbr(h.TRABAJO||h.trabajo||'') }));
     if (!hist.length) return 'Aún no tengo histórico suficiente para darte consejos.';
 
     // Categorías de causa → cómo detectarlas y qué aconsejar
@@ -16665,7 +16751,7 @@ async function iramEjecutarAccion(cl) {
       { id:'res',  rx:/\b(resistencia|fin\s+de\s+l[ií]nea|eol)/i,          txt:'resistencias de línea', consejo:'revisa el cableado y deja resistencias nuevas' },
       { id:'det',  rx:/\b(detector|[oó]ptico|t[eé]rmico|sonda)/i, txt:'detector de incendio', consejo:'si los detectores caen uno tras otro, mira el lazo y la alimentación antes que el detector' },
       { id:'fuego',rx:/\b(fuego|incendio|derivaci[oó]n\s+tierra|central\s+de\s+incendio)/i, txt:'avería de fuego/PCI', consejo:'revisa la zona de incendio a fondo, puede ser derivación a tierra en el bucle' },
-      { id:'acc',  rx:/\b(contacto\s+magn|im[aá]n|puerta\s+emergencia|magn[eé]tic)/i, txt:'el contacto de puerta', consejo:'cambia el contacto magnético, suele acabar soltándose' },
+      { id:'acc',  rx:/\b(contacto|im[aá]n|puerta\s+emergencia|magn[eé]tic)/i, txt:'el contacto de puerta', consejo:'cambia el contacto magnético, suele acabar soltándose' },
       { id:'barr', rx:/\bbarrera/i,                                        txt:'la barrera exterior',   consejo:'ajusta o sustituye la barrera, da saltos en falso' },
     ];
     // Un mantenimiento solo se ignora si no se reparó nada en él ("Mto anual · se sustituye central" sí cuenta)
@@ -16824,11 +16910,15 @@ async function iramEjecutarAccion(cl) {
       // coincide con ella, no tiene sentido soltarle un problema de otra cosa.
       const hayCoincidencia = !catHoy || causasOrd.some(c => c.cat.id === catHoy.id && c.vis.filter(v => !_esExt(v)).length >= 2);
 
-      causasOrd.forEach(({ cat, vis }) => {
+      const CAT_ELEM = new Set(['cam','puls','ret','salto','bandit','pila','vol','res','det','acc','barr']);
+      causasOrd.forEach(({ cat, vis: visCat }) => {
+        // Solo se habla de lo que trae el aviso de HOY. Si no se reconoce, no se dice nada del historial.
+        const esDeHoy = !!(catHoy && cat.id === catHoy.id);
+        if (!esDeHoy) return;
+        // Y solo de ese mismo elemento (misma zona o ubicación)
+        const vis = CAT_ELEM.has(cat.id) ? visCat.filter(v => elemMismo(txtHoyCat, v.TRABAJO||v.trabajo||'')) : visCat;
         const n = vis.filter(v => !_esExt(v)).length;   // obras, goteras, pintores… no cuentan
         if (n < 2) return;
-        const esDeHoy = !!(catHoy && cat.id === catHoy.id);
-        if (catHoy && !hayCoincidencia && !esDeHoy) return;   // lo de hoy va de otra cosa
 
         const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
         const ELEM = { com:'comunicación', cam:'cámara', puls:'pulsador', bat:'batería central', salto:'cilindro Salto', bandit:'bandit', pila:'pila', vol:'detector', res:'resistencia', fuego:'zona de fuego', acc:'contacto', barr:'barrera', ret:'retardo' };
@@ -16855,7 +16945,9 @@ async function iramEjecutarAccion(cl) {
 
         // Ojo: instalar algo nuevo (una mejora) NO es lo mismo que sustituir un elemento averiado
         const RX_SUSTITUIDO = /(se\s+sustituy|se\s+cambia|sustitu[iy]d|cambiad[oa]|se\s+repone|reemplaz)/i;
-        const yaCambiado = vis.some(v => RX_SUSTITUIDO.test(v.TRABAJO||v.trabajo||''));
+        const yaCambiado = CAT_ELEM.has(cat.id)
+          ? vis.some(v => _sustDe(v.TRABAJO||v.trabajo||'', cat.rx))
+          : vis.some(v => RX_SUSTITUIDO.test(v.TRABAJO||v.trabajo||''));
         const soloInstalado = !yaCambiado && vis.some(v => /(se\s+instal|instalad[oa])/i.test(v.TRABAJO||v.trabajo||''));
 
         // Frecuencia
@@ -16911,6 +17003,7 @@ async function iramEjecutarAccion(cl) {
       { id:'barrera', rx:/\bbarrera/i,                           nom:'barrera' },
       { id:'teclado', rx:/\btecla(do|r)/i,                       nom:'teclado' },
       { id:'bandit',  rx:/\bbandit/i,                            nom:'bandit' },
+      { id:'retardo', rx:/\b(spider|retardo)/i,                  nom:'retardo/Spider' },
       { id:'detfuego',rx:/\b(detector|[oó]ptico|t[eé]rmico)/i,   nom:'detector de fuego' },
     ];
     // Qué escalón consta ya hecho en el histórico
@@ -17020,21 +17113,20 @@ async function iramEjecutarAccion(cl) {
       const _hoyPci = /pci|fuego|incendio/i.test(`${p.sistema||''} ${_hoyE}`) && RX_PCI_HOY.test(_hoyE);
       const _ht     = _hoyTipos(p);
       const porElem = {};
+      // Solo el elemento del aviso de HOY; si el aviso no se reconoce, no hay escalera genérica
+      const tipoHoy = TIPOS.find(t => t.rx.test(_hoyE));
       filas.forEach(v => {
         const tr = v.TRABAJO||v.trabajo||'';
         if (esMto(tr)) return;
-        const tipo = TIPOS.find(t => t.rx.test(tr));
-        if (!tipo) return;
+        if (!tipoHoy || !tipoHoy.rx.test(tr) || !elemMismo(_hoyE, tr)) return;
+        const tipo = tipoHoy;
         if (tipo.id === 'sismico'  && _hoySis) return;
         if (tipo.id === 'detfuego' && (_hoyPci || _ht.det)) return;
         if (tipo.id === 'volum'    && _ht.vol) return;
         if (tipo.id === 'camara'   && _ht.cam) return;
-        let zs = _zonasNum(tr);
-        if (!zs.length) zs = _numsElem(tr, tipo.rx);          // "detector 10" cuenta como elemento propio
-        const claves = zs.length ? zs.map(z => `${tipo.id}#${z}`) : [`${tipo.id}#${_zonaDeG(tr)||'—'}`];
-        claves.forEach(k => {
-          (porElem[k] = porElem[k] || { tipo, zona: zs.length ? k.split('#')[1] : _zonaDeG(tr), vis: [] }).vis.push(v);
-        });
+        // Todas estas visitas son ya del mismo elemento: un solo grupo, con la zona/ubicación del aviso de hoy
+        const zHoy = _elemZonas(_hoyE)[0] || _elemLugares(_hoyE)[0] || '—';
+        (porElem[tipo.id] = porElem[tipo.id] || { tipo, zona: zHoy, vis: [] }).vis.push(v);
       });
 
       Object.values(porElem).forEach(({ tipo, zona, vis }) => {
@@ -17045,7 +17137,7 @@ async function iramEjecutarAccion(cl) {
 
         const txts = vis.map(v => v.TRABAJO||v.trabajo||'');
         const hechoConex  = txts.some(t => RX_CONEX.test(t));
-        const hechoSust   = txts.some(t => RX_SUSTIT.test(t));
+        const hechoSust   = txts.some(t => _sustDe(t, tipo.rx));   // solo si lo cambiado es ESE elemento
         const hechoCable  = txts.some(t => RX_CABLE.test(t));
         const soloLeve    = txts.every(t => RX_LEVE.test(t)) && !hechoConex && !hechoSust;
 
@@ -17268,6 +17360,8 @@ async function iramEjecutarAccion(cl) {
         const f = ot ? 'ot:'+nrm(ot)+'|'+nrm(v.FECHA||'') : 'txt:'+nrm(v.FECHA||'')+'|'+nrm((v.TRABAJO||v.trabajo||'').slice(0,40));
         if (vs2.has(f)) return false; vs2.add(f); return true;
       });
+      // El sísmico es un elemento: solo cuenta lo hecho en ESE sísmico (la central PCI es de toda la oficina)
+      if (!esPci) filas = filas.filter(v => /s[ií]smic/i.test(v.TRABAJO||v.trabajo||'') && elemMismo(txtHoy, v.TRABAJO||v.trabajo||''));
       if (!filas.length) return;
       filas.sort((a,b) => (parseFecha(a.FECHA)||0) - (parseFecha(b.FECHA)||0));
 
@@ -17388,14 +17482,8 @@ async function iramEjecutarAccion(cl) {
     const _grisE = t => `<span style="color:#8a8781">${t}</span>`;
     const _txE   = vis => vis.map(v => v.TRABAJO||v.trabajo||'').join(' · ');
     const _txRE  = vis => _txE(vis.filter(v => !_esExt(v)));
-    const _relevantes = (filas, rxElem, txtHoy) => {
-      const r = filas.filter(v => rxElem.test(v.TRABAJO||v.trabajo||''));
-      const zn = _zonasNum(txtHoy);
-      if (zn.length) return r.filter(v => _zonasNum(v.TRABAJO||v.trabajo||'').some(z => zn.includes(z)));
-      const zw = _zonaDeG(txtHoy);
-      if (zw && zw !== 'oficina') return r.filter(v => String(v.TRABAJO||v.trabajo||'').toLowerCase().includes(zw));
-      return r;
-    };
+    const _relevantes = (filas, rxElem, txtHoy) =>
+      filas.filter(v => rxElem.test(v.TRABAJO||v.trabajo||'') && elemMismo(txtHoy, v.TRABAJO||v.trabajo||''));
     const _ultRecupE = (vis, rxSust) => {
       for (let i = vis.length - 1; i >= 0; i--) {
         const t = vis[i].TRABAJO||vis[i].trabajo||'';
@@ -17478,7 +17566,7 @@ async function iramEjecutarAccion(cl) {
           const rec  = sust && _ultRecupE(vis, RXS);
           const conx = /(conexionad|se\s+aprietan?|conector|borne|estaba\s+suelto)/i.test(tR);
           const limp = /(limpi|lente|se\s+reinicia)/i.test(tR);
-          const tapa = /(se\s+cierra|\btapa\b|se\s+ajusta)/i.test(tR);
+          const tapa = /(se\s+cierra|\btapa\b)/i.test(tR);
           const ori  = /(orient|reubic|se\s+gira|ubicaci|sensibilidad|pulsos?)/i.test(tR);
           const cab  = /(cableado|nueva\s+tirada|se\s+tira\s+cable|manguera)/i.test(tR);
           const soloExt = !vis.some(v => !_esExt(v));
@@ -17502,13 +17590,13 @@ async function iramEjecutarAccion(cl) {
             titulo = 'volumétrico';
             if (soloExt)             paso = `lo anterior fue por causa externa, así que empieza de cero: revisa el conexionado`;
             else if (!conx && !sust) paso = `empieza por el conexionado`;
-            else if (!ori && !sust)  paso = `conexionado hecho: revisa orientación y ubicación (corrientes de aire, calefacción, sol, cortinas)`;
+            else if (!ori && !sust)  paso = `conexionado hecho: ajusta la sensibilidad y mira la ubicación (corrientes de aire, calefacción, sol, cortinas)`;
             else if (!sust)          paso = `conexionado y ubicación revisados: sustitúyelo`;
             else if (rec)            paso = `ya lo sustituiste con material <strong>recuperado</strong>: prueba con uno nuevo`;
             else if (!cab)           paso = `sustituido con material nuevo y sigue: revisa el cableado hasta la central`;
             else                     paso = `conexionado, ubicación, recambio y cableado hechos: replantea la ubicación o pásalo a presupuesto`;
           }
-          const hecho = [conx&&'conexionado', limp&&'limpieza/reinicio', tapa&&'tapa', ori&&'orientación/ubicación', sust&&'sustituido', rec&&'último recuperado', cab&&'cableado'].filter(Boolean);
+          const hecho = [conx&&'conexionado', limp&&'limpieza/reinicio', tapa&&'tapa', ori&&'sensibilidad/ubicación', sust&&'sustituido', rec&&'último recuperado', cab&&'cableado'].filter(Boolean);
           emitir('vol', '🚶', titulo, paso, hecho, '');
         }
       }
@@ -17593,6 +17681,31 @@ async function iramEjecutarAccion(cl) {
     });
 
     escEsp.forEach(x => consejos.push(x));
+
+    // ══ EL PROPIO AVISO DICE QUE SE REPITE ══
+    // Aunque no haya historial: si el cliente dice que no se lo solucionaron o que pasa a diario,
+    // restaurar no basta. Solo si no ha salido ya una escalera para esa oficina.
+    const RX_NO_SOLUC = /(no\s+(?:lo\s+|nos\s+lo\s+)?solucion|sigue\s+(?:igual|dispar|fallando|sin\s+funcionar)|reapertura|persiste|vuelve\s+a\s+(?:fallar|saltar|dar|pasar))/i;
+    const RX_REPITE   = /(muy\s+reiterad|todos\s+los\s+d[ií]as|cada\s+dos\s+por\s+tres|a\s+diario|continuamente|de\s+continuo|constantemente)/i;
+    const _tieneEsc = base => ofConEscPS.has(base) || ofConEscCom.has(base) || [...ofConEsc].some(k => k.startsWith(base + '|'));
+    const vistosRep = new Set();
+    const repiteLis = [];
+    partes.forEach(p => {
+      const t = `${p.trabajo||''} ${p.descripcion||''}`;
+      const noSol = RX_NO_SOLUC.test(t), rep = RX_REPITE.test(t);
+      if (!noSol && !rep) return;
+      const base = nrm(p.clienteReal||p.clienteNorm||p.cliente||'') + '|' + nrm(p.codigo||'');
+      if (vistosRep.has(base) || _tieneEsc(base)) return; vistosRep.add(base);
+      const tipo = TIPOS.find(x => x.rx.test(t));
+      const donde = _elemZonas(t)[0] ? ' zona ' + _elemZonas(t)[0] : (_elemLugares(t)[0] ? ' ' + _elemLugares(t)[0] : '');
+      const elem = tipo ? ` (${tipo.nom}${donde})` : '';
+      const nom = `${p.clienteReal||p.cliente||'—'}${p.localidad?' · '+p.localidad:''}`;
+      const cod = p.codigo ? ` <span style="color:#8a8781">(${escH(p.codigo)})</span>` : '';
+      const que = noSol ? 'el aviso dice que <strong>ya se intervino y no se solucionó</strong>'
+                        : 'el aviso dice que <strong>se repite a diario</strong>';
+      repiteLis.push(`<li>🗣️ <strong>${escH(nom)}</strong>${cod}${escH(elem)} — ${que}: no basta con restaurar, busca la causa (conexionado, cableado o el propio elemento) antes de irte.</li>`);
+    });
+    repiteLis.forEach(x => consejos.push(x));
 
 
 
